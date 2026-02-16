@@ -45,16 +45,18 @@ def get_product_data(url):
             words = raw_title.split()
             title = " ".join(words[:13]) + ".." if len(words) > 13 else raw_title
 
-        # 2. سحب السعر وتنظيفه من النقاط والرموز
+        # 2. سحب السعر وتنظيفه (إزالة الهللات والنقاط)
         price = "شيك بالرابط 🏷️"
         price_selectors = ['.a-price .a-offscreen', 'span.a-price-whole', '#corePrice_feature_div .a-price-whole']
         
         for sel in price_selectors:
             p_tag = soup.select_one(sel)
             if p_tag and p_tag.text.strip():
-                # تنظيف السعر من (النقطة، الفواصل، والرموز المخفية)
                 raw_p = p_tag.text.strip()
-                clean_p = re.sub(r'[^\d]', '', raw_p) # استخراج الأرقام فقط
+                # 1. إزالة أي شيء بعد النقطة (الهللات)
+                no_decimals = raw_p.split('.')[0]
+                # 2. استخراج الأرقام فقط (لإزالة الفواصل والرموز)
+                clean_p = re.sub(r'[^\d]', '', no_decimals)
                 
                 if clean_p:
                     price = f"{clean_p} ريال"
@@ -102,5 +104,5 @@ def handle_message(message):
             else:
                 bot.reply_to(message, "الرابط عيّا يسحب، جربي واحد ثاني يا بعدي 💔")
 
-print("البوت شغال.. وتم تنظيف السعر من النقاط!")
+print("البوت شغال.. تم حذف الهللات والنقاط!")
 bot.polling()
