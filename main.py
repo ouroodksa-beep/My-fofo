@@ -8,12 +8,12 @@ import re
 API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
 
-def clean_title(full_title):
-    # اختصار الاسم بأخذ أول 6 كلمات فقط لضمان عدم قطع الكلمات
-    words = full_title.split()
-    if len(words) > 6:
-        return " ".join(words[:6]) + ".."
-    return full_title
+def get_smart_text(full_text, max_words=12):
+    # وظيفة ذكية لاختصار النص ليكون سطرين تقريباً بدون قطع الكلمات
+    words = full_text.split()
+    if len(words) > max_words:
+        return " ".join(words[:max_words]) + "..."
+    return full_text
 
 def get_product_data(url):
     try:
@@ -25,21 +25,18 @@ def get_product_data(url):
         res = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
         soup = BeautifulSoup(res.content, 'html.parser')
 
-        # 1. استخراج الاسم واختصاره بذكاء (كلمات كاملة)
+        # 1. استخراج الاسم واختصاره بذكاء ليكون سطرين
         title_tag = soup.find("span", {"id": "productTitle"}) or soup.find("meta", property="og:title")
         raw_title = title_tag.get_text().strip() if title_tag else "منتج مميز"
-        # تنظيف الاسم من كلمة Amazon وغيرها
         raw_title = raw_title.replace("Amazon.sa :", "").replace("Amazon.sa:", "").strip()
-        product_name = clean_title(raw_title)
+        product_info = get_smart_text(raw_title, max_words=14) # سطرين تقريباً
 
         # 2. استخراج السعر
         price = "سعر لقطة!"
-        # محاولة سحب السعر من الـ Offscreen أولاً (الأكثر دقة في أمازون)
         price_tag = soup.select_one(".a-price .a-offscreen")
         if price_tag:
             price = price_tag.get_text().strip()
         else:
-            # محاولة بديلة لو كان السعر بنظام الخانات المنفصلة
             p_whole = soup.find("span", {"class": "a-price-whole"})
             if p_whole:
                 price = p_whole.get_text().strip().replace(".", "") + " ريال"
@@ -53,15 +50,16 @@ def get_product_data(url):
         elif img_tag:
             img_url = img_tag.get('src')
 
-        # 4. تنسيق المنشور (5 سطور مرتبة)
+        # 4. تنسيق المنشور (توزيع جديد)
         intros = ["يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨"]
         descs = ["جودة وفخامة وتستاهلكم.", "شيء من الآخر ويبيض الوجه.", "رهيب وتقييمه عالي جداً."]
         
+        # بناء الرسالة مع السطر الفاضي قبل اللينك
         caption = (
-            f"{random.choice(intros)}\n"
-            f"📦 **المنتج:** {product_name}\n"
+            f"{random.choice(intros)}\n\n"
+            f"📦 **المنتج:** {product_info}\n"
             f"💰 **السعر:** {price}\n"
-            f"👌 {random.choice(descs)}\n"
+            f"👌 {random.choice(descs)}\n\n" # سطر فاضي هنا
             f"🔗 **الرابط:** {url}"
         )
         
@@ -90,5 +88,5 @@ def handle_message(message):
             else:
                 bot.reply_to(message, "الرابط ما سحب بيانات، جربي رابط ثاني 💔")
 
-print("البوت شغال.. وجاهز للفزعة!")
+print("البوت شغال.. والوصف صار أرتب!")
 bot.polling()
