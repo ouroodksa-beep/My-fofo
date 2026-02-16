@@ -1,5 +1,5 @@
 import telebot
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import random
 import re
@@ -7,15 +7,12 @@ import os
 from flask import Flask
 from threading import Thread
 
-# --- إعداد خادم ويب وهمي لمنصة Render ---
+# --- إعداد خادم الويب لإبقاء البوت حياً على Render ---
 app = Flask('')
-
 @app.route('/')
-def home():
-    return "البوت يعمل بكفاءة!"
+def home(): return "البوت شغال بنجاح!"
 
 def run():
-    # Render يطلب العمل على منفذ معين (غالباً 10000 أو 8080)
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -23,55 +20,52 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# --- إعدادات البوت الأساسية ---
+# --- إعدادات البوت ---
 API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
+scraper = cloudscraper.create_scraper() # لتجاوز حماية أمازون
 
-# بنك الجمل السعودي الضخم
-price_labels = ["بكم؟", "السعر:", "بكم هالزين؟", "قيمة اللقطة:", "سعره اللقطة:", "بكم نخلص؟", "قيمة القطعة:"]
+# بنك الكلمات السعودي
+price_labels = ["بكم؟", "السعر:", "بكم هالزين؟", "قيمة اللقطة:", "سعره اللقطة:"]
 intros = [
     "يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨", 
-    "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍",
-    "يا مسا الزين.. شوفوا هالجمال 🌸", "لقطة اليوم للي يدور الفخامة ✨", "يا حي الله هالطلة.. شي فنان 🌟"
+    "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍"
 ]
 descs = [
     "شيء فاخر ومن الآخر ويستاهلكم.", "الزين ما يكمل إلا به، جودة وسعر.", "رهيب وفنان وتصميمه يفتح النفس.", 
-    "تقييمه يطمن وبصراحة ما يتفوت.", "خامة ممتازة وسعرها يا بلاش والله.", "والله لو ماهو بطل ما جبته لكم."
+    "تقييمه يطمن وبصراحة ما يتفوت.", "خامة ممتازة وسعرها يا بلاش والله."
 ]
 
 def get_product_data(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"}
-        res = requests.get(url, headers=headers, timeout=25)
+        # استخدام cloudscraper بدلاً من requests العادي
+        res = scraper.get(url, timeout=25)
         soup = BeautifulSoup(res.content, 'html.parser')
 
-        # سحب الاسم (سطرين)
+        # 1. سحب الاسم
         title_tag = soup.select_one('#productTitle') or soup.find("meta", property="og:title")
         raw_title = title_tag.get_text().strip().replace("Amazon.sa :", "").strip() if title_tag else "منتج فخم"
-        words = raw_title.split()
-        product_info = " ".join(words[:13]) + ".." if len(words) > 13 else raw_title
+        product_info = " ".join(raw_title.split()[:13]) + ".."
 
-        # سحب السعر (تنظيف الهللات والنقاط)
+        # 2. سحب السعر (الرجوع للمود القديم مع تنظيف الهللات)
         price = "شيك بالرابط 🏷️"
-        price_selectors = ['.a-price .a-offscreen', 'span.a-price-whole', '#corePrice_feature_div .a-price-whole']
-        for sel in price_selectors:
-            p_tag = soup.select_one(sel)
-            if p_tag and p_tag.text.strip():
-                # إزالة الهللات والرموز
-                raw_p = p_tag.text.strip().split('.')[0]
-                clean_p = re.sub(r'[^\d]', '', raw_p)
-                if clean_p:
-                    price = f"{clean_p} ريال"
-                    break
+        # محاولة السحب من الأوسمة الأكثر دقة
+        p_tag = soup.find("span", class_="a-price-whole") or soup.find("span", class_="a-offscreen")
+        
+        if p_tag:
+            price_text = p_tag.get_text().strip()
+            # إزالة الهللات (أي شيء بعد النقطة)
+            price_text = price_text.split('.')[0]
+            # استخراج الأرقام فقط لحذف الفواصل والنقاط
+            clean_p = re.sub(r'[^\d]', '', price_text)
+            if clean_p:
+                price = f"{clean_p} ريال"
 
-        # سحب الصورة (أعلى جودة)
+        # 3. سحب الصورة
         img_url = None
-        img_tag = soup.select_one('#landingImage')
+        img_tag = soup.find("img", {"id": "landingImage"})
         if img_tag and img_tag.has_attr('data-a-dynamic-image'):
-            links = re.findall(r'(https?://[^\s"]+)', img_tag['data-a-dynamic-image'])
-            img_url = links[-1] if links else img_tag.get('src')
-        elif img_tag:
-            img_url = img_tag.get('src')
+            img_url = re.findall(r'(https?://[^\s"]+)', img_tag['data-a-dynamic-image'])[-1]
 
         caption = (
             f"{random.choice(intros)}\n\n"
@@ -99,8 +93,6 @@ def handle_message(message):
                 except:
                     bot.send_message(message.chat.id, caption, parse_mode='Markdown')
 
-# --- التشغيل الرئيسي ---
 if __name__ == "__main__":
-    keep_alive()  # البدء بتشغيل خادم الويب الوهمي
-    print("البوت والموقع الوهمي في حالة تشغيل..")
+    keep_alive()
     bot.polling(none_stop=True)
