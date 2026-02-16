@@ -3,78 +3,87 @@ import requests
 from bs4 import BeautifulSoup
 import random
 import re
+import time
 
 # التوكن حقك
 API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
 
-# --- بنك الجمل السعودية (أكثر من 50 خلطة) ---
+# بنك الجمل السعودية (أكثر من 50 جملة)
 intros = [
     "يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨", 
     "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍",
     "تبون الصدق؟ هالقطعة ما تتفوت 🚀", "شوفوا وش طحت عليه.. لقطة ملكية 👑", "الزين وصل.. الحقوا عليه! 🔥",
-    "يا مسا الزين.. شوفوا هالجمال 🌸", "لقطة اليوم للي يدور الفخامة ✨", "هذا لقطة العمر 🎯",
-    "يا بلاش على هالزين.. شوفوا! 💰", "تبون قطعة تبيض الوجه؟ هذي هي 💎", "قنصتها لكم من قلب أمازون 🔥",
-    "لا تدورون غيره.. هذا هو المطلوب 🎯", "شوفوا هالزين وش يقول يا جماعة 😍", "لقطة خرافية وسعرها بطل ✨",
-    "يا هلا باللي يدورون الجودة.. 🌟", "يا حي الله هالطلة.. شي فنان 🌟", "لقطة ما يبي لها تفكير! ✅"
+    "يا مسا الزين.. شوفوا هالجمال 🌸", "لقطة اليوم للي يدور الفخامة ✨", "هذا لقطة العمر 🎯"
 ]
 
 descs = [
     "شيء فاخر ومن الآخر ويستاهلكم.", "الزين ما يكمل إلا به، جودة وسعر.", "رهيب وفنان وتصميمه يفتح النفس.", 
-    "تقييمه يطمن وبصراحة ما يتفوت.", "قطعة فنية وتبيض الوجه.", "خامة ممتازة وسعرها يا بلاش والله.", 
-    "والله لو ماهو بطل ما جبته لكم.", "جودة عالية وسعره صدمة بصراحة.", "من أكثر القطع طلباً وتقييمه عالي.", 
-    "يستاهل كل ريال يدفع فيه يالربع.", "فخامة وجودة وتصميم عصري فنان.", "تراه يخلص بسرعة، اللي يبيه يلحق.",
-    "شي بطل بطل.. لا يطوفكم.", "مناسب جداً وكده 100/100 👌", "الكل يمدحه وتجربته تبيض الوجه.", 
-    "خيار ذكي للي يدور الزين وبس.", "تصميم يفتح النفس وسعر خيالي.", "والله قطعة متعوب عليها يا جماعة.", 
-    "هذا اللي يخليك متميز باختيارك.", "جودة وسعر ومظهر.. وش تبي أكثر؟", "خذه ووسع صدرك، تراه فنان!"
+    "تقييمه يطمن وبصراحة ما يتفوت.", "خامة ممتازة وسعرها يا بلاش والله.", "والله لو ماهو بطل ما جبته لكم.", 
+    "جودة عالية وسعره صدمة بصراحة.", "يستاهل كل ريال يدفع فيه يالربع.", "فخامة وجودة وتصميم عصري فنان."
 ]
 
 def get_product_data(url):
     try:
+        # رؤوس طلبات (Headers) جديدة وأقوى لتجاوز حظر أمازون
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
             "Accept-Language": "ar-SA,en-US;q=0.9,ar;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1"
         }
-        res = requests.get(url, headers=headers, timeout=20)
+        
+        session = requests.Session()
+        res = session.get(url, headers=headers, timeout=25)
+        
+        if res.status_code != 200:
+            return None, None
+
         soup = BeautifulSoup(res.content, 'html.parser')
 
-        # 1. اسم المنتج (سطرين)
-        title_tag = soup.find("span", {"id": "productTitle"}) or soup.find("meta", property="og:title")
-        raw_title = title_tag.get_text().strip() if title_tag else "منتج رهيب"
-        words = raw_title.replace("Amazon.sa :", "").split()
-        product_info = " ".join(words[:12]) + ".." if len(words) > 12 else raw_title
+        # 1. سحب الاسم بذكاء (أكثر من محاولة)
+        title = "منتج رهيب"
+        title_tag = soup.select_one('#productTitle') or soup.find("meta", property="og:title")
+        if title_tag:
+            raw_title = title_tag.get_text().strip()
+            raw_title = raw_title.replace("Amazon.sa :", "").replace("Amazon.sa:", "").strip()
+            words = raw_title.split()
+            title = " ".join(words[:13]) + ".." if len(words) > 13 else raw_title
 
-        # 2. السعر (محاولات مكثفة)
+        # 2. سحب السعر (تحديث شامل للمعرفات الجديدة)
         price = "شيك بالرابط 🏷️"
-        # نبحث عن السعر في الأوسمة بكل الأشكال الممكنة
         price_selectors = [
-            'span.a-price-whole', 
-            'span.a-offscreen', 
-            'span#priceblock_ourprice',
-            'span.a-color-price'
+            '.a-price .a-offscreen',
+            'span.a-price-whole',
+            '#corePrice_feature_div .a-price-whole',
+            '#priceblock_ourprice',
+            '.a-color-price'
         ]
         for sel in price_selectors:
             p_tag = soup.select_one(sel)
             if p_tag and p_tag.text.strip():
-                clean_p = p_tag.text.strip().replace('\u200f', '').replace('\u200e', '')
-                if any(c.isdigit() for c in clean_p):
-                    price = clean_p if "ريال" in clean_p else f"{clean_p} ريال"
+                p_text = p_tag.text.strip().replace('\u200f', '').replace('\u200e', '')
+                if any(c.isdigit() for c in p_text):
+                    price = p_text if "ريال" in p_text else f"{p_text} ريال"
                     break
 
-        # 3. الصورة (جودة عالية)
+        # 3. سحب الصورة (أعلى جودة ممكنة)
         img_url = None
-        img_tag = soup.find("img", {"id": "landingImage"})
-        if img_tag and img_tag.has_attr('data-a-dynamic-image'):
-            # استخراج أكبر رابط من الـ dictionary
-            img_data = img_tag['data-a-dynamic-image']
-            img_url = re.findall(r'(https?://[^\s"]+)', img_data)[-1]
-        elif img_tag:
-            img_url = img_tag.get('src')
+        img_tag = soup.select_one('#landingImage') or soup.select_one('#imgBlkFront')
+        if img_tag:
+            if img_tag.has_attr('data-a-dynamic-image'):
+                img_data = img_tag['data-a-dynamic-image']
+                # استخدام Regex لاستخراج أول رابط صورة كبير
+                links = re.findall(r'(https?://[^\s"]+)', img_data)
+                img_url = links[-1] if links else img_tag.get('src')
+            else:
+                img_url = img_tag.get('src')
 
-        # 4. بناء المنشور
+        # 4. تنسيق الرسالة
         caption = (
             f"{random.choice(intros)}\n\n"
-            f"📦 **المنتج:** {product_info}\n\n"
+            f"📦 **المنتج:** {title}\n\n"
             f"💰 **بكم؟** {price}\n"
             f"👌 {random.choice(descs)}\n\n"
             f"🔗 **رابط الطلب:** {url}"
@@ -92,14 +101,17 @@ def handle_message(message):
             url = url_match.group(0)
             bot.send_chat_action(message.chat.id, 'upload_photo')
             caption, img_url = get_product_data(url)
+            
             if caption:
                 try:
-                    if img_url: bot.send_photo(message.chat.id, img_url, caption=caption, parse_mode='Markdown')
-                    else: bot.send_message(message.chat.id, caption, parse_mode='Markdown')
-                except:
+                    if img_url:
+                        bot.send_photo(message.chat.id, img_url, caption=caption, parse_mode='Markdown')
+                    else:
+                        bot.send_message(message.chat.id, caption, parse_mode='Markdown')
+                except Exception as e:
                     bot.send_message(message.chat.id, caption, parse_mode='Markdown')
             else:
-                bot.reply_to(message, "الرابط عيّا يفتح، جربي غيره يا بعدي 💔")
+                bot.reply_to(message, "الرابط عيّا يسحب بيانات، جربي رابط ثاني يا بعدي 💔")
 
-print("البوت شغال..")
+print("البوت عاد للعمل بقوة..")
 bot.polling()
