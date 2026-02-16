@@ -9,10 +9,10 @@ API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
 
 def get_smart_text(full_text, max_words=12):
-    # وظيفة ذكية لاختصار النص ليكون سطرين تقريباً بدون قطع الكلمات
+    # يختصر الاسم لسطرين تقريباً بدون ما يقطع الكلمة
     words = full_text.split()
     if len(words) > max_words:
-        return " ".join(words[:max_words]) + "..."
+        return " ".join(words[:max_words]) + ".."
     return full_text
 
 def get_product_data(url):
@@ -25,23 +25,32 @@ def get_product_data(url):
         res = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
         soup = BeautifulSoup(res.content, 'html.parser')
 
-        # 1. استخراج الاسم واختصاره بذكاء ليكون سطرين
+        # 1. اسم المنتج (ذكاء سطرين)
         title_tag = soup.find("span", {"id": "productTitle"}) or soup.find("meta", property="og:title")
-        raw_title = title_tag.get_text().strip() if title_tag else "منتج مميز"
+        raw_title = title_tag.get_text().strip() if title_tag else "منتج فخم"
         raw_title = raw_title.replace("Amazon.sa :", "").replace("Amazon.sa:", "").strip()
-        product_info = get_smart_text(raw_title, max_words=14) # سطرين تقريباً
+        product_info = get_smart_text(raw_title, max_words=13)
 
-        # 2. استخراج السعر
-        price = "سعر لقطة!"
-        price_tag = soup.select_one(".a-price .a-offscreen")
-        if price_tag:
-            price = price_tag.get_text().strip()
-        else:
-            p_whole = soup.find("span", {"class": "a-price-whole"})
-            if p_whole:
-                price = p_whole.get_text().strip().replace(".", "") + " ريال"
+        # 2. السعر (محاولات مكثفة عشان ما يطلع فاضي)
+        price = "سعره لقطة (شيك بالرابط) 🏷️"
+        # نبحث في الأماكن اللي يتخبا فيها السعر في أمازون السعودية
+        selectors = [
+            "span.a-price-whole", 
+            ".a-price .a-offscreen", 
+            "#corePrice_feature_div .a-price-whole",
+            ".a-color-price"
+        ]
+        
+        for selector in selectors:
+            tag = soup.select_one(selector)
+            if tag and tag.get_text().strip():
+                p_text = tag.get_text().strip().replace(".", "")
+                # تنظيف الرقم وتجهيزه بكلمة ريال
+                if any(char.isdigit() for char in p_text):
+                    price = f"{p_text} ريال" if "ريال" not in p_text else p_text
+                    break
 
-        # 3. سحب الصورة (أعلى جودة)
+        # 3. الصورة (أعلى جودة)
         img_url = None
         img_tag = soup.find("img", {"id": "landingImage"})
         if img_tag and img_tag.has_attr('data-a-dynamic-image'):
@@ -50,17 +59,16 @@ def get_product_data(url):
         elif img_tag:
             img_url = img_tag.get('src')
 
-        # 4. تنسيق المنشور (توزيع جديد)
-        intros = ["يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨"]
-        descs = ["جودة وفخامة وتستاهلكم.", "شيء من الآخر ويبيض الوجه.", "رهيب وتقييمه عالي جداً."]
+        # 4. سوالف سعودية (افتتاحية ووصف)
+        intros = ["يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨", "ابشروا بالزين.. شوفوا وش لقيت 💎"]
+        descs = ["شيء فاخر ومن الآخر ويستاهلكم.", "الزين ما يكمل إلا به، جودة وسعر.", "رهيب وفنان وتصميمه يفتح النفس.", "تقييمه يطمن وبصراحة ما يتفوت."]
         
-        # بناء الرسالة مع السطر الفاضي قبل اللينك
         caption = (
             f"{random.choice(intros)}\n\n"
             f"📦 **المنتج:** {product_info}\n"
-            f"💰 **السعر:** {price}\n"
-            f"👌 {random.choice(descs)}\n\n" # سطر فاضي هنا
-            f"🔗 **الرابط:** {url}"
+            f"💰 **بكم؟** {price}\n"
+            f"👌 {random.choice(descs)}\n\n"
+            f"🔗 **اطلبه من هنا:** {url}"
         )
         
         return caption, img_url
@@ -86,7 +94,9 @@ def handle_message(message):
                 else:
                     bot.send_message(message.chat.id, caption, parse_mode='Markdown')
             else:
-                bot.reply_to(message, "الرابط ما سحب بيانات، جربي رابط ثاني 💔")
+                bot.reply_to(message, "الرابط عيّا يفتح معي، جربي غيره يا بعدي 💔")
+    else:
+        bot.reply_to(message, "أرسلي الرابط وابشري بالفزعة 🫡")
 
-print("البوت شغال.. والوصف صار أرتب!")
+print("البوت شغال.. وبالهوية السعودية!")
 bot.polling()
