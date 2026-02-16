@@ -23,13 +23,15 @@ def keep_alive():
 # --- إعدادات البوت ---
 API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
-scraper = cloudscraper.create_scraper() # لتجاوز حماية أمازون
+# استخدام scraper متطور لتجاوز حجب الأسعار
+scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
 
-# بنك الكلمات السعودي
-price_labels = ["بكم؟", "السعر:", "بكم هالزين؟", "قيمة اللقطة:", "سعره اللقطة:"]
+# بنك الكلمات السعودي (أكثر من 100 خلطة)
+price_labels = ["بكم؟", "السعر:", "بكم هالزين؟", "قيمة اللقطة:", "سعره اللقطة:", "بكم نخلص؟"]
 intros = [
     "يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨", 
-    "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍"
+    "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍",
+    "يا مسا الزين.. شوفوا هالجمال 🌸", "لقطة اليوم للي يدور الفخامة ✨"
 ]
 descs = [
     "شيء فاخر ومن الآخر ويستاهلكم.", "الزين ما يكمل إلا به، جودة وسعر.", "رهيب وفنان وتصميمه يفتح النفس.", 
@@ -38,35 +40,42 @@ descs = [
 
 def get_product_data(url):
     try:
-        # استخدام cloudscraper بدلاً من requests العادي
-        res = scraper.get(url, timeout=25)
+        # جلب الصفحة باستخدام المتصفح الوهمي
+        res = scraper.get(url, timeout=30)
         soup = BeautifulSoup(res.content, 'html.parser')
 
-        # 1. سحب الاسم
+        # 1. سحب الاسم (سطرين)
         title_tag = soup.select_one('#productTitle') or soup.find("meta", property="og:title")
         raw_title = title_tag.get_text().strip().replace("Amazon.sa :", "").strip() if title_tag else "منتج فخم"
-        product_info = " ".join(raw_title.split()[:13]) + ".."
+        words = raw_title.split()
+        product_info = " ".join(words[:13]) + ".." if len(words) > 13 else raw_title
 
-        # 2. سحب السعر (الرجوع للمود القديم مع تنظيف الهللات)
+        # 2. سحب السعر (محاولات متعددة ومكثفة)
         price = "شيك بالرابط 🏷️"
-        # محاولة السحب من الأوسمة الأكثر دقة
-        p_tag = soup.find("span", class_="a-price-whole") or soup.find("span", class_="a-offscreen")
+        # نبحث عن السعر في كل مكان ممكن أمازون يخفيه فيه
+        p_tag = (soup.select_one('.a-price .a-offscreen') or 
+                 soup.select_one('span.a-price-whole') or 
+                 soup.select_one('.a-color-price') or
+                 soup.select_one('#corePrice_feature_div .a-offscreen'))
         
         if p_tag:
             price_text = p_tag.get_text().strip()
-            # إزالة الهللات (أي شيء بعد النقطة)
+            # حذف الهللات: نأخذ فقط ما قبل النقطة
             price_text = price_text.split('.')[0]
-            # استخراج الأرقام فقط لحذف الفواصل والنقاط
+            # حذف أي رموز غير الأرقام (الفواصل، النقاط، العملات)
             clean_p = re.sub(r'[^\d]', '', price_text)
             if clean_p:
                 price = f"{clean_p} ريال"
 
-        # 3. سحب الصورة
+        # 3. سحب الصورة (أعلى جودة)
         img_url = None
         img_tag = soup.find("img", {"id": "landingImage"})
         if img_tag and img_tag.has_attr('data-a-dynamic-image'):
             img_url = re.findall(r'(https?://[^\s"]+)', img_tag['data-a-dynamic-image'])[-1]
+        elif img_tag:
+            img_url = img_tag.get('src')
 
+        # 4. التنسيق النهائي
         caption = (
             f"{random.choice(intros)}\n\n"
             f"📦 **المنتج:** {product_info}\n\n"
@@ -94,5 +103,5 @@ def handle_message(message):
                     bot.send_message(message.chat.id, caption, parse_mode='Markdown')
 
 if __name__ == "__main__":
-    keep_alive()
+    keep_alive() # لتشغيل الموقع الوهمي على Render
     bot.polling(none_stop=True)
