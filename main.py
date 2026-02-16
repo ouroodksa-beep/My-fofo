@@ -3,9 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 import random
 import re
-import time
 
-# التوكن حقك
+# التوكن الخاص بكِ
 API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -25,62 +24,53 @@ descs = [
 
 def get_product_data(url):
     try:
-        # رؤوس طلبات (Headers) جديدة وأقوى لتجاوز حظر أمازون
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Accept-Language": "ar-SA,en-US;q=0.9,ar;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1"
-        }
+        # رؤوس طلبات متنوعة لتجنب الحظر
+        headers_list = [
+            {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"},
+            {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+            {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"}
+        ]
         
-        session = requests.Session()
-        res = session.get(url, headers=headers, timeout=25)
-        
+        res = requests.get(url, headers=random.choice(headers_list), timeout=25)
         if res.status_code != 200:
             return None, None
 
         soup = BeautifulSoup(res.content, 'html.parser')
 
-        # 1. سحب الاسم بذكاء (أكثر من محاولة)
+        # 1. سحب الاسم (سطرين بدون قطع كلمات)
         title = "منتج رهيب"
         title_tag = soup.select_one('#productTitle') or soup.find("meta", property="og:title")
         if title_tag:
-            raw_title = title_tag.get_text().strip()
-            raw_title = raw_title.replace("Amazon.sa :", "").replace("Amazon.sa:", "").strip()
+            raw_title = title_tag.get_text().strip().replace("Amazon.sa :", "").strip()
             words = raw_title.split()
             title = " ".join(words[:13]) + ".." if len(words) > 13 else raw_title
 
-        # 2. سحب السعر (تحديث شامل للمعرفات الجديدة)
+        # 2. سحب السعر وتنظيفه من النقاط والرموز
         price = "شيك بالرابط 🏷️"
-        price_selectors = [
-            '.a-price .a-offscreen',
-            'span.a-price-whole',
-            '#corePrice_feature_div .a-price-whole',
-            '#priceblock_ourprice',
-            '.a-color-price'
-        ]
+        price_selectors = ['.a-price .a-offscreen', 'span.a-price-whole', '#corePrice_feature_div .a-price-whole']
+        
         for sel in price_selectors:
             p_tag = soup.select_one(sel)
             if p_tag and p_tag.text.strip():
-                p_text = p_tag.text.strip().replace('\u200f', '').replace('\u200e', '')
-                if any(c.isdigit() for c in p_text):
-                    price = p_text if "ريال" in p_text else f"{p_text} ريال"
+                # تنظيف السعر من (النقطة، الفواصل، والرموز المخفية)
+                raw_p = p_tag.text.strip()
+                clean_p = re.sub(r'[^\d]', '', raw_p) # استخراج الأرقام فقط
+                
+                if clean_p:
+                    price = f"{clean_p} ريال"
                     break
 
-        # 3. سحب الصورة (أعلى جودة ممكنة)
+        # 3. سحب الصورة (أعلى جودة)
         img_url = None
         img_tag = soup.select_one('#landingImage') or soup.select_one('#imgBlkFront')
         if img_tag:
             if img_tag.has_attr('data-a-dynamic-image'):
-                img_data = img_tag['data-a-dynamic-image']
-                # استخدام Regex لاستخراج أول رابط صورة كبير
-                links = re.findall(r'(https?://[^\s"]+)', img_data)
+                links = re.findall(r'(https?://[^\s"]+)', img_tag['data-a-dynamic-image'])
                 img_url = links[-1] if links else img_tag.get('src')
             else:
                 img_url = img_tag.get('src')
 
-        # 4. تنسيق الرسالة
+        # 4. التنسيق النهائي
         caption = (
             f"{random.choice(intros)}\n\n"
             f"📦 **المنتج:** {title}\n\n"
@@ -89,8 +79,7 @@ def get_product_data(url):
             f"🔗 **رابط الطلب:** {url}"
         )
         return caption, img_url
-    except Exception as e:
-        print(f"Error: {e}")
+    except:
         return None, None
 
 @bot.message_handler(func=lambda message: True)
@@ -108,10 +97,10 @@ def handle_message(message):
                         bot.send_photo(message.chat.id, img_url, caption=caption, parse_mode='Markdown')
                     else:
                         bot.send_message(message.chat.id, caption, parse_mode='Markdown')
-                except Exception as e:
+                except:
                     bot.send_message(message.chat.id, caption, parse_mode='Markdown')
             else:
-                bot.reply_to(message, "الرابط عيّا يسحب بيانات، جربي رابط ثاني يا بعدي 💔")
+                bot.reply_to(message, "الرابط عيّا يسحب، جربي واحد ثاني يا بعدي 💔")
 
-print("البوت عاد للعمل بقوة..")
+print("البوت شغال.. وتم تنظيف السعر من النقاط!")
 bot.polling()
