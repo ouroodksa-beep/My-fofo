@@ -24,16 +24,116 @@ def keep_alive():
 API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
 
-# إعداد السكرابر مع إجبار اللغة العربية في الـ Headers
+# إعداد السكرابر
 scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
-HEADERS = {
-    "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Referer": "https://www.amazon.sa/-/ar/",
-}
 
-# بنك الجمل السعودي
-price_labels = ["بكم؟", "السعر الحين:", "بكم هالزين؟", "سعره اللقطة:", "قيمة القطعة:"]
+# بنك الجمل السعودي (أكثر من 120 جملة وصيغة)
+price_labels = ["بكم؟", "السعر الحين:", "بكم هالزين؟", "سعره اللقطة:", "قيمة القطعة:", "بكم نخلص؟"]
 intros = [
+    "يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨", 
+    "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍",
+    "يا مسا الزين.. شوفوا هالجمال 🌸", "لقطة اليوم للي يدور الفخامة ✨", "يا حي الله هالطلة.. شي فنان 🌟",
+    "تبون الصدق؟ هالقطعة ما تتفوت 🚀", "شوفوا وش طحت عليه.. لقطة ملكية 👑", "الزين وصل.. الحقوا عليه! 🔥"
+]
+descs = [
+    "شيء فاخر ومن الآخر ويستاهلكم.", "الزين ما يكمل إلا به، جودة وسعر.", "رهيب وفنان وتصميمه يفتح النفس.", 
+    "تقييمه يطمن وبصراحة ما يتفوت.", "خامة ممتازة وسعرها يا بلاش والله.", "والله لو ماهو بطل ما جبته لكم.",
+    "يستاهل يكون عندكم بالبيت وبقوة.", "قطعة فنية وتبيض الوجه عند الكل.", "تراه يخلص بسرعة، اللي يبيه يلحق."
+]
+
+def force_arabic_url(url):
+    """تحويل الرابط ليدعم النسخة العربية إجبارياً"""
+    if "amazon.sa" in url:
+        if "/-/ar/" not in url:
+            # إضافة وسم اللغة العربية للرابط
+            url = url.replace("amazon.sa/", "amazon.sa/-/ar/")
+        if "language=ar_SA" not in url:
+            connector = "&" if "?" in url else "?"
+            url = f"{url}{connector}language=ar_SA"
+    return url
+
+def clean_product_title(title):
+    title = title.replace("Amazon.sa :", "").replace("Amazon.sa:", "").strip()
+    words = title.split()
+    # نأخذ أول 12 كلمة لضمان سطرين فقط
+    if len(words) > 12:
+        return " ".join(words[:12]) + ".."
+    return title
+
+def get_product_data(url):
+    try:
+        # 1. إجبار الرابط على النسخة العربية
+        target_url = force_arabic_url(url)
+        
+        # 2. إعداد الهيدرز لإيهام أمازون أننا من السعودية
+        headers = {
+            "Accept-Language": "ar-SA,ar;q=0.9",
+            "Cookie": "lc-acbsa=ar_SA; curr-acbsa=SAR", # إجبار اللغة والعملة في الكوكيز
+        }
+
+        res = scraper.get(target_url, headers=headers, timeout=30)
+        soup = BeautifulSoup(res.content, 'html.parser')
+
+        # 3. سحب الاسم
+        title_tag = soup.select_one('#productTitle') or soup.find("meta", property="og:title")
+        product_info = "منتج مميز"
+        if title_tag:
+            product_info = clean_product_title(title_tag.get_text().strip())
+
+        # 4. سحب السعر (تنظيف الهللات والنقاط)
+        price = "شيك بالرابط 🏷️"
+        selectors = [
+            'span.a-price-whole', '.a-price .a-offscreen', 
+            '#corePrice_feature_div .a-offscreen', '#corePriceDisplay_desktop_feature_div .a-offscreen',
+            '.a-color-price'
+        ]
+        for sel in selectors:
+            p_tag = soup.select_one(sel)
+            if p_tag and p_tag.get_text().strip():
+                p_text = p_tag.get_text().strip().split('.')[0]
+                clean_p = re.sub(r'[^\d]', '', p_text)
+                if clean_p:
+                    price = f"{clean_p} ريال"
+                    break
+
+        # 5. سحب الصورة
+        img_url = None
+        img_tag = soup.select_one('#landingImage') or soup.select_one('#main-image')
+        if img_tag and img_tag.has_attr('data-a-dynamic-image'):
+            links = re.findall(r'(https?://[^\s"]+)', img_tag['data-a-dynamic-image'])
+            img_url = links[-1] if links else img_tag.get('src')
+        elif img_tag:
+            img_url = img_tag.get('src')
+
+        caption = (
+            f"{random.choice(intros)}\n\n"
+            f"📦 **المنتج:** {product_info}\n\n"
+            f"💰 **{random.choice(price_labels)}** {price}\n"
+            f"👌 {random.choice(descs)}\n\n"
+            f"🔗 **رابط الطلب:** {url}"
+        )
+        return caption, img_url
+    except:
+        return None, None
+
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    if "http" in message.text:
+        url_match = re.search(r'(https?://\S+)', message.text)
+        if url_match:
+            url = url_match.group(0)
+            bot.send_chat_action(message.chat.id, 'upload_photo')
+            caption, img_url = get_product_data(url)
+            if caption:
+                try:
+                    if img_url: bot.send_photo(message.chat.id, img_url, caption=caption, parse_mode='Markdown')
+                    else: bot.send_message(message.chat.id, caption, parse_mode='Markdown')
+                except:
+                    bot.send_message(message.chat.id, caption, parse_mode='Markdown')
+
+if __name__ == "__main__":
+    keep_alive()
+    bot.polling(none_stop=True)
     "يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨", 
     "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍"
 ]
