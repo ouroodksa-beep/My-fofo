@@ -7,7 +7,7 @@ import os
 from flask import Flask
 from threading import Thread
 
-# --- إعداد خادم الويب (Render) ---
+# --- خادم الويب لإبقاء البوت حياً ---
 app = Flask('')
 @app.route('/')
 def home(): return "البوت شغال بنجاح!"
@@ -23,55 +23,52 @@ def keep_alive():
 # --- إعدادات البوت ---
 API_TOKEN = '8534031232:AAHwBJ0HZvOlbDmeevlbd2zM9FvSIfeskjk'
 bot = telebot.TeleBot(API_TOKEN)
-# سكرابر بمحاكاة متصفح حقيقي جداً
 scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
 
-# بنك الكلمات السعودي (أكثر من 100 خيار)
-price_labels = ["بكم؟", "السعر:", "بكم هالزين؟", "قيمة اللقطة:", "سعره اللقطة:", "بكم نخلص؟", "قيمة القطعة:"]
+# بنك الجمل السعودي (أكثر من 100 خيار)
+price_labels = ["بكم؟", "السعر الحين:", "بكم هالزين؟", "سعره اللقطة:", "قيمة القطعة:"]
 intros = [
     "يا هلا والله.. شوفوا هاللقطة! 😍", "جبت لكم زين القنصات 🔥", "لقطة اليوم لا تفوتكم ✨", 
     "ابشروا بالزين.. شوفوا وش لقيت 💎", "قنصة اليوم وصلت يالربع 🎯", "لقيت لكم شي يفتح النفس 😍",
-    "يا مسا الزين.. شوفوا هالجمال 🌸", "لقطة اليوم للي يدور الفخامة ✨", "يا حي الله هالطلة.. شي فنان 🌟"
+    "يا حي الله هالطلة.. شي فنان 🌟", "تبون الصدق؟ هالقطعة ما تتفوت 🚀"
 ]
 descs = [
     "شيء فاخر ومن الآخر ويستاهلكم.", "الزين ما يكمل إلا به، جودة وسعر.", "رهيب وفنان وتصميمه يفتح النفس.", 
     "تقييمه يطمن وبصراحة ما يتفوت.", "خامة ممتازة وسعرها يا بلاش والله.", "والله لو ماهو بطل ما جبته لكم."
 ]
 
+def clean_product_title(title):
+    # إزالة الزوائد وبقاء الكلمات العربية والإنجليزية (البراند)
+    title = title.replace("Amazon.sa :", "").replace("Amazon.sa:", "").strip()
+    # تقسيم النص وخذ أول 10-12 كلمة لضمان سطرين فقط
+    words = title.split()
+    if len(words) > 12:
+        return " ".join(words[:12]) + ".."
+    return title
+
 def get_product_data(url):
     try:
         res = scraper.get(url, timeout=30)
         soup = BeautifulSoup(res.content, 'html.parser')
 
-        # 1. سحب الاسم
+        # 1. سحب الاسم (عربي مختصر + براند إنجليزي)
         title_tag = soup.select_one('#productTitle') or soup.find("meta", property="og:title")
-        raw_title = title_tag.get_text().strip().replace("Amazon.sa :", "").strip() if title_tag else "منتج فخم"
-        words = raw_title.split()
-        product_info = " ".join(words[:13]) + ".." if len(words) > 13 else raw_title
+        product_info = "منتج مميز"
+        if title_tag:
+            product_info = clean_product_title(title_tag.get_text().strip())
 
-        # 2. سحب السعر (مود الصياد الشامل)
+        # 2. سحب السعر (بدون هللات وبدون نقاط)
         price = "شيك بالرابط 🏷️"
-        
-        # قائمة بكل المعرفات الممكنة للسعر في أمازون
         selectors = [
-            'span.a-price-whole',             # السعر الأساسي
-            '.a-price .a-offscreen',          # السعر المخفي (دقيق جداً)
-            '#corePrice_feature_div .a-offscreen', 
-            '#corePriceDisplay_desktop_feature_div .a-offscreen',
-            '#corePrice_desktop .a-offscreen',
-            '.a-color-price',                 # سعر العروض
-            '#priceblock_ourprice',
-            '#priceblock_dealprice'
+            'span.a-price-whole', '.a-price .a-offscreen', 
+            '#corePrice_feature_div .a-offscreen', '#corePriceDisplay_desktop_feature_div .a-offscreen',
+            '.a-color-price'
         ]
-        
         for sel in selectors:
             p_tag = soup.select_one(sel)
             if p_tag and p_tag.get_text().strip():
-                p_text = p_tag.get_text().strip()
-                # إزالة الهللات: القص عند أول نقطة تظهر
-                p_text = p_text.split('.')[0]
-                # تنظيف الرقم من أي رمز غير الأرقام
-                clean_p = re.sub(r'[^\d]', '', p_text)
+                p_text = p_tag.get_text().strip().split('.')[0] # حذف الهللات
+                clean_p = re.sub(r'[^\d]', '', p_text) # أرقام فقط
                 if clean_p:
                     price = f"{clean_p} ريال"
                     break
@@ -85,6 +82,7 @@ def get_product_data(url):
         elif img_tag:
             img_url = img_tag.get('src')
 
+        # 4. التنسيق النهائي (السطر الفاضي قبل اللينك موجود)
         caption = (
             f"{random.choice(intros)}\n\n"
             f"📦 **المنتج:** {product_info}\n\n"
