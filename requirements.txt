@@ -4,3 +4,4 @@ beautifulsoup4
 Flask
 gunicorn
 cloudscraper
+googletrans==3.1.0a0
