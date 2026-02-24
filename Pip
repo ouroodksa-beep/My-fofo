@@ -1,0 +1,11 @@
+# تثبيت: pip install googletrans==4.0.0-rc1
+from googletrans import Translator
+
+translator = Translator()
+
+def translate_to_arabic(text):
+    brand = extract_brand(text)
+    # ترجمة النص بدون البراند
+    rest_of_text = text.replace(brand, "")
+    translated = translator.translate(rest_of_text, dest='ar').text
+    return f"{brand} {translated}"
