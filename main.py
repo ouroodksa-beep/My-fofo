@@ -7,7 +7,7 @@ from threading import Thread
 
 # --- الإعدادات ---
 # ضعي الـ Key الجديد من موقع RapidAPI (خدمة Axesso)
-AXESSO_API_KEY = "65e7b2c367c24afd842bb1597071ae21"
+AXESSO_API_KEY = "291c5dc917msh1d653eaeac8aa90p18c689jsn69d6b6d5aed7"
 TELEGRAM_TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 CHAT_ID = "ouroodbot"
 
