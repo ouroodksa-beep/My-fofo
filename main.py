@@ -3,14 +3,14 @@ import telebot
 import random
 import time
 
-# --- الإعدادات ---
+# --- البيانات ---
 RAINFOREST_KEY = "702EB0E493B342139C8727EF35A626C0"
-TELEGRAM_TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
+TELEGRAM_TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA" # تأكدي من النقطتين :
 CHAT_ID = "ftwu_bot"
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# عبارات سعودية تفتح النفس (يختار منها عشوائياً)
+# جمل سعودية مختارة بعناية
 SAUDI_PHRASES = [
     "يا هلا ومسهلا بالزين ✨", "لقطة العمر يا بعدي 🔥", 
     "شي فاخر من الآخر 👌", "خذه وأنت مغمض 😎",
@@ -19,7 +19,7 @@ SAUDI_PHRASES = [
 
 def get_real_data(short_url):
     try:
-        # فك الرابط المختصر ضروري جداً لسحب البيانات صح
+        # فك الرابط المختصر ضروري لسحب البيانات صح
         session = requests.Session()
         headers = {'User-Agent': 'Mozilla/5.0'}
         r = session.head(short_url, allow_redirects=True, timeout=15, headers=headers)
@@ -38,9 +38,9 @@ def get_real_data(short_url):
         if res.get("success"):
             p = res.get("product", {})
             
-            # اختصار الاسم لسطر واحد (بحدود 50 حرف)
-            title = p.get("title", "منتج مميز")
-            short_title = (title[:50] + '..') if len(title) > 50 else title
+            # اختصار الاسم لسطر واحد فقط (بحدود 50 حرف)
+            full_title = p.get("title", "منتج مميز")
+            short_title = (full_title[:50] + '..') if len(full_title) > 50 else full_title
             
             # السعر والصورة
             price = p.get("buybox_winner", {}).get("price", {}).get("value", "شيك بالرابط")
@@ -48,7 +48,7 @@ def get_real_data(short_url):
             
             phrase = random.choice(SAUDI_PHRASES)
             caption = (
-                f"{phrase}\n\n"
+                f"🔥 **{phrase}**\n\n"
                 f"📦 **المنتج:** {short_title}\n"
                 f"💸 **السعر:** {price} ريال\n\n"
                 f"🔗 **رابط الطلب:** {short_url}"
@@ -61,16 +61,17 @@ def get_real_data(short_url):
 @bot.message_handler(func=lambda m: True)
 def handle(m):
     if "amzn.to" in m.text or "amazon" in m.text:
-        # حذف الارتباطات القديمة (تنظيف)
+        # تنظيف التحديثات المعلقة لحل مشكلة الـ Conflict 409
         bot.delete_webhook(drop_pending_updates=True)
         
         cap, img = get_real_data(m.text)
         if cap and img:
             bot.send_photo(CHAT_ID, img, caption=cap, parse_mode="Markdown")
         else:
-            bot.reply_to(m, "❌ الرابط ما سحب البيانات، جربي رابط ثاني.")
+            bot.reply_to(m, "❌ الرابط ما سحب البيانات، جربي رابط ثاني يا ذيبة.")
 
 if __name__ == "__main__":
-    # مسح أي تحديثات معلقة عشان ما يطلع خطأ Conflict 409
+    # مسح الـ Webhook عند التشغيل لضمان عمل البوت في Render بدون تعارض
     bot.delete_webhook(drop_pending_updates=True)
+    print("🚀 البوت السعودي شغال...")
     bot.infinity_polling()
