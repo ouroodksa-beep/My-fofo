@@ -5,5 +5,6 @@ Flask
 gunicorn
 cloudscraper
 googletrans==3.1.0a0
-pyTelegramBotAPI
+beautifulsoup4
+lxml
 
