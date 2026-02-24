@@ -6,8 +6,8 @@ from flask import Flask
 from threading import Thread
 
 # --- الإعدادات ---
-# تأكدي من نسخ المفتاح كاملاً كما في حافظة جوالك
-AXESSO_API_KEY = "291c5dc917msh1d653eaeac8aa90p18c689jsn69d6b6d5aed7" 
+# استخدمت المفتاح الأخير المنسوخ في حافظة جوالك
+AXESSO_API_KEY = "291c5dc917msh1d653eaeac8aa90p18c689jsn69d6b6d5aed7"
 TELEGRAM_TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 CHAT_ID = "ouroodbot"
 
@@ -23,30 +23,30 @@ def run_flask():
 
 def get_amazon_data(short_url):
     try:
-        # 1. فك الرابط المختصر للحصول على الرابط الطويل (حل مشكلة الـ 404)
+        # 1. حل مشكلة الـ 404: فك الرابط المختصر للحصول على الرابط الطويل
         r = requests.head(short_url, allow_redirects=True, timeout=12)
         long_url = r.url
         
-        # 2. استخراج الـ ASIN بدقة
+        # 2. استخراج الـ ASIN بدقة من الرابط الطويل
         asin = None
         if "/dp/" in long_url: asin = long_url.split("/dp/")[1].split("/")[0].split("?")[0]
         elif "/gp/product/" in long_url: asin = long_url.split("/gp/product/")[1].split("/")[0].split("?")[0]
         
         if not asin: return None, None
 
-        # 3. الطلب من Axesso باستخدام الـ ASIN
+        # 3. الطلب من Axesso باستخدام الـ ASIN (هذا هو الحل المضمون)
         url = "https://axesso-amazon-data-service.p.rapidapi.com/amz/amazon-lookup-product"
         headers = {
             "X-RapidAPI-Key": AXESSO_API_KEY,
             "X-RapidAPI-Host": "axesso-amazon-data-service.p.rapidapi.com"
         }
-        params = {"asin": asin, "domainCode": "sa"} # أمازون السعودية
+        params = {"asin": asin, "domainCode": "sa"} 
         
         res = requests.get(url, headers=headers, params=params, timeout=15).json()
         
         if res.get("responseStatus") == "PRODUCT_FOUND_OK":
             title = res.get("productTitle", "منتج مميز")
-            # اختصار الاسم لسطر واحد
+            # اختصار الاسم لسطر واحد أنيق
             short_title = (title[:45] + '..') if len(title) > 45 else title
             price = res.get("price", "شيك بالرابط")
             img = res.get("imageUrlList", [None])[0]
@@ -61,7 +61,7 @@ def get_amazon_data(short_url):
 @bot.message_handler(func=lambda m: True)
 def handle_msg(m):
     if "amazon" in m.text or "amzn.to" in m.text:
-        # حل مشكلة التعارض 409
+        # حل مشكلة التعارض 409 نهائياً
         bot.delete_webhook(drop_pending_updates=True)
         
         caption, img = get_amazon_data(m.text)
@@ -71,7 +71,9 @@ def handle_msg(m):
             bot.reply_to(m, "❌ الرابط لم يعثر على بيانات، تأكدي من تفعيل الخطة في RapidAPI.")
 
 if __name__ == "__main__":
+    # تنظيف التعارض عند بداية التشغيل
     bot.delete_webhook(drop_pending_updates=True)
-    Thread(target=run_flask).start() # تشغيل السيرفر لـ Render
+    
+    Thread(target=run_flask).start()
     print("🚀 انطلق البوت بنجاح...")
     bot.infinity_polling()
