@@ -10,7 +10,7 @@ import time
 
 # --- الإعدادات ---
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
-CHANNEL_ID = "@Ouroodbot"  # مثال: @your_channel أو -1001234567890
+CHANNEL_ID = "@ouroodksa"  # مثال: @your_channel أو -1001234567890
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
