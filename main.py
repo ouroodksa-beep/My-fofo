@@ -6,7 +6,7 @@ from flask import Flask
 from threading import Thread
 
 # --- الإعدادات ---
-RAINFOREST_KEY = "702EB0E493B342139C8727EF35A626C0"
+RAINFOREST_KEY = "65e7b2c367c24afd842bb1597071ae21"
 TELEGRAM_TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 CHAT_ID = "ouroodbot"
 
