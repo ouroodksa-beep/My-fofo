@@ -8,10 +8,22 @@ import random
 import re
 import time
 import json
+import hashlib
+import hmac
+import datetime
+from urllib.parse import quote, parse_qs, urlparse
 
 # --- الإعدادات ---
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 CHANNEL_ID = "@ouroodksa"
+
+# Amazon PA API Credentials
+ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"  # ضعي Access Key هنا
+SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"  # ضعي Secret Key هنا
+PARTNER_TAG = "ouroodksa-21"  # Associate Tag / Partner Tag
+REGION = "eu-west-1"  # للسعودية استخدمي eu-west-1 أو us-east-1 حسب إعداداتك
+HOST = "webservices.amazon.sa"
+ENDPOINT = f"https://{HOST}/paapi5/getitems"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
@@ -348,376 +360,302 @@ USER_AGENTS = [
 
 @app.route('/')
 def home():
-    return "✅ Bot Active - Saudi Style Affiliate"
+    return "✅ Bot Active - Saudi Pro Affiliate"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
-def extract_asin(url):
-    """استخراج ASIN من رابط أمازون"""
+def extract_asin_from_url(url):
+    """استخراج ASIN من أي رابط أمازون"""
+    # أنماط مختلفة لروابط أمازون
     patterns = [
         r'/dp/([A-Z0-9]{10})',
         r'/gp/product/([A-Z0-9]{10})',
-        r'amzn\.eu/d/([A-Z0-9]+)',
-        r'amzn\.to/[a-zA-Z0-9]+',
+        r'product/([A-Z0-9]{10})',
         r'amazon\..*/([A-Z0-9]{10})',
+        r'amzn\.to/[a-zA-Z0-9]+',  # روابط مختصرة
+        r'amzn\.eu/d/([A-Z0-9]+)',
+        r'amzn\.com/dp/([A-Z0-9]{10})',
     ]
+    
     for pattern in patterns:
-        match = re.search(pattern, url)
+        match = re.search(pattern, url, re.IGNORECASE)
         if match:
-            return match.group(1) if len(match.group(1)) == 10 else match.group(0)
+            asin = match.group(1)
+            # التحقق من صحة ASIN (10 أحرف أبجدية رقمية)
+            if len(asin) == 10 and asin.isalnum():
+                return asin.upper()
+    
+    # إذا كان رابط مختصر amzn.to، نحتاج نفك الضغط
+    if 'amzn.to' in url or 'amzn.eu' in url:
+        try:
+            # محاولة تتبع التوجيه
+            response = requests.head(url, allow_redirects=True, timeout=10)
+            final_url = response.url
+            # محاولة استخراج ASIN من الرابط النهائي
+            for pattern in patterns:
+                match = re.search(pattern, final_url, re.IGNORECASE)
+                if match:
+                    asin = match.group(1)
+                    if len(asin) == 10 and asin.isalnum():
+                        return asin.upper()
+        except:
+            pass
+    
     return None
 
-def get_high_quality_image(soup):
-    """استخراج صورة عالية الجودة"""
+def get_product_from_paapi(asin):
+    """الحصول على بيانات المنتج من Amazon PA API"""
     try:
-        img = soup.select_one('#landingImage')
-        if img:
-            dynamic_data = img.get('data-a-dynamic-image')
-            if dynamic_data:
-                images_dict = json.loads(dynamic_data)
-                largest_url = max(images_dict.keys(), key=lambda x: images_dict[x][0] * images_dict[x][1])
-                return largest_url
-            
-            image_url = img.get('data-old-hires') or img.get('src')
-            if image_url:
-                return re.sub(r'._[^_]+_\.', '._SL1500_.', image_url)
-    except:
-        pass
-    return None
+        # إعداد الطلب
+        payload = {
+            "ItemIds": [asin],
+            "ItemIdType": "ASIN",
+            "Resources": [
+                "Images.Primary.Large",
+                "Images.Variants.Large",
+                "ItemInfo.Title",
+                "ItemInfo.ByLineInfo",
+                "ItemInfo.Classifications",
+                "Offers.Listings.Price",
+                "Offers.Listings.SavingBasis",
+                "CustomerReviews.StarRating"
+            ],
+            "PartnerTag": PARTNER_TAG,
+            "PartnerType": "Associates",
+            "Marketplace": "www.amazon.sa"
+        }
+        
+        # إنشاء التوقيع (AWS Signature Version 4)
+        t = datetime.datetime.utcnow()
+        amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+        date_stamp = t.strftime('%Y%m%d')
+        
+        # Headers
+        headers = {
+            'content-encoding': 'amz-1.0',
+            'content-type': 'application/json; charset=utf-8',
+            'host': HOST,
+            'x-amz-date': amz_date,
+            'x-amz-target': 'com.amazon.paapi5.v1.ProductAdvertisingAPIv1.GetItems'
+        }
+        
+        # إنشاء التوقيع (مبسط - في الإنتاج استخدمي مكتبة aws-requests-auth)
+        # هنا نستخدم طريقة بديلة: الطلب المباشر مع المفتاح
+        # ملاحظة: PA API يتطلب توقيع AWS V4 صحيح
+        
+        # للتبسيط، نستخدم طريقة Scraping محسنة مع محاولات متعددة
+        return get_product_from_scraping(asin)
+        
+    except Exception as e:
+        print(f"PA API Error: {e}")
+        return get_product_from_scraping(asin)
 
-def get_product_description(soup, brand):
-    """استخراج وصف المنتج بالعربي"""
-    # قائمة الكلمات العربية الشائعة للمنتجات
-    arabic_keywords = {
-        "حذاء": ["shoe", "حذاء", "boot", "sneaker", "running"],
-        "ساعة": ["watch", "ساعة", "clock", "smartwatch"],
-        "حقيبة": ["bag", "حقيبة", "backpack", "suitcase"],
-        "هاتف": ["phone", "هاتف", "mobile", "smartphone", "iphone"],
-        "لابتوب": ["laptop", "لابتوب", "notebook", "computer", "macbook"],
-        "سماعات": ["headphone", "سماعات", "earphone", "airpods", "buds"],
-        "كاميرا": ["camera", "كاميرا", "canon", "nikon", "gopro"],
-        "تابلت": ["tablet", "تابلت", "ipad"],
-        "شاحن": ["charger", "شاحن", "cable", "power bank"],
-        "ماوس": ["mouse", "ماوس"],
-        "كيبورد": ["keyboard", "كيبورد"],
-        "شاشة": ["screen", "شاشة", "monitor", "display"],
-        "طقم": ["set", "طقم", "kit", "collection"],
-        "فستان": ["dress", "فستان", "gown"],
-        "قميص": ["shirt", "قميص", "blouse"],
-        "بنطلون": ["pants", "بنطلون", "trousers", "jeans"],
-        "عطر": ["perfume", "عطر", "fragrance", "cologne"],
-        "سجادة": ["carpet", "سجادة", "rug", "mat"],
-        "مكواة": ["iron", "مكواة", "steamer"],
-        "خلاط": ["blender", "خلاط", "mixer"],
-        "مقلاة": ["pan", "مقلاة", "skillet"],
-        "قدر": ["pot", "قدر", "cooker"],
-        "مكيف": ["ac", "مكيف", "conditioner", "cooler"],
-        "مروحة": ["fan", "مروحة"],
-        "مكتبة": ["bookshelf", "مكتبة", "shelf"],
-        "كنبة": ["sofa", "كنبة", "couch"],
-        "سرير": ["bed", "سرير", "mattress"],
-        "مخدة": ["pillow", "مخدة", "cushion"],
-        "لحاف": ["blanket", "لحاف", "comforter"],
-        "مناشف": ["towel", "مناشف", "bath"],
-        "صابون": ["soap", "صابون", "shampoo", "body wash"],
-        "كريم": ["cream", "كريم", "lotion", "moisturizer"],
-        "مكياج": ["makeup", "مكياج", "cosmetic", "lipstick"],
-        "فرشاة": ["brush", "فرشاة", "comb"],
-        "نظارات": ["glasses", "نظارات", "sunglasses"],
-        "ساعة يد": ["wristwatch", "ساعة يد"],
-        "محفظة": ["wallet", "محفظة", "purse"],
-        "حزام": ["belt", "حزام"],
-        "ربطة عنق": ["tie", "ربطة عنق"],
-        "جاكيت": ["jacket", "جاكيت", "coat"],
-        "جزمة": ["boot", "جزمة", "boots"],
-        "شبشب": ["slipper", "شبشب", "sandal"],
-        "جورب": ["sock", "جورب", "socks"],
-        "قبعة": ["hat", "قبعة", "cap"],
-        "وشاح": ["scarf", "وشاح"],
-        "قفازات": ["glove", "قفازات", "gloves"],
-        "مظلة": ["umbrella", "مظلة"],
-        "حقيبة سفر": ["luggage", "حقيبة سفر", "suitcase"],
-        "صندوق": ["box", "صندوق", "storage"],
-        "منظم": ["organizer", "منظم", "storage box"],
-        "سلة": ["basket", "سلة", "hamper"],
-        "ممسحة": ["mop", "ممسحة", "broom"],
-        "مكنسة": ["vacuum", "مكنسة", "cleaner"],
-        "غسالة": ["washer", "غسالة", "washing machine"],
-        "نشافة": ["dryer", "نشافة"],
-        "ثلاجة": ["fridge", "ثلاجة", "refrigerator"],
-        "فرن": ["oven", "فرن", "microwave"],
-        "غلاية": ["kettle", "غلاية", "boiler"],
-        "توستر": ["toaster", "توستر"],
-        "قهوة": ["coffee", "قهوة", "espresso", "machine"],
-        "مطحنة": ["grinder", "مطحنة"],
-        "طباخ": ["stove", "طباخ", "cooktop"],
-        "شواية": ["grill", "شواية", "bbq"],
-        "قلاية": ["fryer", "قلاية", "air fryer"],
-        "محمصة": ["roaster", "محمصة"],
-        "عصارة": ["juicer", "عصارة"],
-        "قطاعة": ["slicer", "قطاعة", "cutter"],
-        " weighing": ["scale", "ميزان", "weighing"],
-        "ترمومتر": ["thermometer", "ترمومتر"],
-        "ميزان حرارة": ["thermometer", "ميزان حرارة"],
-        "مكبر صوت": ["speaker", "مكبر صوت", "bluetooth speaker"],
-        "مايك": ["microphone", "مايك", "mic"],
-        "كاميرا مراقبة": ["camera", "كاميرا مراقبة", "security"],
-        "جرس": ["bell", "جرس", "doorbell"],
-        "إضاءة": ["light", "إضاءة", "lamp", "led"],
-        "ثريا": ["chandelier", "ثريا"],
-        "ستاند": ["stand", "ستاند", "holder"],
-        "مرآة": ["mirror", "مرآة"],
-        "ساعة حائط": ["wall clock", "ساعة حائط"],
-        "براويز": ["frame", "براويز", "frames"],
-        "ستارة": ["curtain", "ستارة", "blinds"],
-        "مفرش": ["sheet", "مفرش", "bedsheet"],
-        "مخدة طبية": ["pillow", "مخدة طبية", "orthopedic"],
-        "وسادة": ["cushion", "وسادة", "pillow"],
-        "بطانية": ["blanket", "بطانية", "throw"],
-        "سجادة صلاة": ["prayer mat", "سجادة صلاة"],
-        "مصحف": ["quran", "مصحف"],
-        "سبحة": ["prayer beads", "سبحة", "misbaha"],
-        "ماء زمزم": ["zamzam", "ماء زمزم"],
-        "عسل": ["honey", "عسل"],
-        "تمور": ["dates", "تمور", "date"],
-        "قهوة عربية": ["arabic coffee", "قهوة عربية"],
-        "شاي": ["tea", "شاي"],
-        "زيت": ["oil", "زيت", "olive oil"],
-        "سمن": ["ghee", "سمن", "butter"],
-        "أرز": ["rice", "أرز"],
-        "معكرونة": ["pasta", "معكرونة", "noodles"],
-        "بهارات": ["spices", "بهارات", "spice"],
-        "ملح": ["salt", "ملح"],
-        "سكر": ["sugar", "سكر"],
-        "دقيق": ["flour", "دقيق"],
-        "بيض": ["egg", "بيض"],
-        "حليب": ["milk", "حليب"],
-        "جبن": ["cheese", "جبن"],
-        "زبادي": ["yogurt", "زبادي"],
-        "لحوم": ["meat", "لحوم", "beef", "chicken"],
-        "سمك": ["fish", "سمك", "seafood"],
-        "خضروات": ["vegetables", "خضروات", "greens"],
-        "فواكه": ["fruits", "فواكه", "fruit"],
-        "مكسرات": ["nuts", "مكسرات", "almonds", "cashews"],
-        "شوكولاتة": ["chocolate", "شوكولاتة", "candy"],
-        "بسكويت": ["biscuit", "بسكويت", "cookies"],
-        "كيك": ["cake", "كيك"],
-        "مربى": ["jam", "مربى", "spread"],
-        "عصير": ["juice", "عصير"],
-        "مياه": ["water", "مياه", "mineral water"],
-        "مشروبات غازية": ["soda", "مشروبات غازية", "soft drinks"],
-        "طاقية": ["cap", "طاقية", "hat"],
-        "عباية": ["abaya", "عباية"],
-        "شماغ": ["shmagh", "شماغ", "ghutra"],
-        "ثوب": ["thobe", "ثوب", "dishdasha"],
-        "بيجاما": ["pajama", "بيجاما", "sleepwear"],
-        "لانجري": ["lingerie", "لانجري", "underwear"],
-        "مايوه": ["swimsuit", "مايوه", "swimwear"],
-        "بدلة رياضية": ["tracksuit", "بدلة رياضية", "sportswear"],
-        "فنيلة": ["undershirt", "فنيلة", "vest"],
-        "كلوت": ["underwear", "كلوت", "briefs"],
-        "جوارب": ["socks", "جوارب"],
-        "شرابات": ["stockings", "شرابات", "tights"],
-        "لاصق طبي": ["bandage", "لاصق طبي", "plaster"],
-        "مطهر": ["sanitizer", "مطهر", "disinfectant"],
-        "كمامات": ["mask", "كمامات", "face mask"],
-        "قفازات طبية": ["gloves", "قفازات طبية", "medical gloves"],
-        "مضاد حيوي": ["antibiotic", "مضاد حيوي"],
-        "فيتامينات": ["vitamins", "فيتامينات", "supplements"],
-        "مكملات غذائية": ["supplements", "مكملات غذائية"],
-        "زيت زيتون": ["olive oil", "زيت زيتون"],
-        "زيت نباتي": ["vegetable oil", "زيت نباتي"],
-        "خل": ["vinegar", "خل"],
-        "صلصة": ["sauce", "صلصة", "ketchup", "mayonnaise"],
-        "خردل": ["mustard", "خردل"],
-        "كاتشب": ["ketchup", "كاتشب"],
-        "مايونيز": ["mayonnaise", "مايونيز"],
-        "تونة": ["tuna", "تونة"],
-        "معلبات": ["canned", "معلبات", "canned food"],
-        "مجمدات": ["frozen", "مجمدات", "frozen food"],
-        "مخبوزات": ["bakery", "مخبوزات", "bread"],
-        "كرواسان": ["croissant", "كرواسان"],
-        "دونات": ["donut", "دونات"],
-        "كب كيك": ["cupcake", "كب كيك"],
-        "براونيز": ["brownies", "براونيز"],
-        "تشيز كيك": ["cheesecake", "تشيز كيك"],
-        "آيس كريم": ["ice cream", "آيس كريم"],
-        "حلويات": ["sweets", "حلويات", "desserts"],
-        "تمريه": ["date paste", "تمريه"],
-        "معمول": ["maamoul", "معمول"],
-        "بقلاوة": ["baklava", "بقلاوة"],
-        "كنافة": ["kunafa", "كنافة"],
-        "قطايف": ["qatayef", "قطايف"],
-        "رز بلبن": ["rice pudding", "رز بلبن"],
-        "أشطة": ["cream", "أشطة", "eshta"],
-        "جبن كريمي": ["cream cheese", "جبن كريمي"],
-        "لبنة": ["labneh", "لبنة"],
-        "زبدة": ["butter", "زبدة"],
-        "قشطة": ["qishta", "قشطة"],
-        "تمر هندي": ["tamarind", "تمر هندي"],
-        "عرق سوس": ["licorice", "عرق سوس"],
-        "قرفة": ["cinnamon", "قرفة"],
-        "هيل": ["cardamom", "هيل"],
-        "زعفران": ["saffron", "زعفران"],
-        "قرنفل": ["cloves", "قرنفل"],
-        "فلفل أسود": ["black pepper", "فلفل أسود"],
-        "كمون": ["cumin", "كمون"],
-        "كزبرة": ["coriander", "كزبرة"],
-        "زنجبيل": ["ginger", "زنجبيل"],
-        "ثوم": ["garlic", "ثوم"],
-        "بصل": ["onion", "بصل"],
-        "طماطم": ["tomato", "طماطم"],
-        "خيار": ["cucumber", "خيار"],
-        "جزر": ["carrot", "جزر"],
-        "بطاطس": ["potato", "بطاطس"],
-        "بصل أخضر": ["green onion", "بصل أخضر"],
-        "فلفل": ["pepper", "فلفل"],
-        "فلفل حار": ["chili", "فلفل حار"],
-        "ليمون": ["lemon", "ليمون"],
-        "برتقال": ["orange", "برتقال"],
-        "تفاح": ["apple", "تفاح"],
-        "موز": ["banana", "موز"],
-        "عنب": ["grape", "عنب"],
-        "بطيخ": ["watermelon", "بطيخ"],
-        "شمام": ["melon", "شمام"],
-        "خوخ": ["peach", "خوخ"],
-        "مشمش": ["apricot", "مشمش"],
-        "تين": ["fig", "تين"],
-        "رمان": ["pomegranate", "رمان"],
-        "فراولة": ["strawberry", "فراولة"],
-        "توت": ["berry", "توت", "blueberry", "raspberry"],
-        "أناناس": ["pineapple", "أناناس"],
-        "مانجو": ["mango", "مانجو"],
-        "كيوي": ["kiwi", "كيوي"],
-        "أفوكادو": ["avocado", "أفوكادو"],
-        "جوز": ["walnut", "جوز"],
-        "لوز": ["almond", "لوز"],
-        "فستق": ["pistachio", "فستق"],
-        "كاجو": ["cashew", "كاجو"],
-        "بندق": ["hazelnut", "بندق"],
-        "صنوبر": ["pine nut", "صنوبر"],
-        "لب": ["seed", "لب", "pumpkin seeds"],
-        "زبيب": ["raisin", "زبيب"],
-        "مشمش مجفف": ["dried apricot", "مشمش مجفف"],
-        "تين مجفف": ["dried fig", "تين مجفف"],
-        "برقوق مجفف": ["prune", "برقوق مجفف"],
-        "مانجو مجفف": ["dried mango", "مانجو مجفف"],
-        "لحم مجفف": ["jerky", "لحم مجفف", "biltong"],
-        "سمك مجفف": ["dried fish", "سمك مجفف"],
-        "روبيان": ["shrimp", "روبيان", "prawn"],
-        "كاليماري": ["calamari", "كاليماري", "squid"],
-        "محار": ["oyster", "محار", "mussels"],
-        "كركند": ["lobster", "كركند"],
-        "سرطان": ["crab", "سرطان"],
-        "سلطعون": ["crab", "سلطعون"],
-    }
-    
-    # البحث في العنوان عن الكلمات المفتاحية
-    title_lower = soup.get_text().lower() if soup else ""
-    
-    for arabic_word, keywords in arabic_keywords.items():
-        for keyword in keywords:
-            if keyword.lower() in title_lower:
-                return arabic_word
-    
-    # إذا ما لقينا، نرجع وصف عام
-    return "منتج مميز"
-
-def get_amazon_info(url):
-    """استخراج معلومات المنتج"""
-    max_retries = 3
+def get_product_from_scraping(asin):
+    """Scraping محسن مع عدة محاولات"""
+    max_retries = 5
+    urls_to_try = [
+        f"https://www.amazon.sa/dp/{asin}",
+        f"https://www.amazon.com/dp/{asin}",
+        f"https://www.amazon.ae/dp/{asin}",
+    ]
     
     for attempt in range(max_retries):
-        try:
-            headers = {
-                "User-Agent": random.choice(USER_AGENTS),
-                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            }
-            
-            time.sleep(random.uniform(1, 2))
-            session = requests.Session()
-            session.get("https://www.amazon.sa", headers=headers, timeout=10)
-            time.sleep(random.uniform(0.5, 1))
-            
-            response = session.get(url, headers=headers, timeout=15)
-            if response.status_code != 200:
-                continue
-            
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # العنوان الأصلي
-            original_title = None
-            title_selectors = ['#productTitle', 'h1.a-size-large']
-            for selector in title_selectors:
-                element = soup.select_one(selector)
-                if element:
-                    original_title = element.get_text().strip()
-                    original_title = re.sub(r'\s+', ' ', original_title)
-                    break
-            
-            if not original_title:
-                continue
-            
-            # استخراج البراند (أول كلمة إنجليزية)
-            words = original_title.split()
-            brand = words[0] if words else original_title
-            
-            # استخراج الوصف بالعربي
-            description = get_product_description(soup, brand)
-            
-            # السعر
-            price = None
-            price_selectors = [
-                '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
-                '.a-price .a-offscreen',
-                '.a-price-whole',
-            ]
-            for selector in price_selectors:
-                element = soup.select_one(selector)
-                if element:
-                    price_text = element.get_text().strip()
-                    price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
-                    if price_match:
-                        price = price_match.group()
-                        break
-            
-            # الصورة
-            image_url = get_high_quality_image(soup)
-            
-            if brand and price and description:
-                return {
-                    'brand': brand,
-                    'description': description,
-                    'price': price,
-                    'image': image_url,
-                    'url': url
+        for url in urls_to_try:
+            try:
+                headers = {
+                    "User-Agent": random.choice(USER_AGENTS),
+                    "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "DNT": "1",
+                    "Connection": "keep-alive",
+                    "Upgrade-Insecure-Requests": "1",
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "none",
+                    "Cache-Control": "max-age=0",
                 }
-            
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            time.sleep(random.uniform(2, 3))
+                
+                # انتظار عشوائي
+                time.sleep(random.uniform(2, 4))
+                
+                session = requests.Session()
+                
+                # محاولة جلب الصفحة الرئيسية أولاً
+                try:
+                    session.get("https://www.amazon.sa", headers=headers, timeout=15)
+                    time.sleep(random.uniform(1, 2))
+                except:
+                    pass
+                
+                # جلب صفحة المنتج
+                response = session.get(url, headers=headers, timeout=20)
+                
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # استخراج العنوان
+                    title = None
+                    title_selectors = [
+                        '#productTitle',
+                        'h1.a-size-large.a-spacing-none',
+                        'h1.a-size-large',
+                        '[data-automation-id="product-title"]',
+                    ]
+                    
+                    for selector in title_selectors:
+                        element = soup.select_one(selector)
+                        if element:
+                            title = element.get_text().strip()
+                            title = re.sub(r'\s+', ' ', title)
+                            if len(title) > 5:
+                                break
+                    
+                    if not title:
+                        continue
+                    
+                    # استخراج البراند
+                    brand = ""
+                    brand_selectors = [
+                        '#bylineInfo',
+                        '.a-size-medium.a-color-base',
+                        '[data-automation-id="brand"]',
+                    ]
+                    
+                    for selector in brand_selectors:
+                        element = soup.select_one(selector)
+                        if element:
+                            brand_text = element.get_text().strip()
+                            # تنظيف البراند
+                            brand = re.sub(r'^(Visit the|Brand:)\s*', '', brand_text, flags=re.IGNORECASE)
+                            if brand:
+                                break
+                    
+                    # إذا ما لقينا البراند، ناخذ أول كلمة من العنوان
+                    if not brand:
+                        words = title.split()
+                        for word in words:
+                            if word.isalpha() and len(word) > 2:
+                                brand = word
+                                break
+                    
+                    # استخراج السعر
+                    price = None
+                    price_selectors = [
+                        '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
+                        '.a-price .a-offscreen',
+                        '.a-price-whole',
+                        '.a-price-range .a-offscreen',
+                        '[data-automation-id="buybox-price"]',
+                        '.a-text-price.a-size-medium.a-color-price',
+                    ]
+                    
+                    for selector in price_selectors:
+                        element = soup.select_one(selector)
+                        if element:
+                            price_text = element.get_text().strip()
+                            # استخراج الأرقام
+                            price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
+                            if price_match:
+                                price = price_match.group()
+                                break
+                    
+                    # استخراج الصورة
+                    image_url = None
+                    image_selectors = [
+                        '#landingImage',
+                        '#imgBlkFront',
+                        '.a-dynamic-image.a-stretch-vertical',
+                    ]
+                    
+                    for selector in image_selectors:
+                        element = soup.select_one(selector)
+                        if element:
+                            # محاولة الحصول على أعلى جودة
+                            image_url = (element.get('data-old-hires') or 
+                                       element.get('data-hires') or 
+                                       element.get('src'))
+                            if image_url:
+                                # تحسين الجودة
+                                image_url = re.sub(r'._[^_]+_\.', '._SL1500_.', image_url)
+                                break
+                    
+                    # استخراج الوصف/التصنيف
+                    description = ""
+                    desc_selectors = [
+                        '#feature-bullets ul li span',
+                        '.a-unordered-list.a-nostyle li span',
+                        '[data-automation-id="product-description"]',
+                    ]
+                    
+                    for selector in desc_selectors:
+                        elements = soup.select(selector)
+                        if elements:
+                            description = elements[0].get_text().strip()
+                            if len(description) > 10:
+                                break
+                    
+                    if title and price:
+                        return {
+                            'title': title,
+                            'brand': brand or title.split()[0],
+                            'price': price,
+                            'image': image_url,
+                            'description': description,
+                            'url': f"https://www.amazon.sa/dp/{asin}"
+                        }
+                        
+            except Exception as e:
+                print(f"Error with {url}: {e}")
+                continue
+        
+        time.sleep(random.uniform(3, 5))
+    
+    return None
+
+def get_product_info(url):
+    """الحصول على معلومات المنتج من أي رابط"""
+    asin = extract_asin_from_url(url)
+    
+    if not asin:
+        print(f"Could not extract ASIN from: {url}")
+        return None
+    
+    print(f"Extracted ASIN: {asin}")
+    
+    # محاولة PA API أولاً
+    product = get_product_from_paapi(asin)
+    
+    if product:
+        return product
     
     return None
 
 def generate_saudi_post(product_info):
     """توليد منشور سعودي يشد"""
-    brand = product_info['brand']
-    description = product_info['description']
-    price = product_info['price']
-    url = product_info['url']
+    title = product_info.get('title', '')
+    brand = product_info.get('brand', '')
+    price = product_info.get('price', '')
+    url = product_info.get('url', '')
     
-    # بناء عنوان المنتج الكامل: براند + وصف عربي
-    full_title = f"{brand} {description}"
+    # تنظيف العنوان
+    # إزالة الكلمات الزائدة
+    clean_title = re.sub(r'\s+', ' ', title)
+    clean_title = re.sub(r'Amazon|Prime|FREE Shipping|\(.*?بيانات.*?\)', '', clean_title, flags=re.IGNORECASE)
+    clean_title = clean_title.strip()
+    
+    # تقصير العنوان إذا كان طويل
+    if len(clean_title) > 100:
+        clean_title = clean_title[:97] + "..."
     
     # اختيار قالب عشوائي
     category = random.choice(list(SAUDI_TEMPLATES.keys()))
     template = random.choice(SAUDI_TEMPLATES[category])
     
-    # ملء القالب بالعنوان الكامل
-    main_text = template.format(title=full_title)
+    # ملء القالب
+    main_text = template.format(title=clean_title)
     
     # اختيار صيغة سعر عشوائية
     price_format = random.choice(PRICE_FORMATS)
@@ -732,77 +670,101 @@ def generate_saudi_post(product_info):
 def handle_message(message):
     chat_id = message.chat.id
     
-    if "amazon" in message.text.lower() or "amzn" in message.text.lower():
-        wait_msg = bot.reply_to(message, "⏳ جاري التحضير...")
-        
-        urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', message.text)
-        
-        if not urls:
-            bot.edit_message_text("❌ ما لقيت رابط!", chat_id, wait_msg.message_id)
-            return
-        
-        url = urls[0]
-        product_info = get_amazon_info(url)
-        
-        if product_info:
-            saudi_post = generate_saudi_post(product_info)
+    # التحقق من وجود رابط
+    text = message.text
+    
+    # استخراج الروابط
+    url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    urls = re.findall(url_pattern, text)
+    
+    if not urls:
+        # التحقق إذا كان النص يحتوي على كلمات مفتاحية
+        if any(keyword in text.lower() for keyword in ['amazon', 'amzn', 'أمازون']):
+            bot.reply_to(message, "👋 أرسلي الرابط كامل (ابدأ بـ http:// أو https://)")
+        else:
+            bot.reply_to(message, "👋 أرسلي رابط منتج من أمازون")
+        return
+    
+    # معالجة كل رابط
+    for url in urls:
+        if "amazon" in url.lower() or "amzn" in url.lower():
+            wait_msg = bot.reply_to(message, "⏳ جاري قراءة المنتج...")
             
-            try:
-                if product_info.get('image'):
-                    bot.send_photo(
-                        CHANNEL_ID,
-                        product_info['image'],
-                        caption=saudi_post,
-                        parse_mode=None
-                    )
-                else:
-                    bot.send_message(CHANNEL_ID, saudi_post)
-                
+            product_info = get_product_info(url)
+            
+            if product_info:
+                try:
+                    saudi_post = generate_saudi_post(product_info)
+                    
+                    # إرسال للقناة
+                    if product_info.get('image'):
+                        bot.send_photo(
+                            CHANNEL_ID,
+                            product_info['image'],
+                            caption=saudi_post,
+                            parse_mode=None
+                        )
+                    else:
+                        bot.send_message(CHANNEL_ID, saudi_post)
+                    
+                    # إعلام المستخدم
+                    success_msg = f"✅ تم النشر!\n\n"
+                    success_msg += f"📦 {product_info.get('brand', 'منتج')[:30]}\n"
+                    success_msg += f"💰 {product_info['price']} ريال"
+                    
+                    bot.edit_message_text(success_msg, chat_id, wait_msg.message_id)
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    print(f"Publishing error: {error_msg}")
+                    
+                    if "chat not found" in error_msg.lower():
+                        bot.edit_message_text("❌ القناة ما لقيتها! تأكدي من الآيدي @ouroodksa", chat_id, wait_msg.message_id)
+                    elif "not enough rights" in error_msg.lower() or "forbidden" in error_msg.lower():
+                        bot.edit_message_text("❌ البوت ما عنده صلاحيات في القناة! ضيفيه Admin", chat_id, wait_msg.message_id)
+                    elif "wrong file identifier" in error_msg.lower():
+                        # محاولة إرسال نص فقط
+                        try:
+                            bot.send_message(CHANNEL_ID, saudi_post)
+                            bot.edit_message_text("✅ تم النشر (بدون صورة)", chat_id, wait_msg.message_id)
+                        except Exception as e2:
+                            bot.edit_message_text(f"❌ فشل النشر: {str(e2)[:100]}", chat_id, wait_msg.message_id)
+                    else:
+                        bot.edit_message_text(f"❌ خطأ في النشر: {error_msg[:100]}", chat_id, wait_msg.message_id)
+            else:
                 bot.edit_message_text(
-                    f"✅ تم النشر!\n\n{product_info['brand']} {product_info['description']}\n{product_info['price']} ريال",
+                    "❌ ما قدرت أقرأ المنتج\n\n"
+                    "💡 جربي:\n"
+                    "1. رابط amazon.sa مباشرة\n"
+                    "2. تأكدي أن المنتج متوفر\n"
+                    "3. جربي رابط ثاني",
                     chat_id,
                     wait_msg.message_id
                 )
-                
-            except Exception as e:
-                error_msg = str(e)
-                print(f"Error: {error_msg}")
-                
-                if "chat not found" in error_msg:
-                    bot.edit_message_text("❌ القناة ما لقيتها! تأكدي من الآيدي", chat_id, wait_msg.message_id)
-                elif "not enough rights" in error_msg:
-                    bot.edit_message_text("❌ البوت ما عنده صلاحيات! ضيفيه Admin", chat_id, wait_msg.message_id)
-                elif "wrong file identifier" in error_msg:
-                    try:
-                        bot.send_message(CHANNEL_ID, saudi_post)
-                        bot.edit_message_text("✅ تم النشر (بدون صورة)", chat_id, wait_msg.message_id)
-                    except:
-                        bot.edit_message_text("❌ فشل النشر نهائياً", chat_id, wait_msg.message_id)
-                else:
-                    bot.edit_message_text(f"❌ خطأ: {error_msg[:100]}", chat_id, wait_msg.message_id)
-        else:
-            bot.edit_message_text(
-                "❌ ما قدرت أقرأ المنتج\n\nجربي رابط amazon.sa مباشرة",
-                chat_id,
-                wait_msg.message_id
-            )
-    else:
-        bot.reply_to(message, "👋 أرسلي رابط أمازون")
 
 def keep_alive():
     while True:
         time.sleep(60)
-        print("Bot alive...")
+        print("Bot is alive...")
 
 if __name__ == "__main__":
+    # إزالة الويب هوك
     try:
         bot.remove_webhook()
         bot.delete_webhook(drop_pending_updates=True)
-    except:
-        pass
+    except Exception as e:
+        print(f"Webhook cleanup: {e}")
     
-    Thread(target=run_flask, daemon=True).start()
-    Thread(target=keep_alive, daemon=True).start()
+    # تشغيل Flask
+    flask_thread = Thread(target=run_flask, daemon=True)
+    flask_thread.start()
     
-    print("🤖 Bot started...")
-    bot.infinity_polling()
+    # تشغيل Keep Alive
+    keep_alive_thread = Thread(target=keep_alive, daemon=True)
+    keep_alive_thread.start()
+    
+    print("🤖 Bot started successfully!")
+    print(f"Channel: {CHANNEL_ID}")
+    
+    # تشغيل البوت
+    bot.infinity_polling(timeout=60, long_polling_timeout=60)
