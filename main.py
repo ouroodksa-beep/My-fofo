@@ -7,8 +7,8 @@ from threading import Thread
 
 # --- إعدادات البوت ---
 RAINFOREST_KEY = "702EB0E493B342139C8727EF35A626C0"
-TELEGRAM_TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
-CHAT_ID = "ftwu_bot"
+TELEGRAM_TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
+CHAT_ID = "ouroodbot"
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
