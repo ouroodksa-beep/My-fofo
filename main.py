@@ -11,53 +11,299 @@ import json
 
 # --- الإعدادات ---
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
-CHANNEL_ID = "@Ouroodbot"  # مثال: @your_channel أو -1001234567890
+CHANNEL_ID = "@Ouroodbot"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
-# --- قاعدة بيانات الأنماط السعودية المختصرة (جمل قصيرة) ---
+# --- قاعدة بيانات ضخمة: 200+ جملة سعودية بروفشنال ---
 SAUDI_TEMPLATES = {
+    # اكتشاف مفاجئ (20 جملة)
     "discovery": [
-        "صدمني {title}!\n{price} ريال بس 🤯",
-        "لقيت الكنز {title}\nبـ {price} ريال ✨",
-        "ما توقعت {title} يكون بـ {price} ريال!",
+        "اكتشفت {title} وما صدقت جودته!",
+        "صادفة حلوة! لقيت {title} بسعر مغري",
+        "من الصدف الجميلة: {title}",
+        "ما كنت أدري إن {title} موجود بهالجودة!",
+        "مفاجأة سارة: {title} يفوق التوقعات",
+        "اكتشاف اليوم: {title} يستاهل التجربة",
+        "خبر عاجل: {title} متوفر الآن!",
+        "تصادف ولا أحلى: {title} بسعر منافس",
+        "ما شاء الله! {title} فاق تصوري",
+        "لحظة صادمة: {title} بهالسعر!",
+        "فرصة لا تتكرر: اكتشفت {title}",
+        "مفاجأة العام: {title} بجودة عالية",
+        "صدفة غيرت رأيي: {title}",
+        "اكتشاف ثمين: {title} يستاهل الاهتمام",
+        "من غير ما أدور: لقيت {title}",
+        "مفاجأة غير متوقعة: {title}",
+        "اكتشاف رهيب: {title} بمواصفات ممتازة",
+        "خبر حلو: {title} متاح الآن",
+        "تصادف خير: {title} بسعر معقول",
+        "ما توقعت ألقى {title} بهالسهولة!",
     ],
-    "friend_tip": [
-        "أخوي قالي جرب {title}\n{price} ريال ويستاهل 👌",
-        "صديقتي نصحتني بـ {title}\n{price} ريال بس 💯",
-    ],
+    
+    # توصية شخصية (20 جملة)
     "personal": [
-        "مجرب {title} من شهر\n{price} ريال وما ندمت ❤️",
-        "اشتريت {title} بـ {price} ريال\nصار من أساسياتي 🔥",
+        "مجرب {title} وما ندمت أبداً",
+        "من تجربتي: {title} يستاهل كل ريال",
+        "صراحة {title} غيّر روتيني اليومي",
+        "أعترف: {title} أفضل استثمار سويته",
+        "بعد تجربة شهر: {title} يستاهل الثقة",
+        "مجرب شخصياً: {title} لا يُضاهى",
+        "من قلب التجربة: {title} رائع",
+        "بكل صراحة: {title} فاق توقعاتي",
+        "بعد استخدام مطوّل: {title} ممتاز",
+        "تجربتي تقول: {title} يستاهل الشراء",
+        "بشهادة شخصية: {title} لا يخيب",
+        "من واقع التجربة: {title} مميز",
+        "بعد فترة استخدام: {title} ثابت الجودة",
+        "أشهد بصدق: {title} يستاهل التجربة",
+        "تجربتي الخاصة: {title} ممتاز",
+        "بكل أمانة: {title} يفوق الوصف",
+        "من يوم جربت {title} وما تركته",
+        "شهادة حق: {title} يستاهل الإشادة",
+        "بعد تجربة حقيقية: {title} ممتاز",
+        "مجرب ومتأكد: {title} يستاهل",
     ],
+    
+    # توصية صديق/عائلة (20 جملة)
+    "friend": [
+        "أخوي نصحني بـ {title} وصادق",
+        "صديقتي جابت لي {title} هدية وانبهرت",
+        "أمي اشتاقت لـ {title} وصارت تدعي لي",
+        "أبوي وافق على {title} وهذا دليل نجاحه",
+        "أختي مجنونة على {title}",
+        "صاحبي يتباهى بـ {title}",
+        "جارتي سألتني عن {title} بعد ما شافته",
+        "زميلي في العمل يمدح {title}",
+        "خالتي اشتريت {title} على توصيتي",
+        "ابن عمي يتهاوش على {title}",
+        "صديق العائلة وصى على {title}",
+        "جيراننا يتساءلون عن {title}",
+        "رفيجاتي يبغون {title} بعد ما شافوه",
+        "أخواتي يتهاوشن على {title}",
+        "عيال الخالة يحبون {title}",
+        "صاحبتي سفيرة {title} في المجموعة",
+        "أخوي الصغير يموت على {title}",
+        "والدتي تقول {title} نعمة",
+        "أبوي يستخدم {title} يومياً",
+        "العائلة مجمعة على حب {title}",
+    ],
+    
+    # عجلة وندرة (20 جملة)
     "urgent": [
-        "بسرعة! {title}\n{price} ريال بس ⚡",
-        "عرض ينتهي {title}\n{price} ريال 🏃‍♀️",
+        "بسرعة! الكمية محدودة على {title}",
+        "الوقت ينفد: {title} بنفذ قريب",
+        "فرصة أخيرة: {title} بسعر خاص",
+        "لا تتأخر: {title} ينتهي العرض",
+        "سارع: {title} متوفر لفترة محدودة",
+        "الآن أو أبداً: {title} بسعر مغري",
+        "باقي وقت قليل: {title} بخصم",
+        "تنبيه عاجل: {title} على وشك النفاذ",
+        "الحين أحسن: {title} ما راح يتكرر",
+        "فرصة ذهبية: {title} متاح الآن",
+        "لا تفوت: {title} بنفذ بسرعة",
+        "عاجل: {title} بسعر مؤقت",
+        "سارع بالحجز: {title} محدود",
+        "العرض ينتهي: {title} لا يتأخر",
+        "باقي كمية قليلة: {title}",
+        "الوقت ضيق: {title} بسعر خاص",
+        "فرصة ما تتعوض: {title} الآن",
+        "تنبيه: {title} على وشك الانتهاء",
+        "بسرعة قبل ما ينفذ: {title}",
+        "الآن فرصتك: {title} محدود",
     ],
-    "honest": [
-        "بصراحة {title} يستاهل\n{price} ريال 💪",
-        "جودة عالية بـ {price} ريال\n{title} يفوز 🏆",
+    
+    # جودة وسعر (20 جملة)
+    "value": [
+        "جودة فاخرة بسعر شعبي: {title}",
+        "القيمة الحقيقية: {title} يستاهل",
+        "بين الجودة والسعر: {title} يوازن",
+        "استثمار ذكي: {title} يدوم",
+        "جودة تستحق الثناء: {title}",
+        "سعر منافس وجودة عالية: {title}",
+        "الأفضلية واضحة: {title}",
+        "قيمة مقابل السعر = {title}",
+        "جودة لا تتنازل: {title} بسعر معقول",
+        "الاختيار الأذكى: {title}",
+        "بين الغالي والرخيص: {title} الأفضل",
+        "جودة احترافية بسعر مناسب: {title}",
+        "التوازن المثالي: {title}",
+        "يستاهل الاستثمار: {title}",
+        "جودة تدوم بسعر يعقل: {title}",
+        "الأداء يفوق السعر: {title}",
+        "صفقة رابحة: {title} يستاهل",
+        "الجودة تتكلم: {title}",
+        "سعر ينافس وجودة تفوق: {title}",
+        "الأفضل في فئته: {title}",
     ],
-    "casual": [
-        "يا جماعة {title}!\n{price} ريال بس 😍",
-        "فشلت الخصوم {title}\n{price} ريال 💸",
-    ],
-    "mom": [
-        "للأمهات {title}\n{price} ريال ويريح 🤱",
-        "أولادي يحبون {title}\n{price} ريال بس 👶",
-    ],
-    "luxury": [
-        "فخامة بـ {price} ريال\n{title} يستاهل 👑",
-        "غالي المظهر رخيص السعر\n{title} = {price} ريال 💎",
-    ],
+    
+    # يومي وعملي (20 جملة)
     "daily": [
-        "ضرورة يومية {title}\n{price} ريال بس 📌",
-        "ما أقدر أستغني عن {title}\n{price} ريال 🎯",
+        "روتيني اليومي يحتاج {title}",
+        "ما أقدر أستغني عن {title} صراحة",
+        "يومي ما يكمل بدون {title}",
+        "أساسيات يومي: {title} ضروري",
+        "كل يوم أستخدم {title} وأدعي",
+        "ما فيه يوم بدون {title}",
+        "روتين الصباح يبدأ بـ {title}",
+        "نهاية يومي تنتهي بـ {title}",
+        "يومي أحلى مع {title}",
+        "الحياة أسهل مع {title}",
+        "يومي منظم بفضل {title}",
+        "ما أتخيل يومي بدون {title}",
+        "يومي كامل يحتوي {title}",
+        "السعادة اليومية: {title}",
+        "يومي يكتمل بـ {title}",
+        "لا غنى عنه يومياً: {title}",
+        "يومي أفضل مع {title}",
+        "روتيني السعيد: {title}",
+        "كل يوم مع {title} نعمة",
+        "يومي يستاهل {title}",
     ],
+    
+    # هدية ومفاجأة (20 جملة)
     "gift": [
-        "هدية مثالية {title}\n{price} ريال 🎁",
-        "تبي تهدي؟ {title}\n{price} ريال ويفرح 🎀",
+        "هدية تفرح القلب: {title}",
+        "مفاجأة لا تُنسى: {title}",
+        "الهدية المثالية: {title}",
+        "تدليل لأحبابك: {title}",
+        "هدية تعبر عن اهتمامك: {title}",
+        "الإهداء الأنسب: {title}",
+        "مفاجأة سعيدة: {title}",
+        "هدية تستحق التقدير: {title}",
+        "لمن تُحب: {title} هدية مميزة",
+        "إسعاد الآخرين بـ {title}",
+        "هدية تبقى ذكرى: {title}",
+        "الإهداء الأفضل: {title}",
+        "مفاجأة تسعد: {title}",
+        "هدية عملية وجميلة: {title}",
+        "للمناسبات الخاصة: {title}",
+        "إهداء يليق بك: {title}",
+        "هدية تُدهش: {title}",
+        "التفكير في الآخرين: {title}",
+        "مفاجأة تُفرح: {title}",
+        "هدية تستاهل: {title}",
+    ],
+    
+    # فخامة وأناقة (20 جملة)
+    "luxury": [
+        "لمسة فاخرة: {title} يميزك",
+        "الأناقة تبدأ من {title}",
+        "فخامة تليق بك: {title}",
+        "التميز واضح في {title}",
+        "أسلوب راقٍ: {title}",
+        "الفخامة الحقيقية: {title}",
+        "تألق بـ {title}",
+        "التميز عنوانك مع {title}",
+        "أناقة لا تُضاهى: {title}",
+        "الفخامة تختصر بـ {title}",
+        "بصمة أنيقة: {title}",
+        "الأصالة تلتقي الفخامة: {title}",
+        "تميزك يكمله {title}",
+        "الأناقة في التفاصيل: {title}",
+        "فخامة تستحق: {title}",
+        "أسلوب حياة راقٍ: {title}",
+        "التميز يبدأ بـ {title}",
+        "أناقة تفرض احترامها: {title}",
+        "الفخامة تختار {title}",
+        "تألقك يستحق {title}",
+    ],
+    
+    # أمومة وعائلة (20 جملة)
+    "family": [
+        "لراحة عائلتك: {title} مهم",
+        "أمومة أسهل مع {title}",
+        "العائلة تستاهل {title}",
+        "لأحبابك الأفضل: {title}",
+        "راحة البيت تبدأ بـ {title}",
+        "للأم المثالية: {title}",
+        "سعادة العائلة في {title}",
+        "البيت أحلى مع {title}",
+        "للأطفال الأعزاء: {title}",
+        "راحة الأم: {title} يساعد",
+        "العائلة تجتمع على {title}",
+        "للأب المثالي: {title}",
+        "سعادة الأطفال: {title}",
+        "البيت المنظم: {title} يسهل",
+        "للأم الحنونة: {title}",
+        "راحة العائلة: {title}",
+        "للأهل الأعزاء: {title}",
+        "سعادة يومية: {title}",
+        "البيت يستاهل {title}",
+        "للعائلة السعيدة: {title}",
+    ],
+    
+    # صحة ولياقة (20 جملة)
+    "health": [
+        "صحتك تستاهل {title}",
+        "لياقتك تبدأ بـ {title}",
+        "العافية تستحق {title}",
+        "صحة أفضل مع {title}",
+        "جسمك يشكرك على {title}",
+        "النشاط اليومي: {title} يساعد",
+        "لحياة صحية: {title} مهم",
+        "صحتك أولوية: {title}",
+        "اللياقة تستاهل {title}",
+        "جسمك يستحق الأفضل: {title}",
+        "العافية تبدأ من {title}",
+        "صحة تدوم بـ {title}",
+        "لطاقة يومية: {title}",
+        "جسدك يحتاج {title}",
+        "الصحة تختار {title}",
+        "لياقة تستحق: {title}",
+        "حياة صحية تبدأ بـ {title}",
+        "صحتك في {title}",
+        "النشاط يستاهل {title}",
+        "لجسم رشيق: {title}",
+    ],
+    
+    # تكنولوجيا وذكاء (20 جملة)
+    "tech": [
+        "تقنية تخدمك: {title}",
+        "الذكاء يختار {title}",
+        "تكنولوجيا تسهل حياتك: {title}",
+        "العصرية تبدأ بـ {title}",
+        "ابتكار يستاهل: {title}",
+        "الذكاء في الاختيار: {title}",
+        "تقنية تستحق: {title}",
+        "الحداثة تلتقي الفائدة: {title}",
+        "ابتكار يسهل: {title}",
+        "تكنولوجيا تفرق: {title}",
+        "الذكاء الاصطناعي ينصح بـ {title}",
+        "تقنية تستاهل الاهتمام: {title}",
+        "الابتكار يختصر {title}",
+        "تكنولوجيا تخدمك: {title}",
+        "العقلية الذكية تختار {title}",
+        "ابتكار يوفر وقتك: {title}",
+        "تقنية تستحق الثقة: {title}",
+        "الحداثة تبدأ من {title}",
+        "ذكاء في التصميم: {title}",
+        "تكنولوجيا تليق بك: {title}",
+    ],
+    
+    # تنظيم وتنظيف (20 جملة)
+    "organization": [
+        "تنظيم يسهل حياتك: {title}",
+        "الترتيب يبدأ بـ {title}",
+        "نظافة تستاهل: {title}",
+        "تنظيم يريح بالك: {title}",
+        "الترتيب يليق بك: {title}",
+        "نظافة تدوم مع {title}",
+        "تنظيم يوفر وقتك: {title}",
+        "الترتيب السهل: {title}",
+        "نظافة تستحق: {title}",
+        "تنظيم يليق ببيتك: {title}",
+        "الترتيب الذكي: {title}",
+        "نظافة تفرق: {title}",
+        "تنظيم يسهل يومك: {title}",
+        "الترتيب المثالي: {title}",
+        "نظافة تستاهل الاهتمام: {title}",
+        "تنظيم يكمل بيتك: {title}",
+        "الترتيب الاحترافي: {title}",
+        "نظافة تليق بك: {title}",
+        "تنظيم يريح عينك: {title}",
+        "الترتيب السريع: {title}",
     ],
 }
 
@@ -66,7 +312,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
 ]
 
 @app.route('/')
@@ -77,133 +322,148 @@ def run_flask():
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
-def extract_asin(url):
-    """استخراج ASIN من رابط أمازون"""
-    patterns = [
-        r'/dp/([A-Z0-9]{10})',
-        r'/gp/product/([A-Z0-9]{10})',
-        r'amzn\.eu/d/([A-Z0-9]+)',
-        r'amzn\.to/[a-zA-Z0-9]+',
-        r'amazon\..*/([A-Z0-9]{10})',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1) if len(match.group(1)) == 10 else match.group(0)
-    return None
+def translate_to_arabic(text):
+    """محاكاة ترجمة الوصف للعربي (البراند يبقى إنجليزي)"""
+    # في الواقع هنا تستخدمين Google Translate API
+    # هذا نموذج مبسط للتوضيح
+    
+    # استخراج البراند (الكلمة الإنجليزية الأولى عادة)
+    words = text.split()
+    brand = words[0] if words and words[0].isascii() else ""
+    
+    # ترجمة بسيطة للكلمات الشائعة (محاكاة)
+    translations = {
+        "Shoes": "حذاء",
+        "Watch": "ساعة",
+        "Bag": "حقيبة",
+        "Phone": "هاتف",
+        "Laptop": "لابتوب",
+        "Headphones": "سماعات",
+        "Camera": "كاميرا",
+        "Tablet": "تابلت",
+        "Charger": "شاحن",
+        "Cable": "كيبل",
+        "Mouse": "ماوس",
+        "Keyboard": "كيبورد",
+        "Screen": "شاشة",
+        "Battery": "بطارية",
+        "Case": "غطاء",
+        "Cover": "حماية",
+        "Stand": "ستاند",
+        "Holder": "حامل",
+        "Light": "إضاءة",
+        "Speaker": "سماعة",
+        "Microphone": "مايك",
+        "Tripod": "ترايبود",
+        "Adapter": "محول",
+        "Memory": "ذاكرة",
+        "Storage": "تخزين",
+        "Wireless": "لاسلكي",
+        "Bluetooth": "بلوتوث",
+        "Smart": "ذكي",
+        "Digital": "رقمي",
+        "Professional": "احترافي",
+        "Original": "أصلي",
+        "New": "جديد",
+        "Premium": "مميز",
+        "Pro": "برو",
+        "Max": "ماكس",
+        "Plus": "بلس",
+        "Ultra": "ألترا",
+        "Mini": "ميني",
+        "Air": "آير",
+    }
+    
+    # بناء النص المترجم (البراند يبقى إنجليزي)
+    translated_words = [brand]  # البراند أول شي
+    
+    for word in words[1:]:
+        clean_word = re.sub(r'[^\w]', '', word)
+        if clean_word in translations:
+            translated_words.append(translations[clean_word])
+        elif word.isascii():
+            # إذا ما لقينا ترجمة، نحط وصف عام
+            continue
+        else:
+            translated_words.append(word)
+    
+    # إذا ما ترجم شي، نرجع وصف عام بالعربي
+    if len(translated_words) < 2:
+        return f"{brand} منتج أصلي مميز"
+    
+    return " ".join(translated_words[:6])  # نختصر للبروفشنال
+
+def extract_brand(title):
+    """استخراج البراند من العنوان"""
+    words = title.split()
+    if words:
+        # البراند عادة أول كلمة أو أول كلمتين
+        brand = words[0]
+        # إذا الكلمة الثانية أيضاً إنجليزية وقصيرة، نضيفها
+        if len(words) > 1 and words[1].isascii() and len(words[1]) < 10:
+            brand = f"{words[0]} {words[1]}"
+        return brand
+    return title
 
 def get_high_quality_image(soup):
-    """استخراج صورة عالية الجودة من أمازون"""
-    image_url = None
-    
-    # محاولة 1: البيانات المخزنة في JavaScript
-    try:
-        scripts = soup.find_all('script', type='text/javascript')
-        for script in scripts:
-            if script.string and 'hiRes' in script.string:
-                # البحث عن روابط الصور في الـ JSON
-                matches = re.findall(r'"hiRes":"(https://[^"]+)"', script.string)
-                if matches:
-                    image_url = matches[0].replace('\\', '')
-                    return image_url
-    except:
-        pass
-    
-    # محاولة 2: data-a-dynamic-image (أحجام متعددة)
+    """استخراج صورة عالية الجودة"""
     try:
         img = soup.select_one('#landingImage')
         if img:
             dynamic_data = img.get('data-a-dynamic-image')
             if dynamic_data:
-                # تحويل الـ JSON واختيار أكبر حجم
                 images_dict = json.loads(dynamic_data)
-                # اختيار الصورة الأكبر (آخر مفتاح عادة)
                 largest_url = max(images_dict.keys(), key=lambda x: images_dict[x][0] * images_dict[x][1])
-                image_url = largest_url
-                return image_url
-    except:
-        pass
-    
-    # محاولة 3: data-old-hires (الجودة العالية القديمة)
-    try:
-        img = soup.select_one('#landingImage')
-        if img:
-            image_url = img.get('data-old-hires')
+                return largest_url
+            
+            image_url = img.get('data-old-hires') or img.get('src')
             if image_url:
-                return image_url
+                return re.sub(r'._[^_]+_\.', '._SL1500_.', image_url)
     except:
         pass
-    
-    # محاولة 4: src العادي مع تعديل للجودة العالية
-    try:
-        img = soup.select_one('#landingImage')
-        if img:
-            src = img.get('src')
-            if src:
-                # تعديل الرابط لجودة أعلى
-                image_url = re.sub(r'._[^_]+_\.', '._SL1500_.', src)
-                return image_url
-    except:
-        pass
-    
-    # محاولة 5: صور البدائل
-    try:
-        alt_images = soup.select('#altImages img')
-        for alt_img in alt_images:
-            src = alt_img.get('src')
-            if src and 'images-na' in src:
-                # تحويل لجودة عالية
-                high_res = re.sub(r'._[^_]+_\.', '._SL1500_.', src)
-                return high_res
-    except:
-        pass
-    
-    return image_url
+    return None
 
 def get_amazon_info(url):
-    """استخراج معلومات المنتج مع صورة عالية الجودة"""
+    """استخراج معلومات المنتج"""
     max_retries = 3
     
     for attempt in range(max_retries):
         try:
             headers = {
                 "User-Agent": random.choice(USER_AGENTS),
-                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
+                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             }
             
             time.sleep(random.uniform(1, 2))
-            
             session = requests.Session()
             session.get("https://www.amazon.sa", headers=headers, timeout=10)
             time.sleep(random.uniform(0.5, 1))
             
             response = session.get(url, headers=headers, timeout=15)
-            
             if response.status_code != 200:
-                print(f"Attempt {attempt + 1}: Status {response.status_code}")
                 continue
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # العنوان
-            title = None
-            title_selectors = [
-                '#productTitle',
-                'h1.a-size-large',
-                '[data-automation-id="product-title"]',
-            ]
+            # العنوان الأصلي
+            original_title = None
+            title_selectors = ['#productTitle', 'h1.a-size-large']
             for selector in title_selectors:
                 element = soup.select_one(selector)
                 if element:
-                    title = element.get_text().strip()
-                    title = re.sub(r'\s+', ' ', title)
-                    title = title[:80]  # أقصر للبروفشنال
+                    original_title = element.get_text().strip()
+                    original_title = re.sub(r'\s+', ' ', original_title)
                     break
+            
+            if not original_title:
+                continue
+            
+            # استخراج البراند (إنجليزي)
+            brand = extract_brand(original_title)
+            
+            # ترجمة الوصف للعربي
+            arabic_description = translate_to_arabic(original_title)
             
             # السعر
             price = None
@@ -221,21 +481,21 @@ def get_amazon_info(url):
                         price = price_match.group()
                         break
             
-            # الصورة عالية الجودة
+            # الصورة
             image_url = get_high_quality_image(soup)
             
             # التقييم
             rating = None
             rating_element = soup.select_one('[data-hook="average-star-rating"] .a-icon-alt')
             if rating_element:
-                rating_text = rating_element.get_text()
-                rating_match = re.search(r'(\d+\.?\d*)', rating_text)
+                rating_match = re.search(r'(\d+\.?\d*)', rating_element.get_text())
                 if rating_match:
                     rating = rating_match.group(1)
             
-            if title and price:
+            if brand and price:
                 return {
-                    'title': title,
+                    'brand': brand,
+                    'description': arabic_description,
                     'price': price,
                     'image': image_url,
                     'rating': rating,
@@ -249,8 +509,9 @@ def get_amazon_info(url):
     return None
 
 def generate_pro_post(product_info):
-    """توليد منشور بروفشنال قصير"""
-    title = product_info['title']
+    """توليد منشور بروفشنال"""
+    brand = product_info['brand']
+    description = product_info['description']
     price = product_info['price']
     rating = product_info.get('rating')
     url = product_info['url']
@@ -259,23 +520,30 @@ def generate_pro_post(product_info):
     category = random.choice(list(SAUDI_TEMPLATES.keys()))
     template = random.choice(SAUDI_TEMPLATES[category])
     
+    # بناء عنوان المنتج: براند إنجليزي + وصف عربي
+    product_title = f"{brand} {description}"
+    
     # ملء القالب
-    main_text = template.format(title=title, price=price)
+    main_text = template.format(title=product_title)
     
-    # إضافة تقييم إذا موجود
-    rating_line = f"⭐ {rating}/5" if rating else ""
-    
-    # تجميع المنشور البروفشنال
+    # بناء المنشور البروفشنال
     lines = [
         main_text,
         "",  # سطر فارغ
-        rating_line if rating_line else "",
-        "",  # سطر فارغ
-        f"الرابط: {url}"  # ثابت في آخر سطر
+        f"💰 {price} ريال",
     ]
     
-    # إزالة الأسطر الفارغة
-    post = "\n".join([line for line in lines if line])
+    # إضافة التقييم إذا موجود
+    if rating:
+        lines.append(f"⭐ {rating}/5")
+    
+    # سطر فارغ قبل الرابط
+    lines.append("")
+    
+    # الرابط ثابت في آخر سطر
+    lines.append(f"الرابط: {url}")
+    
+    post = "\n".join(lines)
     
     return post
 
@@ -299,19 +567,18 @@ def handle_message(message):
             pro_post = generate_pro_post(product_info)
             
             try:
-                # إرسال الصورة مع المنشور
                 if product_info.get('image'):
                     bot.send_photo(
                         CHANNEL_ID,
                         product_info['image'],
                         caption=pro_post,
-                        parse_mode=None  # نص عادي للتنسيق الأفضل
+                        parse_mode=None
                     )
                 else:
                     bot.send_message(CHANNEL_ID, pro_post)
                 
                 bot.edit_message_text(
-                    f"✅ تم النشر!\n\n{product_info['title'][:40]}...\n{product_info['price']} ريال",
+                    f"✅ تم النشر!\n\n{product_info['brand']} {product_info['description'][:30]}...\n{product_info['price']} ريال",
                     chat_id,
                     wait_msg.message_id
                 )
@@ -325,7 +592,6 @@ def handle_message(message):
                 elif "not enough rights" in error_msg:
                     bot.edit_message_text("❌ البوت ما عنده صلاحيات! ضيفيه Admin", chat_id, wait_msg.message_id)
                 elif "wrong file identifier" in error_msg:
-                    # جرب نص فقط
                     try:
                         bot.send_message(CHANNEL_ID, pro_post)
                         bot.edit_message_text("✅ تم النشر (بدون صورة)", chat_id, wait_msg.message_id)
