@@ -6,71 +6,44 @@ from flask import Flask
 from threading import Thread
 
 # --- الإعدادات ---
-TELEGRAM_TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
-CHAT_ID = "ouroodbot"
+# تأكدي من وضع القيم الصحيحة هنا
+TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
+CHANNEL_ID = "ouroodbot"
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is Live!"
+    return "Bot is Online"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
-def get_data(url):
-    # هوية متصفح بسيطة
-    h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/110.0.0.0 Safari/537.36"}
+def get_amazon_info(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+    }
     try:
-        # فك الرابط المختصر
-        r = requests.get(url, headers=h, timeout=15, allow_redirects=True)
-        soup = BeautifulSoup(r.content, 'html.parser')
+        # فك الرابط المختصر والوصول للمنتج
+        response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+        soup = BeautifulSoup(response.content, 'html.parser')
         
-        # سحب العنوان والسعر
-        t = soup.find(id="productTitle")
-        p = soup.find("span", {"class": "a-price-whole"})
+        # سحب الاسم والسعر
+        title_tag = soup.find(id="productTitle")
+        price_tag = soup.find("span", {"class": "a-price-whole"})
         
-        if t:
-            title = t.get_text().strip()[:50]
-            price = p.get_text().strip() if p else "شيك بالرابط"
-            return f"📦 **{title}**\n💸 **السعر:** {price} ريال\n🔗 {url}"
-    except:
-        pass
+        if title_tag:
+            title = title_tag.get_text().strip()
+            price = price_tag.get_text().strip() if price_tag else "شيك بالرابط"
+            return f"📦 **{title[:55]}..**\n💸 **السعر:** {price} ريال\n🔗 {url}"
+    except Exception as e:
+        print(f"Error scraping: {e}")
     return None
 
 @bot.message_handler(func=lambda m: True)
-def handle(m):
-    if "amazon" in m.text or "amzn" in m.text:
-        # تنظيف التعارض فوراً
-        bot.delete_webhook(drop_pending_updates=True)
-        
-        res = get_data(m.text)
-        if res:
-            bot.send_message(CHAT_ID, res, parse_mode="Markdown")
-        else:
-            bot.reply_to(m, "❌ الرابط لم يرد، جربي رابطاً طويلاً.")
-
-if __name__ == "__main__":
-    # أهم خطوة لإنهاء خطأ 409
-    bot.delete_webhook(drop_pending_updates=True)
-    Thread(target=run_flask).start()
-    bot.infinity_polling()
-        price_tag = soup.find("span", {"class": "a-price-whole"})
-        price = price_tag.get_text().strip() if price_tag else "شيك بالرابط"
-        
-        img_tag = soup.find("img", {"id": "landingImage"})
-        img = img_tag.get("src") if img_tag else None
-        
-        caption = f"📦 **{title[:50]}..**\n💸 **السعر:** {price} ريال\n🔗 {url}"
-        return caption, img
-    except Exception as e:
-        print(f"Error: {e}")
-        return None, None
-
-@bot.message_handler(func=lambda m: True)
-def handle(m):
+def handle_message(m):
     if "amazon" in m.text or "amzn" in m.text:
         # حل مشكلة التعارض 409
         try:
@@ -78,23 +51,23 @@ def handle(m):
         except:
             pass
             
-        msg = bot.reply_to(m, "⏳ ثواني أجيب لك العلم من أمازون...")
-        caption, img = get_amazon_data(m.text)
+        wait_msg = bot.reply_to(m, "⏳ ثواني أجيب لك العلم من أمازون...")
+        result = get_amazon_info(m.text)
         
-        if caption:
-            if img:
-                bot.send_photo(CHAT_ID, img, caption=caption, parse_mode="Markdown")
-            else:
-                bot.send_message(CHAT_ID, caption, parse_mode="Markdown")
-            bot.delete_message(m.chat.id, msg.message_id)
+        if result:
+            bot.send_message(CHANNEL_ID, result, parse_mode="Markdown")
+            bot.delete_message(m.chat.id, wait_msg.message_id)
         else:
-            bot.edit_message_text("❌ عذراً، لم أتمكن من قراءة البيانات. تأكدي من الرابط.", m.chat.id, msg.message_id)
+            bot.edit_message_text("❌ لم أتمكن من قراءة البيانات، جربي رابطاً طويلاً.", m.chat.id, wait_msg.message_id)
 
 if __name__ == "__main__":
-    # مسح التعارض عند التشغيل
+    # تنظيف الجلسات القديمة لمنع توقف البوت
     try:
         bot.delete_webhook(drop_pending_updates=True)
     except:
         pass
+    
+    # تشغيل سيرفر ويب بسيط لإبقاء البوت حياً في Render
     Thread(target=run_flask).start()
-    bot.infinity_polling()
+    print("🚀 البوت يعمل الآن بدون أخطاء مسافات...")
+    bot.infinity_polling(timeout=60, long_polling_timeout=60)
