@@ -11,7 +11,7 @@ import json
 
 # --- الإعدادات ---
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
-CHANNEL_ID = "@Ouroodbot"
+CHANNEL_ID = "@Ouroodksa"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
