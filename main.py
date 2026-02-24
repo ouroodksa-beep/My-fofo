@@ -6,8 +6,8 @@ from flask import Flask
 from threading import Thread
 
 # --- الإعدادات ---
-# تأكدي من وضع مفتاح RapidAPI كاملاً هنا
-AXESSO_API_KEY = "291c5dc917msh1d653f8674d817fp1823ebjsn9f15951d36d8"
+# تأكدي من نسخ المفتاح كاملاً كما في حافظة جوالك
+AXESSO_API_KEY = "291c5dc917msh1d653eaeac8aa90p18c689jsn69d6b6d5aed7" 
 TELEGRAM_TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 CHAT_ID = "ouroodbot"
 
@@ -15,7 +15,7 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask('')
 
 @app.route('/')
-def home(): return "Axesso Bot is Running!"
+def home(): return "Axesso System is Online!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -23,32 +23,30 @@ def run_flask():
 
 def get_amazon_data(short_url):
     try:
-        # 1. حل مشكلة الـ 404: فك الرابط المختصر أولاً
-        res_head = requests.head(short_url, allow_redirects=True, timeout=12)
-        long_url = res_head.url
+        # 1. فك الرابط المختصر للحصول على الرابط الطويل (حل مشكلة الـ 404)
+        r = requests.head(short_url, allow_redirects=True, timeout=12)
+        long_url = r.url
         
-        # 2. استخراج الـ ASIN بدقة من الرابط الطويل
+        # 2. استخراج الـ ASIN بدقة
         asin = None
-        if "/dp/" in long_url: 
-            asin = long_url.split("/dp/")[1].split("/")[0].split("?")[0]
-        elif "/gp/product/" in long_url: 
-            asin = long_url.split("/gp/product/")[1].split("/")[0].split("?")[0]
+        if "/dp/" in long_url: asin = long_url.split("/dp/")[1].split("/")[0].split("?")[0]
+        elif "/gp/product/" in long_url: asin = long_url.split("/gp/product/")[1].split("/")[0].split("?")[0]
         
         if not asin: return None, None
 
-        # 3. إرسال الطلب لـ Axesso (باستخدام الـ ASIN المضمون)
+        # 3. الطلب من Axesso باستخدام الـ ASIN
         url = "https://axesso-amazon-data-service.p.rapidapi.com/amz/amazon-lookup-product"
         headers = {
             "X-RapidAPI-Key": AXESSO_API_KEY,
             "X-RapidAPI-Host": "axesso-amazon-data-service.p.rapidapi.com"
         }
-        params = {"asin": asin, "domainCode": "sa"}
+        params = {"asin": asin, "domainCode": "sa"} # أمازون السعودية
         
         res = requests.get(url, headers=headers, params=params, timeout=15).json()
         
         if res.get("responseStatus") == "PRODUCT_FOUND_OK":
             title = res.get("productTitle", "منتج مميز")
-            # قص الاسم ليظهر في سطر واحد أنيق
+            # اختصار الاسم لسطر واحد
             short_title = (title[:45] + '..') if len(title) > 45 else title
             price = res.get("price", "شيك بالرابط")
             img = res.get("imageUrlList", [None])[0]
@@ -56,15 +54,14 @@ def get_amazon_data(short_url):
             phrase = random.choice(["يا هلا بالزين ✨", "لقطة اليوم 🔥", "شي فاخر 👌"])
             caption = f"🔥 **{phrase}**\n\n📦 **المنتج:** {short_title}\n💸 **السعر:** {price} ريال\n\n🔗 **رابط الطلب:** {short_url}"
             return caption, img
-            
     except Exception as e:
-        print(f"Error logic: {e}")
+        print(f"Logic Error: {e}")
     return None, None
 
 @bot.message_handler(func=lambda m: True)
-def handle(m):
+def handle_msg(m):
     if "amazon" in m.text or "amzn.to" in m.text:
-        # تنظيف الجلسة لتجنب التعارض 409
+        # حل مشكلة التعارض 409
         bot.delete_webhook(drop_pending_updates=True)
         
         caption, img = get_amazon_data(m.text)
@@ -75,6 +72,6 @@ def handle(m):
 
 if __name__ == "__main__":
     bot.delete_webhook(drop_pending_updates=True)
-    Thread(target=run_flask).start()
-    print("🚀 البوت يعمل الآن باستخدام Axesso...")
+    Thread(target=run_flask).start() # تشغيل السيرفر لـ Render
+    print("🚀 انطلق البوت بنجاح...")
     bot.infinity_polling()
