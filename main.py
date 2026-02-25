@@ -15,50 +15,6 @@ SCRAPER_API_KEY = "fb7742b2e62f3699d5059eea890268dd"
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
-# --- قاموس التصنيفات ---
-CATEGORIES = {
-    "shoe": "حذاء", "shoes": "حذاء", "sneaker": "حذاء رياضي", "sneakers": "حذاء رياضي",
-    "boot": "جزمة", "boots": "جزمة", "sandal": "صندل", "sandals": "صندل",
-    "slipper": "شبشب", "slippers": "شبشب", "footwear": "أحذية",
-    "pant": "بنطلون", "pants": "بنطلون", "trouser": "بنطلون", "trousers": "بنطلون",
-    "jean": "جينز", "jeans": "جينز", "short": "شورت", "shorts": "شورت",
-    "shirt": "قميص", "shirts": "قميص", "t-shirt": "تيشيرت", "tshirt": "تيشيرت",
-    "dress": "فستان", "dresses": "فستان", "skirt": "تنورة", "skirts": "تنورة",
-    "jacket": "جاكيت", "jackets": "جاكيت", "coat": "معطف", "coats": "معطف",
-    "sweater": "سترة", "sweaters": "سترة", "hoodie": "هودي", "hoodies": "هودي",
-    "sweatpant": "بنطلون رياضي", "sweatpants": "بنطلون رياضي", "fleece": "فليس",
-    "sock": "جورب", "socks": "جورب", "underwear": "ملابس داخلية",
-    "pajama": "بيجاما", "pajamas": "بيجاما", "robe": "روب", "robes": "روب",
-    "scarf": "وشاح", "shaw": "شال", "glove": "قفاز", "gloves": "قفاز",
-    "hat": "قبعة", "hats": "قبعة", "cap": "طاقية", "caps": "طاقية",
-    "belt": "حزام", "belts": "حزام", "tie": "ربطة عنق", "ties": "ربطة عنق",
-    "suit": "بدلة", "suits": "بدلة", "abaya": "عباية", "thobe": "ثوب",
-    
-    "watch": "ساعة", "watches": "ساعة", "jewelry": "مجوهرات",
-    "ring": "خاتم", "necklace": "عقد", "bracelet": "سوار", "earring": "حلق",
-    "sunglass": "نظارة شمسية", "sunglasses": "نظارة شمسية",
-    "wallet": "محفظة", "purse": "شنطة يد", "bag": "حقيبة", "backpack": "شنطة ظهر",
-    
-    "phone": "هاتف", "smartphone": "هاتف ذكي", "iphone": "آيفون",
-    "laptop": "لابتوب", "computer": "كمبيوتر", "tablet": "تابلت", "ipad": "آيباد",
-    "headphone": "سماعة", "earphone": "سماعة أذن", "earbud": "سماعة لاسلكية",
-    "speaker": "مكبر صوت", "charger": "شاحن", "cable": "كيبل",
-    "power bank": "باور بانك", "battery": "بطارية", "mouse": "ماوس",
-    "keyboard": "كيبورد", "monitor": "شاشة", "camera": "كاميرا",
-    
-    "furniture": "أثاث", "sofa": "كنبة", "bed": "سرير", "mattress": "مرتبة",
-    "pillow": "مخدة", "blanket": "بطانية", "carpet": "سجادة", "lamp": "مصباح",
-    "pot": "قدر", "pan": "مقلاة", "blender": "خلاط", "oven": "فرن",
-    "fridge": "ثلاجة", "washer": "غسالة", "vacuum": "مكنسة", "fan": "مروحة",
-    "ac": "مكيف", "heater": "دفاية",
-    
-    "perfume": "عطر", "cream": "كريم", "shampoo": "شامبو", "soap": "صابون",
-    "makeup": "مكياج", "lipstick": "أحمر شفاه",
-    
-    "toy": "لعبة", "doll": "دمية", "stroller": "عربة أطفال", "diaper": "حفاض",
-    "book": "كتاب", "pen": "قلم", "notebook": "دفتر",
-}
-
 # --- 200+ جملة سعودية مرتبطة بالمنتج ---
 TEMPLATES = {
     # أحذية (30 جملة)
@@ -87,7 +43,7 @@ TEMPLATES = {
         "لا يفوتك {title} بهالسعر! 🏃‍♂️👞",
         "نعمة من الله {title}! 🙏👟",
         "يستاهل التجربة {title}! 💯👞",
-        "أنصح فيه بقوة {title}! 💪👟",
+        "أنصح فيه بقوة {title}! 💪👞",
         "ما راح تندم على {title}! ✅👞",
         "فرصة ذهبية {title}! 🌟👟",
         "الأناقة تبدأ من {title}! ✨👞",
@@ -290,6 +246,20 @@ TEMPLATES = {
     ],
 }
 
+# --- جمل تسويقية إضافية ---
+MARKETING_PHRASES = [
+    "🔥 العرض لفترة محدودة!",
+    "⚡ الكمية محدودة جداً!",
+    "💯 جودة مضمونة 100%",
+    "🚚 توصيل سريع لجميع المناطق",
+    "🎁 هدية مجانية مع الطلب",
+    "⭐ تقييم 5 نجوم من العملاء",
+    "💰 أفضل سعر في السوق",
+    "🔒 دفع آمن وموثوق",
+    "📞 خدمة عملاء 24/7",
+    "✅ ضمان استرجاع خلال 30 يوم",
+]
+
 # --- صيغ السعر ---
 PRICE_FORMATS = [
     "🔥 بـ {price} ريال فقط!",
@@ -337,9 +307,6 @@ def get_category(title):
     """تحديد تصنيف المنتج"""
     title_lower = title.lower()
     
-    # تصنيف المنتج"""
-    title_lower = title.lower()
-    
     # أحذية
     if any(word in title_lower for word in ['shoe', 'shoes', 'sneaker', 'sneakers', 'boot', 'boots', 'sandal', 'sandals', 'footwear']):
         return "shoe"
@@ -367,33 +334,17 @@ def get_category(title):
     # ملابس (افتراضي)
     return "clothes"
 
-def translate_title(title):
-    """ترجمة العنوان للعربي"""
-    words = title.split()
-    brand = words[0] if words else ""
-    
-    title_lower = title.lower()
-    category_words = []
-    
-    # البحث عن كلمات التصنيف
-    for eng, ar in CATEGORIES.items():
-        if eng in title_lower and ar not in category_words:
-            category_words.append(ar)
-    
-    # إضافة وصف عام
-    if any(word in title_lower for word in ['men', 'men\'s', 'man']):
-        category_words.append("رجالي")
-    elif any(word in title_lower for word in ['women', 'women\'s', 'woman', 'lady', 'ladies']):
-        category_words.append("نسائي")
-    elif any(word in title_lower for word in ['kid', 'kids', 'child', 'children', 'baby']):
-        category_words.append("أطفال")
-    
-    if any(word in title_lower for word in ['sport', 'running', 'athletic']):
-        category_words.append("رياضي")
-    
-    # دمج الكلمات
-    result = brand + " " + " ".join(category_words[:2])
-    return result.strip()
+def format_price(price_str):
+    """إزالة النقطة العشرية من السعر"""
+    try:
+        # إزالة الفواصل والمسافات
+        price_clean = price_str.replace(',', '').replace(' ', '').strip()
+        # تحويل لرقم
+        price_num = float(price_clean)
+        # إرجاع عدد صحيح بدون كسور
+        return str(int(price_num))
+    except:
+        return price_str
 
 def get_product_scraperapi(asin):
     """ScraperAPI"""
@@ -434,6 +385,9 @@ def get_product_scraperapi(asin):
         if not price:
             return None
         
+        # إزالة النقطة العشرية من السعر
+        price = format_price(price)
+        
         image = None
         img_elem = soup.select_one('#landingImage')
         if img_elem:
@@ -441,13 +395,11 @@ def get_product_scraperapi(asin):
             if image:
                 image = image.replace('._SL500_', '._SL1500_')
         
-        # تحديد التصنيف والترجمة
+        # تحديد التصنيف فقط (بدون ترجمة)
         category = get_category(title)
-        arabic_title = translate_title(title)
         
         return {
-            'original_title': title,
-            'title': arabic_title,
+            'title': title,  # الاسم كما هو من الموقع
             'category': category,
             'price': price,
             'image': image,
@@ -469,10 +421,14 @@ def generate_post(product):
     templates = TEMPLATES.get(category, TEMPLATES['clothes'])
     template = random.choice(templates)
     
+    # اختيار جملة تسويقية
+    marketing = random.choice(MARKETING_PHRASES)
+    
     main_text = template.format(title=title)
     price_text = random.choice(PRICE_FORMATS).format(price=price)
     
-    return f"{main_text}\n\n{price_text}\n\nالرابط: {url}"
+    # تجميع المنشور مع الجملة التسويقية
+    return f"{main_text}\n\n{price_text}\n\n{marketing}\n\nالرابط: {url}"
 
 @bot.message_handler(func=lambda m: True)
 def handle_message(message):
