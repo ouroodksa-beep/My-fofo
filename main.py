@@ -10,14 +10,14 @@ import telebot
 
 
 
-# =========================================
-# إعدادات البوت
-# =========================================
+# =================================
+# TOKEN
+# =================================
 
 TOKEN = os.getenv("TOKEN")
 
 if not TOKEN:
-    raise ValueError("❌ TOKEN is missing. Add it in Render Environment Variables.")
+    raise ValueError("❌ TOKEN missing")
 
 
 
@@ -25,51 +25,45 @@ bot = telebot.TeleBot(TOKEN)
 
 
 
-# =========================================
-# أنماط الكتابة المختلفة
-# =========================================
+# =================================
+# أنماط التسويق
+# =================================
 
 STYLES = [
 
-    "أسلوب تسويقي احترافي",
+    "عرض لفترة محدودة",
 
-    "أسلوب عاطفي مؤثر",
+    "جودة عالية بسعر رائع",
 
-    "أسلوب إقناعي مباشر",
+    "الأكثر مبيعاً حالياً",
 
-    "أسلوب قصصي جذاب",
+    "اختيار مثالي",
 
-    "أسلوب فاخر راقي",
+    "فرصة لا تعوض",
 
-    "أسلوب شبابي عصري",
+    "راحة وأناقة",
 
-    "أسلوب نسائي أنيق",
+    "تصميم عصري",
 
-    "أسلوب قوي وحماسي",
-
-    "أسلوب مختصر وسريع"
+    "مميز وفريد"
 
 ]
 
 
 
-generated_texts = set()
-
-
-
-# =========================================
-# دالة قراءة بيانات المنتج من الرابط
-# =========================================
+# =================================
+# قراءة الرابط (سريعة)
+# =================================
 
 def get_product_info(url):
 
     try:
 
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+        headers = {"User-Agent": "Mozilla/5.0"}
 
-        response = requests.get(url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=8)
+
+
 
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -79,88 +73,80 @@ def get_product_info(url):
 
 
 
-        description = ""
+        meta = soup.find("meta", {"name": "description"})
 
-        meta_desc = soup.find("meta", {"name": "description"})
-
-        if meta_desc:
-            description = meta_desc.get("content", "").strip()
+        desc = meta["content"] if meta else "أفضل منتج بجودة عالية"
 
 
 
-        if not description:
-            description = "أفضل منتج بجودة عالية وسعر منافس ومناسب للجميع"
+        return title, desc
 
 
 
-        return title, description
+    except Exception as e:
+        print("ERROR:", e)
+        return "منتج رائع", "جودة عالية وسعر ممتاز"
 
 
 
-    except Exception:
-        return "منتج رائع", "منتج عالي الجودة مناسب لجميع الاستخدامات"
+# =================================
+# توليد جمل بدون تعليق
+# =================================
+
+def generate_sentences(title, desc, count=50):
+
+    results = []
+
+    used = set()
 
 
 
-# =========================================
-# توليد جمل تسويقية بدون تكرار
-# =========================================
-
-def generate_marketing_sentences(title, description, count=200):
-
-    sentences = []
-
-
-
-    while len(sentences) < count:
+    for _ in range(count * 3):
 
         style = random.choice(STYLES)
 
-        power_word = random.choice(["🔥", "✨", "🚀", "💎", "🎯", "⭐"])
+        emoji = random.choice(["🔥", "✨", "🚀", "⭐", "💎"])
 
 
 
-        sentence = f"{power_word} {title}\n{description}\n✔ {style}\n"
+        text = f"{emoji} {title}\n{desc}\n✔ {style}"
 
 
 
-        if sentence not in generated_texts:
+        if text not in used:
 
-            generated_texts.add(sentence)
+            used.add(text)
 
-            sentences.append(sentence)
-
-
-
-    return sentences
+            results.append(text)
 
 
 
-# =========================================
-# أمر البدء
-# =========================================
+        if len(results) >= count:
+            break
 
-@bot.message_handler(commands=['start'])
+
+
+    return results
+
+
+
+# =================================
+# START
+# =================================
+
+@bot.message_handler(commands=["start"])
 
 def start(message):
 
-    bot.reply_to(
-
-        message,
-
-        "👋 أهلاً بك في بوت كتابة الإعلانات الذكي\n\n"
-
-        "أرسل رابط المنتج وسأولد لك أكثر من 200 جملة تسويقية مختلفة 💰🔥"
-
-    )
+    bot.reply_to(message, "👋 أرسل رابط المنتج وسأجهز لك منشورات جاهزة.")
 
 
 
-# =========================================
-# استقبال الروابط
-# =========================================
+# =================================
+# الروابط
+# =================================
 
-@bot.message_handler(func=lambda message: "http" in message.text)
+@bot.message_handler(func=lambda m: m.text and "http" in m.text)
 
 def handle_link(message):
 
@@ -168,54 +154,42 @@ def handle_link(message):
 
 
 
-    bot.reply_to(message, "⏳ جاري قراءة الرابط...")
+    bot.reply_to(message, "⏳ جاري تجهيز المنشورات...")
 
 
 
-    title, description = get_product_info(url)
+    title, desc = get_product_info(url)
 
 
 
-    bot.reply_to(message, "✍ جاري توليد الجمل التسويقية...")
+    texts = generate_sentences(title, desc, 50)
 
 
 
-    texts = generate_marketing_sentences(title, description, 200)
+    final = "\n\n-----------------\n\n".join(texts)
 
 
 
-    final_text = "\n\n------------------------\n\n".join(texts)
+    bot.send_message(message.chat.id, final)
 
 
 
-    if len(final_text) > 4000:
+# =================================
+# fallback
+# =================================
 
-        parts = [final_text[i:i+3500] for i in range(0, len(final_text), 3500)]
-
-        for part in parts:
-            bot.send_message(message.chat.id, part)
-
-    else:
-        bot.send_message(message.chat.id, final_text)
-
-
-
-# =========================================
-# استقبال أي رسالة أخرى
-# =========================================
-
-@bot.message_handler(func=lambda message: True)
+@bot.message_handler(func=lambda m: True)
 
 def fallback(message):
 
-    bot.reply_to(message, "❌ أرسل رابط منتج صحيح يبدأ بـ http")
+    bot.reply_to(message, "❌ أرسل رابط صحيح")
 
 
 
-# =========================================
-# تشغيل البوت
-# =========================================
+# =================================
+# تشغيل
+# =================================
 
-print("✅ Bot is running...")
+print("BOT RUNNING")
 
 bot.infinity_polling()
