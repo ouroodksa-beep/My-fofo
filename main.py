@@ -58,11 +58,28 @@ def format_price(price_str):
     except:
         return price_str
 
-def count_words(text):
-    """عد الكلمات"""
-    return len(text.split())
+def get_category(title):
+    """تحديد تصنيف المنتج بالعربي"""
+    title_lower = title.lower()
+    
+    if any(word in title_lower for word in ['shoe', 'shoes', 'sneaker', 'boot', 'sandal', 'footwear']):
+        return "أحذية"
+    elif any(word in title_lower for word in ['phone', 'smartphone', 'laptop', 'computer', 'tablet', 'headphone', 'speaker', 'charger', 'camera', 'electronic']):
+        return "إلكترونيات"
+    elif any(word in title_lower for word in ['furniture', 'sofa', 'bed', 'mattress', 'pillow', 'blanket', 'carpet', 'lamp', 'pot', 'pan', 'blender', 'oven', 'fridge', 'washer', 'vacuum', 'fan', 'heater', 'kitchen']):
+        return "منزل ومطبخ"
+    elif any(word in title_lower for word in ['perfume', 'cream', 'shampoo', 'soap', 'makeup', 'lipstick', 'beauty', 'skin', 'hair']):
+        return "جمال وعناية"
+    elif any(word in title_lower for word in ['sport', 'fitness', 'gym', 'running', 'yoga', 'exercise', 'workout']):
+        return "رياضة"
+    elif any(word in title_lower for word in ['baby', 'kids', 'children', 'toy', 'doll', 'stroller', 'diaper']):
+        return "أطفال"
+    elif any(word in title_lower for word in ['watch', 'jewelry', 'ring', 'necklace', 'bracelet']):
+        return "ساعات ومجوهرات"
+    else:
+        return "ملابس وأزياء"
 
-def generate_post_with_ai(price, original_title, product_url):
+def generate_post_with_ai(price, original_title, product_url, category):
     """استخدام OpenAI GPT لكتابة بوست"""
     try:
         headers = {
@@ -70,41 +87,42 @@ def generate_post_with_ai(price, original_title, product_url):
             "Content-Type": "application/json"
         }
         
-        prompt = f"""اكتب منشور تسويقي باللهجة السعودية الأصيلة (ابن بلد):
+        prompt = f"""اكتب منشور تسويقي قصير جداً باللهجة السعودية الأصيلة:
 
 بيانات المنتج:
 - الاسم: {original_title}
 - السعر: {price} ريال
+- الصنف: {category}
 - الرابط: {product_url}
 
-الشروط الصارمة:
-1. عدد الكلمات: بين 100 إلى 160 كلمة بالضبط (لا أقل ولا أكثر)
-2. اكتب اسم المنتج مترجم للعربي بشكل واضح في أول المنشور
-3. استخدم الرابط كما هو: {product_url} (لا تختصره)
-4. اللهجة السعودية الأصيلة فقط (هلا، يا هلا، يا عزيزي، والله، صدقني، يا جماعة)
-5. أسلوب يشد ويحمس للصيدات (عروض، خصومات، فرص، بأسعار خيالية)
-6. استخدم إيموجي بكثرة ومناسبة
-7. اذكر السعر القديم (أعلى من {price} بـ 30-50%) ثم السعر الجديد {price} ريال
-8. اكتب بأسلوب صديق محترف يعرف يسوق ويبيع
+هيكل المنشور (4-6 أسطر بالكثير):
+1. سطر: جملة تعبيرية قصيرة تشد وتحمس (باللهجة السعودية)
+2. سطر: جملة تعبيرية ثانية أو اسم المنتج المترجم
+3. سطر: اسم المنتج + السعر القديم vs الجديد
+4. سطر: الرابط كما هو
 
-الهيكل المطلوب:
-- افتتاحية جذابة (هلا بالزين!)
-- اسم المنتج مترجم
-- وصف شيق يحمس
-- مقارنة السعر (القديم vs الجديد)
-- دعوة للشراء الآن
-- الرابط كما هو
+أمثلة للجمل التعبيرية:
+- "هلا بالزين كله! 🤩"
+- "تخيل يا عزيزي! 😱"
+- "والله العظيم يجنن! 🔥"
+- "فرصة ذهبية ما تتعوض! ⚡"
+- "يا هلا والله بأصحاب الذوق! 💎"
+- "صدقني ما راح تندم! 👌"
+- "الله يبارك، منتج فاخر وصل! ✨"
+- "يا بطل، هالصيدة لك! 🏃‍♂️"
 
-اكتب المنشور مباشرة:"""
+اكتب 2 جمل تعبيرية مختلفة + المنتج + السعر + الرابط
+
+المنشور:"""
 
         data = {
             "model": "gpt-4o-mini",
             "messages": [
-                {"role": "system", "content": "أنت مسوق سعودي أصيل، خبير في الكتابة التسويقية باللهجة السعودية. تكتب منشورات طويلة نسبياً (100-160 كلمة) تجذب العملاء وتحمسهم للشراء. تستخدم إيموجي كثيرة وتكتب بأسلوب ابن البلد."},
+                {"role": "system", "content": "أنت مسوق سعودي أصيل، تكتب منشورات قصيرة جداً 4-6 أسطر. جملتين فقط تعبيرية تشد وتحمس باللهجة السعودية، الباقي معلومات. تستخدم إيموجي كثيرة."},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.9,
-            "max_tokens": 400
+            "temperature": 0.95,
+            "max_tokens": 200
         }
         
         response = requests.post(
@@ -119,13 +137,6 @@ def generate_post_with_ai(price, original_title, product_url):
         if 'choices' in result and len(result['choices']) > 0:
             ai_text = result['choices'][0]['message']['content'].strip()
             ai_text = ai_text.strip('"').strip("'")
-            
-            word_count = count_words(ai_text)
-            if word_count < 100:
-                return expand_post(ai_text, headers, price, product_url)
-            elif word_count > 160:
-                return shorten_post(ai_text, headers, price, product_url)
-            
             return ai_text
         else:
             return None
@@ -133,83 +144,6 @@ def generate_post_with_ai(price, original_title, product_url):
     except Exception as e:
         print(f"AI Error: {e}")
         return None
-
-def expand_post(short_text, headers, price, product_url):
-    """توسيع المنشور القصير"""
-    try:
-        prompt = f"""وسّع هذا المنشور ليصبح بين 100-160 كلمة:
-
-{short_text}
-
-أضف:
-- وصف أكثر تفصيل للمنتج
-- فوائد إضافية
-- دعوة للشراء أقوى
-- حافظ على الرابط: {product_url}
-- حافظ على السعر: {price} ريال
-
-النتيجة:"""
-
-        data = {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.8,
-            "max_tokens": 400
-        }
-        
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers=headers,
-            json=data,
-            timeout=30
-        )
-        
-        result = response.json()
-        if 'choices' in result and len(result['choices']) > 0:
-            return result['choices'][0]['message']['content'].strip()
-        return short_text
-    except:
-        return short_text
-
-def shorten_post(long_text, headers, price, product_url):
-    """تختصير المنشور الطويل"""
-    try:
-        prompt = f"""اختصر هذا المنشور ليصبح بين 100-160 كلمة:
-
-{long_text}
-
-احتفظ بالأهم:
-- اسم المنتج
-- السعر القديم والجديد ({price} ريال)
-- الرابط: {product_url}
-- دعوة للشراء
-
-النتيجة:"""
-
-        data = {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.8,
-            "max_tokens": 400
-        }
-        
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers=headers,
-            json=data,
-            timeout=30
-        )
-        
-        result = response.json()
-        if 'choices' in result and len(result['choices']) > 0:
-            return result['choices'][0]['message']['content'].strip()
-        return long_text
-    except:
-        return long_text
 
 def get_product_scraperapi(asin):
     """ScraperAPI"""
@@ -259,10 +193,13 @@ def get_product_scraperapi(asin):
             if image:
                 image = image.replace('._SL500_', '._SL1500_')
         
+        category = get_category(title)
+        
         return {
             'original_title': title,
             'price': price,
             'image': image,
+            'category': category,
             'url': f"https://www.amazon.sa/dp/{asin}"
         }
                 
@@ -275,27 +212,21 @@ def generate_post(product):
     original_title = product['original_title']
     price = product['price']
     url = product['url']
+    category = product['category']
     
-    ai_text = generate_post_with_ai(price, original_title, url)
+    ai_text = generate_post_with_ai(price, original_title, url, category)
     
     if not ai_text:
         fake_old = int(int(price) * 1.4)
-        ai_text = f"""هلا بالزين كله! 🤩👋
-
-يا عزيزي وصلنا لك {original_title} بقوة! 🔥💪
-
-هذا المنتج يجنن والله، جودة عالية وأداء ممتاز، كل اللي جربه مدح فيه وقال إنه يستاهل كل ريال! ⭐👌
-
-تخيل يا طويل العمر كان بـ {fake_old} ريال والحين بنقدملك بـ {price} ريال فقط! 😱💰
-
-فرصة ذهبية ما تتعوض، الكمية محدودة والعرض لفترة قصيرة! ⚡🔥
-
-لا تفوتك الصيدة يا بطل! 🏃‍♂️💨
-
+        # ترجمة يدوية بسيطة لو AI فشل
+        arabic_name = original_title.split()[0] if len(original_title.split()) > 0 else "منتج رائع"
+        ai_text = f"""هلا بالزين كله! 🤩✨
+يا عزيزي، {arabic_name} وصل بقوة! 🔥
+كان بـ {fake_old} ريال والحين بـ {price} بس! 💰😱
 {url}"""
     
     if url not in ai_text:
-        ai_text = ai_text + f"\n\n{url}"
+        ai_text = ai_text + f"\n{url}"
     
     return ai_text
 
@@ -360,5 +291,5 @@ if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
     Thread(target=keep_alive, daemon=True).start()
     
-    print("🤖 Bot running! 100-160 words posts.")
+    print("🤖 Bot running! 2 expressive lines only.")
     bot.infinity_polling()
