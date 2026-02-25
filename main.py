@@ -11,253 +11,33 @@ import time
 # --- الإعدادات ---
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 SCRAPER_API_KEY = "fb7742b2e62f3699d5059eea890268dd"
+OPENAI_API_KEY = "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"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
-# --- 200+ جملة سعودية مرتبطة بالمنتج ---
-TEMPLATES = {
-    # أحذية (30 جملة)
-    "shoe": [
-        "هلا بالزين كله {title} وصل! 🤍👟",
-        "تخيل يا عزيزي {title} يكون بسعر كذا! 🤯👞",
-        "أبطالنا أصحاب الذوق {title} بين يديك! 🦸‍♂️👟",
-        "🔴 آخر حبة بالمخزون {title}! 👠",
-        "🏃‍♂️ سارع قبل ما ينتهي {title}! 👟⚡",
-        "💎 جودة تفوق التوقع {title}! 👞✨",
-        "❤️ من القلب {title} يستاهل كل ريال! 💰👟",
-        "🎉 مفاجأة سارة {title} وصل! 🎁👞",
-        "وش رايكم في {title}؟ يستاهل ولا لا؟ 🤔👟",
-        "صدقوني {title} يفرق في مشيتك! 💪👞",
-        "والله العظيم {title} رهيب! 😍👟",
-        "من تجربتي {title} يستاهل! ⭐👞",
-        "بسرعة! {title} بنفذ بسرعة البرق! ⚡👟",
-        "جودة عالمية {title} بسعر محلي! 🌍👞",
-        "اللي يبي يتميز يلبس {title}! 😎👟",
-        "راحة لا توصف مع {title}! ☁️👞",
-        "أناقة وراحة في {title}! 💎👟",
-        "ما شاء الله {title} فخم! 👌👞",
-        "يستاهل الضجة {title}! 🔥👟",
-        "من أحسن الأحذية اللي جربتها {title}! 👏👞",
-        "السعر خرافي على {title}! 🤩👟",
-        "لا يفوتك {title} بهالسعر! 🏃‍♂️👞",
-        "نعمة من الله {title}! 🙏👟",
-        "يستاهل التجربة {title}! 💯👞",
-        "أنصح فيه بقوة {title}! 💪👞",
-        "ما راح تندم على {title}! ✅👞",
-        "فرصة ذهبية {title}! 🌟👟",
-        "الأناقة تبدأ من {title}! ✨👞",
-        "تميز مع {title}! 🏆👟",
-        "الجودة تتكلم عن {title}! 💎👞",
-    ],
-    
-    # ملابس (30 جملة)
-    "clothes": [
-        "هلا بالزين كله {title} وصل! 🤍👕",
-        "أبطالنا أصحاب الذوق {title} بين يديك! 🦸‍♂️👔",
-        "تخيل {title} بجودة عالية وبسعر ينافس! 🤯👖",
-        "🔴 آخر حبة بالمخزون {title}! 👗",
-        "🏃‍♂️ سارع قبل ما ينتهي {title}! 👔⚡",
-        "💎 جودة تفوق التوقع {title}! 👕✨",
-        "❤️ من القلب {title} يستاهل! 💰👖",
-        "🎉 مفاجأة سارة {title} وصل! 🎁👔",
-        "أناقة لا توصف مع {title}! 💎👗",
-        "والله {title} يجنن! 😍👕",
-        "من تجربتي {title} يستاهل! ⭐👖",
-        "بسرعة! {title} بنفذ! ⚡👔",
-        "جودة عالمية {title}! 🌍👗",
-        "اللي يبي يتميز يلبس {title}! 😎👕",
-        "راحة وأناقة مع {title}! ☁️👖",
-        "ما شاء الله {title} فخم! 👌👔",
-        "يستاهل الضجة {title}! 🔥👗",
-        "السعر خرافي على {title}! 🤩👕",
-        "لا يفوتك {title}! 🏃‍♂️👖",
-        "نعمة من الله {title}! 🙏👔",
-        "يستاهل التجربة {title}! 💯👗",
-        "أنصح فيه بقوة {title}! 💪👕",
-        "ما راح تندم على {title}! ✅👖",
-        "فرصة ذهبية {title}! 🌟👔",
-        "الأناقة تبدأ من {title}! ✨👗",
-        "تميز مع {title}! 🏆👕",
-        "راحة يومية مع {title}! 😌👖",
-        "جودة تدوم مع {title}! ⏳👔",
-        "أفضل اختيار {title}! 🥇👗",
-        "الكل يسأل عن {title}! 💬👕",
-    ],
-    
-    # إلكترونيات (30 جملة)
-    "electronics": [
-        "🚀 تكنولوجيا المستقبل {title} وصلت! 📱",
-        "💡 ذكاء اصطناعي في {title}! 🤖",
-        "⚡ سرعة خرافية مع {title}! 🚀",
-        "🔋 بطارية تدوم مع {title}! ⏳",
-        "📱 الجيل الجديد {title} بين يديك! ✨",
-        "🎧 صوت نقي مع {title}! 🎵",
-        "💻 إنتاجية أعلى مع {title}! 📈",
-        "📸 لحظات لا تُنسى مع {title}! 🌟",
-        "🎮 أداء احترافي مع {title}! 🏆",
-        "🔌 شحن سريع مع {title}! ⚡",
-        "📡 اتصال مستقر مع {title}! 📶",
-        "🛡️ حماية كاملة مع {title}! 🔒",
-        "🌐 عالم رقمي مع {title}! 🌍",
-        "🎯 دقة عالية مع {title}! 🎯",
-        "🎬 تجربة سينمائية مع {title}! 🍿",
-        "🎤 صوت احترافي مع {title}! 🎙️",
-        "💾 مساحة كبيرة مع {title}! 💽",
-        "🔄 سرعة استجابة مع {title}! ⚡",
-        "📞 تواصل سهل مع {title}! 📲",
-        "🎨 ألوان حية مع {title}! 🌈",
-        "🔊 صوت محيطي مع {title}! 🔊",
-        "📡 تغطية شاملة مع {title}! 📶",
-        "⚙️ أداء ممتاز مع {title}! 🔧",
-        "🔋 طاقة تدوم مع {title}! 🔋",
-        "🚀 سرعة فائقة مع {title}! 🚀",
-        "💡 إضاءة ذكية مع {title}! 💡",
-        "🎧 عزل مثالي مع {title}! 🔇",
-        "📱 تصميم أنيق مع {title}! ✨",
-        "🎮 تحكم سلس مع {title}! 🎮",
-        "🔌 توصيل سهل مع {title}! 🔌",
-    ],
-    
-    # منزل ومطبخ (30 جملة)
-    "home": [
-        "🏠 بيت أحلى مع {title}! 🏡",
-        "🍳 مطبخ مثالي مع {title}! 👨‍🍳",
-        "🛋️ راحة تامة مع {title}! ☁️",
-        "🛏️ نوم هادئ مع {title}! 😴",
-        "🍽️ سفرة فاخرة مع {title}! 🥘",
-        "🧹 نظافة سهلة مع {title}! ✨",
-        "🌡️ جو مثالي مع {title}! 🌤️",
-        "🪴 ديكور راقي مع {title}! 🎨",
-        "🛁 استرخاء تام مع {title}! 🧖‍♀️",
-        "🍰 حلويات لذيذة مع {title}! 🧁",
-        "☕ صباح أجمل مع {title}! 🌅",
-        "🍳 إفطار شهي مع {title}! 🥞",
-        "🧺 غسيل سهل مع {title}! 👕",
-        "🍽️ عشاء عائلي مع {title}! 🍛",
-        "🛋️ جلسة مريحة مع {title}! 🛋️",
-        "🌙 ليلة هادئة مع {title}! 🌃",
-        "🍵 شاي ساخن مع {title}! 🫖",
-        "🧹 تنظيف سريع مع {title}! 🧽",
-        "🍲 طبخ سهل مع {title}! 🥘",
-        "🏡 بيت نظيف مع {title}! 🧼",
-        "🛏️ راحة نفسية مع {title}! 🧘‍♀️",
-        "🍽️ تقديم أنيق مع {title}! 🍴",
-        "🌸 رائحة جميلة مع {title}! 🌺",
-        "🧊 تبريد مثالي مع {title}! ❄️",
-        "🔥 دفء ممتع مع {title}! 🔥",
-        "💡 إضاءة مثالية مع {title}! 💡",
-        "🪟 ستارة أنيقة مع {title}! 🪟",
-        "🛁 حمام فاخر مع {title}! 🚿",
-        "🍳 أدوات احترافية مع {title}! 🔪",
-        "🏠 سعادة عائلية مع {title}! 👨‍👩‍👧‍👦",
-    ],
-    
-    # جمال وعناية (30 جملة)
-    "beauty": [
-        "💄 جمال طبيعي مع {title}! 💋",
-        "✨ بشرة نضرة مع {title}! 🌟",
-        "🌸 عطر فاخر مع {title}! 🌺",
-        "💇‍♀️ شعر صحي مع {title}! 💆‍♀️",
-        "🧴 نعومة فائقة مع {title}! 🦢",
-        "💅 أظافر جميلة مع {title}! 💅",
-        "👁️ نظرة جذابة مع {title}! 👁️",
-        "🌹 رائحة ساحرة مع {title}! 🌹",
-        "🧖‍♀️ سبا منزلي مع {title}! 🛁",
-        "💆‍♂️ استرخاء تام مع {title}! 🧘‍♂️",
-        "✨ تألق ساحر مع {title}! ✨",
-        "🌙 روتين ليلي مع {title}! 🌃",
-        "☀️ حماية نهارية مع {title}! 🌞",
-        "💧 ترطيب عميق مع {title}! 💧",
-        "🌿 طبيعي وآمن مع {title}! 🌱",
-        "🎯 نتائج مضمونة مع {title}! 🎯",
-        "⏳ شباب دائم مع {title}! ⏳",
-        "🎀 أنوثة طاغية مع {title}! 🎀",
-        "💪 ثقة بالنفس مع {title}! 💪",
-        "🌟 لمعان خاص مع {title}! 🌟",
-        "🧼 نظافة عميقة مع {title}! 🧼",
-        "🌸 رائحة منعشة مع {title}! 🌸",
-        "💄 لون جذاب مع {title}! 💋",
-        "✨ تألق يومي مع {title}! ✨",
-        "🌹 فخامة تامة مع {title}! 🌹",
-        "💆‍♀️ راحة تامة مع {title}! 💆‍♀️",
-        "🧴 عناية فائقة مع {title}! 🧴",
-        "👑 ملكة الجمال مع {title}! 👑",
-        "🌟 بريق ساحر مع {title}! 🌟",
-        "💋 جاذبية لا تُقاوم مع {title}! 💋",
-    ],
-    
-    # رياضة ولياقة (25 جملة)
-    "sports": [
-        "💪 قوة ونشاط مع {title}! 🏋️‍♂️",
-        "🏃‍♂️ أداء ممتاز مع {title}! ⚡",
-        "🎯 لياقة عالية مع {title}! 🎯",
-        "🏆 بطل مع {title}! 🥇",
-        "💦 عرق وجهد مع {title}! 💪",
-        "🧘‍♀️ توازن روحي مع {title}! 🧘‍♀️",
-        "⚡ طاقة لا نهائية مع {title}! 🔋",
-        "🎽 راحة حركية مع {title}! 🏃‍♀️",
-        "🏅 إنجازات جديدة مع {title}! 🏅",
-        "🤸‍♂️ مرونة عالية مع {title}! 🤸‍♂️",
-        "💪 عضلات قوية مع {title}! 💪",
-        "🏃‍♀️ سرعة فائقة مع {title}! 🏃‍♀️",
-        "🎯 تركيز تام مع {title}! 🎯",
-        "🏋️‍♀️ تحدي يومي مع {title}! 🏋️‍♀️",
-        "🧘‍♂️ هدوء داخلي مع {title}! 🧘‍♂️",
-        "⚡ حيوية يومية مع {title}! ⚡",
-        "🎾 أداء احترافي مع {title}! 🎾",
-        "🏊‍♂️ سباحة ممتعة مع {title}! 🏊‍♂️",
-        "🚴‍♂️ مغامرة رائعة مع {title}! 🚴‍♂️",
-        "🏃‍♂️ تحدي نفسك مع {title}! 🏃‍♂️",
-        "💪 صحة ولياقة مع {title}! 💪",
-        "🎯 أهداف جديدة مع {title}! 🎯",
-        "🏆 فوز مضمون مع {title}! 🏆",
-        "⚡ نشاط دائم مع {title}! ⚡",
-        "🧘‍♀️ صفاء ذهني مع {title}! 🧘‍♀️",
-    ],
-    
-    # أطفال (25 جملة)
-    "kids": [
-        "👶 سعادة طفلك مع {title}! 🎈",
-        "🧸 لحظات جميلة مع {title}! 🎀",
-        "🎨 إبداع لا حدود مع {title}! 🖍️",
-        "👼 راحة أمك مع {title}! 🤱",
-        "🎉 فرح لا ينتهي مع {title}! 🎊",
-        "🧩 تعلم ممتع مع {title}! 📚",
-        "🍼 رعاية كاملة مع {title}! 🍼",
-        "🎈 طفولة سعيدة مع {title}! 🎠",
-        "🧸 أحلام جميلة مع {title}! 🌙",
-        "🎁 مفاجأة سارة مع {title}! 🎀",
-        "👶 نوم هادئ مع {title}! 😴",
-        "🎨 ألوان زاهية مع {title}! 🌈",
-        "🧩 ذكاء متنامي مع {title}! 🧠",
-        "🎉 احتفال مميز مع {title}! 🎂",
-        "🍼 راحة تامة مع {title}! ☁️",
-        "🧸 حنان لا ينتهي مع {title}! ❤️",
-        "🎈 يوم مشرق مع {title}! ☀️",
-        "🎠 مغامرة آمنة مع {title}! 🎢",
-        "👼 براءة الطفولة مع {title}! 👼",
-        "🎀 لمسة أمومة مع {title}! 🤱",
-        "🧸 ذكريات جميلة مع {title}! 📸",
-        "🎨 موهبة صغيرة مع {title}! 🌟",
-        "🎉 ضحكة عالية مع {title}! 😄",
-        "👶 نعمة من الله مع {title}! 🙏",
-        "🎈 سعادة عائلية مع {title}! 👨‍👩‍👧‍👦",
-    ],
-}
-
-# --- جمل تسويقية إضافية ---
+# --- جمل تسويقية بنفس أسلوب الصور ---
 MARKETING_PHRASES = [
-    "🔥 العرض لفترة محدودة!",
-    "⚡ الكمية محدودة جداً!",
-    "💯 جودة مضمونة 100%",
-    "🚚 توصيل سريع لجميع المناطق",
+    "📉 أقل سعر خلال 30 يوم",
+    "⏰ العرض لفترة محدودة",
+    "🔥 الكمية محدودة جداً",
+    "💰 وفّر {discount} ريال",
     "🎁 هدية مجانية مع الطلب",
+    "🚚 توصيل سريع لجميع المناطق",
     "⭐ تقييم 5 نجوم من العملاء",
-    "💰 أفضل سعر في السوق",
+    "✅ ضمان استرجاع خلال 30 يوم",
     "🔒 دفع آمن وموثوق",
     "📞 خدمة عملاء 24/7",
-    "✅ ضمان استرجاع خلال 30 يوم",
+    "💯 جودة مضمونة 100%",
+    "⚡ سارع قبل النفاذ",
+    "🏆 الأكثر مبيعاً",
+    "🎯 أفضل سعر في السوق",
+    "🔥 عرض حصري",
+    "📦 توصيل مجاني للطلبات +99 ريال",
+    "💎 منتج أصلي 100%",
+    "⏳ ينتهي العرض قريباً",
+    "🛡️ ضمان مصنع 2 سنة",
+    "🎉 خصم إضافي مع الكوبون",
 ]
 
 # --- صيغ السعر ---
@@ -303,48 +83,112 @@ def extract_asin(url):
     
     return None
 
-def get_category(title):
-    """تحديد تصنيف المنتج"""
-    title_lower = title.lower()
-    
-    # أحذية
-    if any(word in title_lower for word in ['shoe', 'shoes', 'sneaker', 'sneakers', 'boot', 'boots', 'sandal', 'sandals', 'footwear']):
-        return "shoe"
-    
-    # إلكترونيات
-    if any(word in title_lower for word in ['phone', 'smartphone', 'laptop', 'computer', 'tablet', 'headphone', 'speaker', 'charger', 'camera', 'electronic']):
-        return "electronics"
-    
-    # منزل
-    if any(word in title_lower for word in ['furniture', 'sofa', 'bed', 'mattress', 'pillow', 'blanket', 'carpet', 'lamp', 'pot', 'pan', 'blender', 'oven', 'fridge', 'washer', 'vacuum', 'fan', 'heater', 'home', 'kitchen']):
-        return "home"
-    
-    # جمال
-    if any(word in title_lower for word in ['perfume', 'cream', 'shampoo', 'soap', 'makeup', 'lipstick', 'beauty', 'skin', 'hair']):
-        return "beauty"
-    
-    # رياضة
-    if any(word in title_lower for word in ['sport', 'fitness', 'gym', 'running', 'yoga', 'exercise', 'workout', 'ball', 'racket', 'bicycle']):
-        return "sports"
-    
-    # أطفال
-    if any(word in title_lower for word in ['baby', 'kids', 'children', 'toy', 'doll', 'stroller', 'diaper']):
-        return "kids"
-    
-    # ملابس (افتراضي)
-    return "clothes"
+def translate_title(title):
+    """ترجمة العنوان للعربي باستخدام Google Translate API"""
+    try:
+        url = "https://api.mymemory.translated.net/get"
+        params = {
+            'q': title,
+            'langpair': 'en|ar',
+            'de': 'your_email@example.com'
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if data['responseStatus'] == 200:
+            translated = data['responseData']['translatedText']
+            translated = translated.replace('&#39;', "'").replace('&quot;', '"')
+            return translated
+        else:
+            return title
+            
+    except Exception as e:
+        print(f"Translation error: {e}")
+        return title
 
 def format_price(price_str):
     """إزالة النقطة العشرية من السعر"""
     try:
-        # إزالة الفواصل والمسافات
         price_clean = price_str.replace(',', '').replace(' ', '').strip()
-        # تحويل لرقم
         price_num = float(price_clean)
-        # إرجاع عدد صحيح بدون كسور
         return str(int(price_num))
     except:
         return price_str
+
+def generate_post_with_ai(title, price, category):
+    """استخدام OpenAI GPT لكتابة البوست"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        # اختيار جملة تسويقية عشوائية
+        marketing = random.choice(MARKETING_PHRASES)
+        if "{discount}" in marketing:
+            try:
+                current_price = int(price)
+                fake_old_price = int(current_price * 1.3)
+                discount_amount = fake_old_price - current_price
+                marketing = marketing.format(discount=discount_amount)
+            except:
+                marketing = marketing.replace(" {discount} ريال", "")
+        
+        # بناء الـ Prompt
+        prompt = f"""اكتب منشور تسويقي قصير ومشوق باللهجة السعودية لمنتج:
+        
+المنتج: {title}
+السعر: {price} ريال
+التصنيف: {category}
+
+المتطلبات:
+- ابدأ بجملة افتتاحية جذابة (هلا بالزين، تخيل، يا عزيزي، وش رايك)
+- استخدم إيموجي مناسبة (🔥💎✨🤩🏃‍♂️)
+- اذكر اسم المنتج بشكل طبيعي
+- لا تكرر نفس الأسلوب دائماً (تنوع في الأسلوب)
+- اكتب بأسلوب محادثة ودي (زي الواتساب)
+- لا تستخدم نقاط في النهاية
+- اجعلها جملة أو جملتين فقط
+
+أمثلة للأسلوب المطلوب:
+"هلا بالزين كله {title} وصل! 🤍👟"
+"تخيل يا عزيزي {title} يكون بسعر كذا! 🤯"
+"أبطالنا أصحاب الذوق {title} بين يديك! 🦸‍♂️"
+"🔴 آخر حبة بالمخزون {title}!"
+
+اكتب منشور واحد فقط:"""
+
+        data = {
+            "model": "gpt-4o-mini",  # أو "gpt-3.5-turbo" للتوفير
+            "messages": [
+                {"role": "system", "content": "أنت مسوق محترف في السعودية، تكتب منشورات قصيرة وجذابة للمنتجات باللهجة السعودية. تستخدم إيموجي بكثرة وتكتب بأسلوب محادثة ودي."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.9,  # عشوائية عالية للتنوع
+            "max_tokens": 150
+        }
+        
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=data,
+            timeout=30
+        )
+        
+        result = response.json()
+        
+        if 'choices' in result and len(result['choices']) > 0:
+            ai_text = result['choices'][0]['message']['content'].strip()
+            # إزالة علامات الاقتباس إذا وجدت
+            ai_text = ai_text.strip('"').strip("'")
+            return ai_text, marketing
+        else:
+            return None, marketing
+            
+    except Exception as e:
+        print(f"AI Error: {e}")
+        return None, marketing
 
 def get_product_scraperapi(asin):
     """ScraperAPI"""
@@ -385,7 +229,6 @@ def get_product_scraperapi(asin):
         if not price:
             return None
         
-        # إزالة النقطة العشرية من السعر
         price = format_price(price)
         
         image = None
@@ -395,11 +238,31 @@ def get_product_scraperapi(asin):
             if image:
                 image = image.replace('._SL500_', '._SL1500_')
         
-        # تحديد التصنيف فقط (بدون ترجمة)
-        category = get_category(title)
+        # تحديد التصنيف
+        category = "عام"
+        title_lower = title.lower()
+        
+        if any(word in title_lower for word in ['shoe', 'shoes', 'sneaker', 'boot']):
+            category = "أحذية"
+        elif any(word in title_lower for word in ['phone', 'laptop', 'electronic']):
+            category = "إلكترونيات"
+        elif any(word in title_lower for word in ['furniture', 'kitchen', 'home']):
+            category = "منزل"
+        elif any(word in title_lower for word in ['beauty', 'cream', 'perfume']):
+            category = "جمال"
+        elif any(word in title_lower for word in ['sport', 'gym', 'fitness']):
+            category = "رياضة"
+        elif any(word in title_lower for word in ['baby', 'kids', 'toy']):
+            category = "أطفال"
+        elif any(word in title_lower for word in ['shirt', 'pant', 'dress', 'cloth']):
+            category = "ملابس"
+        
+        # ترجمة العنوان
+        arabic_title = translate_title(title)
         
         return {
-            'title': title,  # الاسم كما هو من الموقع
+            'original_title': title,
+            'title': arabic_title,
             'category': category,
             'price': price,
             'image': image,
@@ -411,24 +274,24 @@ def get_product_scraperapi(asin):
         return None
 
 def generate_post(product):
-    """توليد المنشور"""
+    """توليد المنشور باستخدام AI"""
     title = product['title']
-    category = product['category']
     price = product['price']
+    category = product['category']
     url = product['url']
     
-    # اختيار قالب حسب التصنيف
-    templates = TEMPLATES.get(category, TEMPLATES['clothes'])
-    template = random.choice(templates)
+    # الحصول على نص من AI
+    ai_text, marketing = generate_post_with_ai(title, price, category)
     
-    # اختيار جملة تسويقية
-    marketing = random.choice(MARKETING_PHRASES)
+    # إذا فشل AI، نستخدم نص احتياطي بسيط
+    if not ai_text:
+        ai_text = f"✨ {title} وصل! 🔥"
     
-    main_text = template.format(title=title)
+    # صيغة السعر
     price_text = random.choice(PRICE_FORMATS).format(price=price)
     
-    # تجميع المنشور مع الجملة التسويقية
-    return f"{main_text}\n\n{price_text}\n\n{marketing}\n\nالرابط: {url}"
+    # تجميع المنشور
+    return f"{ai_text}\n\n{price_text}\n\n{marketing}\n\nالرابط: {url}"
 
 @bot.message_handler(func=lambda m: True)
 def handle_message(message):
@@ -445,7 +308,7 @@ def handle_message(message):
         if "amazon" not in url.lower() and "amzn" not in url.lower():
             continue
         
-        wait_msg = bot.reply_to(message, "⏳ جاري القراءة...")
+        wait_msg = bot.reply_to(message, "⏳ جاري قراءة المنتج وكتابة المنشور بالذكاء الاصطناعي...")
         
         asin = extract_asin(url)
         if not asin:
@@ -481,7 +344,7 @@ def keep_alive():
         time.sleep(60)
 
 if __name__ == "__main__":
-    print("🚀 Bot starting...")
+    print("🚀 Bot starting with AI...")
     
     try:
         bot.remove_webhook()
@@ -491,5 +354,5 @@ if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
     Thread(target=keep_alive, daemon=True).start()
     
-    print("🤖 Bot running! 200+ templates loaded")
+    print("🤖 Bot running with GPT-4! AI will write all posts.")
     bot.infinity_polling()
