@@ -11,23 +11,10 @@ import time
 # --- الإعدادات ---
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 CHANNEL_ID = "@ouroodksa"
+SCRAPER_API_KEY = "fb7742b2e62f3699d5059eea890268dd"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
-
-# --- Proxy مجاني (يتغير تلقائياً) ---
-def get_free_proxy():
-    """جلب proxy مجاني"""
-    try:
-        # قائمة proxies مجانية
-        proxies = [
-            "http://20.206.106.192:80",
-            "http://20.111.54.16:80",
-            "http://20.24.43.214:80",
-        ]
-        return random.choice(proxies)
-    except:
-        return None
 
 # --- الجمل السعودية ---
 SAUDI_TEMPLATES = [
@@ -63,15 +50,16 @@ def extract_asin(url):
         r'amazon\..*/([A-Z0-9]{10})',
     ]
     
+    # روابط مباشرة
     for pattern in patterns:
         match = re.search(pattern, url, re.IGNORECASE)
         if match:
             return match.group(1).upper()
     
-    # فك الروابط المختصرة
+    # روابط مختصرة
     if 'amzn.to' in url or 'amzn.eu' in url:
         try:
-            response = requests.head(url, allow_redirects=True, timeout=5)
+            response = requests.head(url, allow_redirects=True, timeout=10)
             final_url = response.url
             for pattern in patterns:
                 match = re.search(pattern, final_url, re.IGNORECASE)
@@ -79,69 +67,126 @@ def extract_asin(url):
                     return match.group(1).upper()
         except:
             pass
+    
     return None
 
-def get_product_fast(asin):
-    """Scraping سريع بدون انتظار طويل"""
-    urls = [
-        f"https://www.amazon.sa/dp/{asin}",
-        f"https://www.amazon.com/dp/{asin}",
-    ]
+def get_product_scraperapi(asin):
+    """استخدام ScraperAPI"""
+    amazon_url = f"https://www.amazon.sa/dp/{asin}"
+    scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={amazon_url}&country_code=sa"
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept-Language": "ar-SA,ar;q=0.9,en;q=0.8",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    }
+    print(f"🌐 Calling ScraperAPI...")
     
-    for url in urls:
-        try:
-            # ⏱️ timeout قصير 10 ثواني
-            response = requests.get(url, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
+    try:
+        response = requests.get(scraper_url, timeout=20)
+        print(f"📊 Status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"❌ Error: {response.text[:200]}")
+            return None
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # العنوان
+        title_elem = soup.select_one('#productTitle')
+        if not title_elem:
+            print("❌ No title found")
+            # جرب نسخة أمريكية
+            return get_product_us(asin)
+        
+        title = title_elem.get_text().strip()
+        title = re.sub(r'\s+', ' ', title)
+        print(f"📝 Title: {title[:60]}...")
+        
+        # السعر
+        price = None
+        price_selectors = [
+            '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
+            '.a-price .a-offscreen',
+            '.a-price-whole',
+            '.a-price-range .a-offscreen',
+        ]
+        
+        for selector in price_selectors:
+            price_elem = soup.select_one(selector)
+            if price_elem:
+                price_text = price_elem.get_text()
+                price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
+                if price_match:
+                    price = price_match.group()
+                    print(f"💰 Price: {price}")
+                    break
+        
+        if not price:
+            print("❌ No price found")
+            return get_product_us(asin)
+        
+        # الصورة
+        image = None
+        img_elem = soup.select_one('#landingImage')
+        if img_elem:
+            image = img_elem.get('data-old-hires') or img_elem.get('src')
+            if image:
+                image = image.replace('._SL500_', '._SL1500_')
+        
+        return {
+            'title': title[:80],
+            'price': price,
+            'image': image,
+            'url': f"https://www.amazon.sa/dp/{asin}"
+        }
                 
-                # العنوان
-                title_elem = soup.select_one('#productTitle, h1.a-size-large')
-                if not title_elem:
-                    continue
-                
-                title = title_elem.get_text().strip()
-                title = re.sub(r'\s+', ' ', title)
-                
-                # السعر
-                price = None
-                price_elem = soup.select_one('.a-price .a-offscreen, .a-price-whole')
-                if price_elem:
-                    price_text = price_elem.get_text()
-                    price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
-                    if price_match:
-                        price = price_match.group()
-                
-                # الصورة
-                image = None
-                img_elem = soup.select_one('#landingImage')
-                if img_elem:
-                    image = img_elem.get('data-old-hires') or img_elem.get('src')
-                
-                if title and price:
-                    return {
-                        'title': title[:80],
-                        'price': price,
-                        'image': image,
-                        'url': f"https://www.amazon.sa/dp/{asin}"
-                    }
-                    
-        except Exception as e:
-            print(f"Error: {e}")
-            continue
+    except Exception as e:
+        print(f"❌ Exception: {e}")
+        return get_product_us(asin)
+
+def get_product_us(asin):
+    """جرب amazon.com لو .sa فشلت"""
+    amazon_url = f"https://www.amazon.com/dp/{asin}"
+    scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={amazon_url}&country_code=us"
     
-    return None
+    try:
+        response = requests.get(scraper_url, timeout=20)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        title_elem = soup.select_one('#productTitle')
+        if not title_elem:
+            return None
+        
+        title = title_elem.get_text().strip()
+        
+        price_elem = soup.select_one('.a-price .a-offscreen, .a-price-whole')
+        if not price_elem:
+            return None
+        
+        price_text = price_elem.get_text()
+        price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
+        if not price_match:
+            return None
+        
+        price = price_match.group()
+        
+        # تحويل الدولار لريال (تقريبي)
+        # price = str(int(float(price) * 3.75))
+        
+        img_elem = soup.select_one('#landingImage')
+        image = None
+        if img_elem:
+            image = img_elem.get('data-old-hires') or img_elem.get('src')
+        
+        return {
+            'title': title[:80],
+            'price': price,
+            'image': image,
+            'url': f"https://www.amazon.com/dp/{asin}"
+        }
+        
+    except:
+        return None
 
 def generate_post(product):
     """توليد المنشور"""
-    title = product['title']
+    title = product['titletitle']
     price = product['price']
     url = product['url']
     
@@ -166,7 +211,6 @@ def handle_message(message):
         if "amazon" not in url.lower() and "amzn" not in url.lower():
             continue
         
-        # ⏱️ رسالة سريعة
         wait_msg = bot.reply_to(message, "⏳ جاري القراءة...")
         
         asin = extract_asin(url)
@@ -174,8 +218,9 @@ def handle_message(message):
             bot.edit_message_text("❌ رابط غير صحيح", chat_id, wait_msg.message_id)
             continue
         
-        # ⏱️ مهلة 15 ثانية
-        product = get_product_fast(asin)
+        print(f"🔍 ASIN: {asin}")
+        
+        product = get_product_scraperapi(asin)
         
         if product:
             try:
@@ -193,15 +238,12 @@ def handle_message(message):
                 )
                 
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"❌ Error: {e}")
                 bot.edit_message_text("❌ خطأ في النشر", chat_id, wait_msg.message_id)
         else:
             bot.edit_message_text(
                 "❌ ما قدرت أقرأ المنتج\n\n"
-                "💡 جربي:\n"
-                "1. رابط amazon.sa مباشرة\n"
-                "2. تأكدي المنتج متوفر\n"
-                "3. جربي رابط ثاني",
+                "جربي رابط مباشر من amazon.sa",
                 chat_id,
                 wait_msg.message_id
             )
@@ -211,6 +253,8 @@ def keep_alive():
         time.sleep(60)
 
 if __name__ == "__main__":
+    print("🚀 Bot starting...")
+    
     try:
         bot.remove_webhook()
     except:
@@ -219,5 +263,5 @@ if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
     Thread(target=keep_alive, daemon=True).start()
     
-    print("🤖 Bot started!")
+    print("🤖 Bot running!")
     bot.infinity_polling()
