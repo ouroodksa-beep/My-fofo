@@ -366,7 +366,7 @@ if __name__ == "__main__":
     
     print("🤖 Bot running! 100-160 words posts.")
     bot.infinity_polling()
-        if match:
+     if match:
             return match.group(1).upper()
     
     if 'amzn.to' in url or 'amzn.eu' in url:
