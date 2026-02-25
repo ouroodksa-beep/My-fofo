@@ -17,14 +17,13 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "✅ Bot Active"
+    return "Bot Active"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
 def expand_short_url(short_url):
-    """تحويل الرابط المختصر للرابط الكامل"""
     try:
         response = requests.head(short_url, allow_redirects=True, timeout=10)
         return response.url
@@ -32,8 +31,7 @@ def expand_short_url(short_url):
         return short_url
 
 def extract_asin(url):
-    """استخراج ASIN"""
-    if 'amzn.to' in url or 'amzn.eu' in url or 'tinyurl' in url or 'bit.ly' in url:
+    if 'amzn.to' in url or 'amzn.eu' in url:
         url = expand_short_url(url)
         if not url:
             return None
@@ -53,7 +51,6 @@ def extract_asin(url):
     return None
 
 def format_price(price_str):
-    """إزالة النقطة العشرية من السعر"""
     try:
         price_clean = price_str.replace(',', '').replace(' ', '').strip()
         price_num = float(price_clean)
@@ -62,149 +59,57 @@ def format_price(price_str):
         return price_str
 
 def get_category(title):
-    """تحديد تصنيف المنتج بالعربي"""
     title_lower = title.lower()
     
-    if any(word in title_lower for word in ['shoe', 'shoes', 'sneaker', 'boot', 'sandal', 'footwear']):
+    if any(word in title_lower for word in ['shoe', 'shoes', 'sneaker', 'boot', 'sandal']):
         return "أحذية"
-    elif any(word in title_lower for word in ['phone', 'smartphone', 'laptop', 'computer', 'tablet', 'headphone', 'speaker', 'charger', 'camera', 'electronic']):
+    elif any(word in title_lower for word in ['phone', 'laptop', 'computer', 'tablet', 'electronic']):
         return "إلكترونيات"
-    elif any(word in title_lower for word in ['furniture', 'sofa', 'bed', 'mattress', 'pillow', 'blanket', 'carpet', 'lamp', 'pot', 'pan', 'blender', 'oven', 'fridge', 'washer', 'vacuum', 'fan', 'heater', 'kitchen']):
-        return "منزل ومطبخ"
-    elif any(word in title_lower for word in ['perfume', 'cream', 'shampoo', 'soap', 'makeup', 'lipstick', 'beauty', 'skin', 'hair']):
-        return "جمال وعناية"
-    elif any(word in title_lower for word in ['sport', 'fitness', 'gym', 'running', 'yoga', 'exercise', 'workout']):
+    elif any(word in title_lower for word in ['furniture', 'sofa', 'bed', 'kitchen']):
+        return "منزل"
+    elif any(word in title_lower for word in ['perfume', 'beauty', 'cream']):
+        return "جمال"
+    elif any(word in title_lower for word in ['sport', 'gym', 'fitness']):
         return "رياضة"
-    elif any(word in title_lower for word in ['baby', 'kids', 'children', 'toy', 'doll', 'stroller', 'diaper']):
+    elif any(word in title_lower for word in ['baby', 'kids', 'toy']):
         return "أطفال"
-    elif any(word in title_lower for word in ['watch', 'jewelry', 'ring', 'necklace', 'bracelet']):
-        return "ساعات ومجوهرات"
     else:
-        return "ملابس وأزياء"
+        return "ملابس"
 
 def generate_post_with_ai(price, original_title, product_url, category):
-    """استخدام OpenAI GPT لكتابة بوست"""
     try:
         headers = {
             "Authorization": f"Bearer {OPENAI_API_KEY}",
             "Content-Type": "application/json"
         }
         
-        prompt = f"""اكتب منشور تسويقي قصير باللهجة السعودية الأصيلة:
-
-بيانات المنتج:
-- الاسم: {original_title}
-- السعر: {price} ريال
-- الصنف: {category}
-- الرابط: {product_url}
-
-هيكل المنشور (جملتين تسويقيتين فقط + وصف تفصيلي):
-
-سطر 1: جملة تعبيرية واحدة تشد وتحمس
-
-سطر فاضي
-
-سطر 2: اسم المنتج مترجم + وصف تفصيلي (اذكر المقاس/اللون/الموديل/المواصفات المهمة من الاسم)
-
-سطر فاضي
-
-سطر 3: السعر القديم vs الجديد
-
-سطر فاضي
-
-سطر 4: جملة تسويقية واحدة + دعوة للشراء
-
-سطر فاضي
-
-سطر 5: الرابط كما هو
-
-مثال:
-هلا بالزين كله! 
-
-حذاء نايك رياضي مقاس 42 لون اسود - موديل اير ماكس 2024، راحة فائقة وجودة عالمية!
-
-كان بـ 280 ريال والحين بـ 199 ريال بس!
-
-فرصة ذهبية ما تتعوض!
-
-{product_url}
-
-اكتب المنشور:"""
-
-        data = {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "system", "content": "أنت مسوق سعودي أصيل، تكتب منشورات قصيرة. جملتين تسويقيتين فقط. وصف تفصيلي للمنتج يذكر المقاس واللون والمواصفات من الاسم. سطر فاضي']):
-        return "أحذية"
-    elif any(word in title_lower for word in ['phone', 'smartphone', 'laptop', 'computer', 'tablet', 'headphone', 'speaker', 'charger', 'camera', 'electronic']):
-        return "إلكترونيات"
-    elif any(word in title_lower for word in ['furniture', 'sofa', 'bed', 'mattress', 'pillow', 'blanket', 'carpet', 'lamp', 'pot', 'pan', 'blender', 'oven', 'fridge', 'washer', 'vacuum', 'fan', 'heater', 'kitchen']):
-        return "منزل ومطبخ"
-    elif any(word in title_lower for word in ['perfume', 'cream', 'shampoo', 'soap', 'makeup', 'lipstick', 'beauty', 'skin', 'hair']):
-        return "جمال وعناية"
-    elif any(word in title_lower for word in ['sport', 'fitness', 'gym', 'running', 'yoga', 'exercise', 'workout']):
-        return "رياضة"
-    elif any(word in title_lower for word in ['baby', 'kids', 'children', 'toy', 'doll', 'stroller', 'diaper']):
-        return "أطفال"
-    elif any(word in title_lower for word in ['watch', 'jewelry', 'ring', 'necklace', 'bracelet']):
-        return "ساعات ومجوهرات"
-    else:
-        return "ملابس وأزياء"
-
-def generate_post_with_ai(price, original_title, product_url, category):
-    """استخدام OpenAI GPT لكتابة بوست"""
-    try:
-        headers = {
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "Content-Type": "application/json"
-        }
+        system_msg = "أنت مسوق سعودي. اكتب منشورات قصيرة. جملتين تسويقيتين فقط. وصف تفصيلي يذكر المقاس واللون. سطر فاضي بين كل جزء."
         
-        prompt = f"""اكتب منشور تسويقي قصير باللهجة السعودية الأصيلة:
+        user_msg = f"""اكتب منشور تسويقي باللهجة السعودية:
 
-بيانات المنتج:
-- الاسم: {original_title}
-- السعر: {price} ريال
-- الصنف: {category}
-- الرابط: {product_url}
+المنتج: {original_title}
+السعر: {price} ريال
+الصنف: {category}
+الرابط: {product_url}
 
-هيكل المنشور (جملتين تسويقيتين فقط + وصف تفصيلي):
-
-سطر 1: جملة تعبيرية واحدة تشد وتحمس
-
-سطر فاضي
-
-سطر 2: اسم المنتج مترجم + وصف تفصيلي (اذكر المقاس/اللون/الموديل/المواصفات المهمة من الاسم)
-
-سطر فاضي
-
-سطر 3: السعر القديم vs الجديد
-
-سطر فاضي
-
-سطر 4: جملة تسويقية واحدة + دعوة للشراء
-
-سطر فاضي
-
-سطر 5: الرابط كما هو
-
-مثال:
-هلا بالزين كله! 
-
-حذاء نايك رياضي مقاس 42 لون اسود - موديل اير ماكس 2024، راحة فائقة وجودة عالمية!
-
-كان بـ 280 ريال والحين بـ 199 ريال بس!
-
-فرصة ذهبية ما تتعوض!
-
-{product_url}
+الهيكل:
+1. جملة تعبيرية قصيرة
+2. (سطر فاضي)
+3. اسم المنتج مترجم + وصف تفصيلي (المقاس/اللون/الموديل)
+4. (سطر فاضي)
+5. السعر القديم vs الجديد
+6. (سطر فاضي)
+7. جملة تسويقية + دعوة للشراء
+8. (سطر فاضي)
+9. الرابط
 
 اكتب المنشور:"""
 
         data = {
             "model": "gpt-4o-mini",
             "messages": [
-                {"role": "system", "content": "أنت مسوق سعودي أصيل، تكتب منشورات قصيرة. جملتين تسويقيتين فقط. وصف تفصيلي للمنتج يذكر المقاس واللون والمواصفات من الاسم. سطر فاضي بين كل جزء."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
             ],
             "temperature": 0.9,
             "max_tokens": 300
@@ -221,7 +126,6 @@ def generate_post_with_ai(price, original_title, product_url, category):
         
         if 'choices' in result and len(result['choices']) > 0:
             ai_text = result['choices'][0]['message']['content'].strip()
-            ai_text = ai_text.strip('"').strip("'")
             return ai_text
         else:
             return None
@@ -231,11 +135,10 @@ def generate_post_with_ai(price, original_title, product_url, category):
         return None
 
 def get_product_scraperapi(asin):
-    """ScraperAPI"""
-    amazon_url = f"https://www.amazon.sa/dp/{asin}"
-    scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={amazon_url}&country_code=sa"
-    
     try:
+        amazon_url = f"https://www.amazon.sa/dp/{asin}"
+        scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={amazon_url}&country_code=sa"
+        
         response = requests.get(scraper_url, timeout=20)
         
         if response.status_code != 200:
@@ -252,7 +155,6 @@ def get_product_scraperapi(asin):
         
         price = None
         price_selectors = [
-            '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
             '.a-price .a-offscreen',
             '.a-price-whole',
         ]
@@ -275,8 +177,6 @@ def get_product_scraperapi(asin):
         img_elem = soup.select_one('#landingImage')
         if img_elem:
             image = img_elem.get('data-old-hires') or img_elem.get('src')
-            if image:
-                image = image.replace('._SL500_', '._SL1500_')
         
         category = get_category(title)
         
@@ -289,11 +189,10 @@ def get_product_scraperapi(asin):
         }
                 
     except Exception as e:
-        print(f"❌ Scraper error: {e}")
+        print(f"Scraper error: {e}")
         return None
 
 def generate_post(product):
-    """توليد المنشور باستخدام AI"""
     original_title = product['original_title']
     price = product['price']
     url = product['url']
@@ -303,12 +202,11 @@ def generate_post(product):
     
     if not ai_text:
         fake_old = int(int(price) * 1.4)
-        # استخراج تفاصيل من الاسم
-        words = original_title.split()
-        details = " ".join(words[:6]) if len(words) > 6 else original_title
-        ai_text = f"""هلا بالزين كله!
+        words = original_title.split()[:5]
+        details = " ".join(words)
+        ai_text = f"""هلا بالزين!
 
-{details} - منتج رائع بجودة عالمية!
+{details} - منتج رائع بجودة عالية!
 
 كان بـ {fake_old} ريال والحين بـ {price} بس!
 
@@ -329,30 +227,26 @@ def handle_message(message):
     urls = re.findall(r'https?://\S+', text)
     
     if not urls:
-        bot.reply_to(message, "👋 أرسلي رابط أمازون")
+        bot.reply_to(message, "أرسلي رابط أمازون")
         return
     
     for url in urls:
         if "amazon" not in url.lower() and "amzn" not in url.lower():
             continue
         
-        wait_msg = bot.reply_to(message, "⏳ جاري قراءة الرابط...")
+        wait_msg = bot.reply_to(message, "جاري قراءة الرابط...")
         
-        expanded_url = expand_short_url(url) if ('amzn.to' in url or 'amzn.eu' in url) else url
+        expanded_url = expand_short_url(url) if 'amzn.to' in url else url
         
         asin = extract_asin(expanded_url)
         if not asin:
-            bot.edit_message_text("❌ رابط غير صحيح", chat_id, wait_msg.message_id)
+            bot.edit_message_text("رابط غير صحيح", chat_id, wait_msg.message_id)
             continue
         
         product = get_product_scraperapi(asin)
         
         if not product:
-            bot.edit_message_text(
-                "❌ ما قدرت أقرأ المنتج\n\nجربي رابط مباشر من amazon.sa",
-                chat_id,
-                wait_msg.message_id
-            )
+            bot.edit_message_text("ما قدرت أقرأ المنتج. جربي رابط مباشر من amazon.sa", chat_id, wait_msg.message_id)
             continue
         
         try:
@@ -366,15 +260,15 @@ def handle_message(message):
             bot.delete_message(chat_id, wait_msg.message_id)
             
         except Exception as e:
-            print(f"❌ Error: {e}")
-            bot.edit_message_text(f"❌ خطأ: {str(e)[:100]}", chat_id, wait_msg.message_id)
+            print(f"Error: {e}")
+            bot.edit_message_text(f"خطأ: {str(e)[:100]}", chat_id, wait_msg.message_id)
 
 def keep_alive():
     while True:
         time.sleep(60)
 
 if __name__ == "__main__":
-    print("🚀 Bot starting...")
+    print("Bot starting...")
     
     try:
         bot.remove_webhook()
@@ -384,5 +278,5 @@ if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
     Thread(target=keep_alive, daemon=True).start()
     
-    print("🤖 Bot running!")
+    print("Bot running!")
     bot.infinity_polling()
