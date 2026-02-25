@@ -42,6 +42,25 @@ def run_flask():
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
+def check_channel():
+    """فحص القناة والصلاحيات"""
+    try:
+        chat = bot.get_chat(CHANNEL_ID)
+        print(f"✅ Channel found: {chat.title} (ID: {chat.id})")
+        
+        # فحص عضوية البوت
+        member = bot.get_chat_member(CHANNEL_ID, bot.get_me().id)
+        print(f"✅ Bot status: {member.status}")
+        
+        if member.status not in ['administrator', 'member']:
+            print("❌ Bot is not a member/admin!")
+            return False
+            
+        return True
+    except Exception as e:
+        print(f"❌ Channel error: {e}")
+        return False
+
 def extract_asin(url):
     """استخراج ASIN"""
     patterns = [
@@ -50,13 +69,11 @@ def extract_asin(url):
         r'amazon\..*/([A-Z0-9]{10})',
     ]
     
-    # روابط مباشرة
     for pattern in patterns:
         match = re.search(pattern, url, re.IGNORECASE)
         if match:
             return match.group(1).upper()
     
-    # روابط مختصرة
     if 'amzn.to' in url or 'amzn.eu' in url:
         try:
             response = requests.head(url, allow_redirects=True, timeout=10)
@@ -71,40 +88,30 @@ def extract_asin(url):
     return None
 
 def get_product_scraperapi(asin):
-    """استخدام ScraperAPI"""
+    """ScraperAPI"""
     amazon_url = f"https://www.amazon.sa/dp/{asin}"
     scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={amazon_url}&country_code=sa"
     
-    print(f"🌐 Calling ScraperAPI...")
-    
     try:
         response = requests.get(scraper_url, timeout=20)
-        print(f"📊 Status: {response.status_code}")
         
         if response.status_code != 200:
-            print(f"❌ Error: {response.text[:200]}")
             return None
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # العنوان
         title_elem = soup.select_one('#productTitle')
         if not title_elem:
-            print("❌ No title found")
-            # جرب نسخة أمريكية
-            return get_product_us(asin)
+            return None
         
         title = title_elem.get_text().strip()
         title = re.sub(r'\s+', ' ', title)
-        print(f"📝 Title: {title[:60]}...")
         
-        # السعر
         price = None
         price_selectors = [
             '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
             '.a-price .a-offscreen',
             '.a-price-whole',
-            '.a-price-range .a-offscreen',
         ]
         
         for selector in price_selectors:
@@ -114,14 +121,11 @@ def get_product_scraperapi(asin):
                 price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
                 if price_match:
                     price = price_match.group()
-                    print(f"💰 Price: {price}")
                     break
         
         if not price:
-            print("❌ No price found")
-            return get_product_us(asin)
+            return None
         
-        # الصورة
         image = None
         img_elem = soup.select_one('#landingImage')
         if img_elem:
@@ -137,56 +141,12 @@ def get_product_scraperapi(asin):
         }
                 
     except Exception as e:
-        print(f"❌ Exception: {e}")
-        return get_product_us(asin)
-
-def get_product_us(asin):
-    """جرب amazon.com لو .sa فشلت"""
-    amazon_url = f"https://www.amazon.com/dp/{asin}"
-    scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={amazon_url}&country_code=us"
-    
-    try:
-        response = requests.get(scraper_url, timeout=20)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        title_elem = soup.select_one('#productTitle')
-        if not title_elem:
-            return None
-        
-        title = title_elem.get_text().strip()
-        
-        price_elem = soup.select_one('.a-price .a-offscreen, .a-price-whole')
-        if not price_elem:
-            return None
-        
-        price_text = price_elem.get_text()
-        price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(',', ''))
-        if not price_match:
-            return None
-        
-        price = price_match.group()
-        
-        # تحويل الدولار لريال (تقريبي)
-        # price = str(int(float(price) * 3.75))
-        
-        img_elem = soup.select_one('#landingImage')
-        image = None
-        if img_elem:
-            image = img_elem.get('data-old-hires') or img_elem.get('src')
-        
-        return {
-            'title': title[:80],
-            'price': price,
-            'image': image,
-            'url': f"https://www.amazon.com/dp/{asin}"
-        }
-        
-    except:
+        print(f"❌ Scraper error: {e}")
         return None
 
 def generate_post(product):
     """توليد المنشور"""
-    title = product['titletitle']
+    title = product['title']
     price = product['price']
     url = product['url']
     
@@ -213,47 +173,103 @@ def handle_message(message):
         
         wait_msg = bot.reply_to(message, "⏳ جاري القراءة...")
         
+        # فحص القناة أولاً
+        if not check_channel():
+            bot.edit_message_text(
+                "❌ البوت ما عنده صلاحيات في القناة!\n\n"
+                "الحل:\n"
+                "1. روحي @ouroodksa\n"
+                "2. Administrators → Add Administrator\n"
+                "3. ضيفي البوت واعطيه جميع الصلاحيات",
+                chat_id,
+                wait_msg.message_id
+            )
+            return
+        
         asin = extract_asin(url)
         if not asin:
             bot.edit_message_text("❌ رابط غير صحيح", chat_id, wait_msg.message_id)
             continue
         
-        print(f"🔍 ASIN: {asin}")
-        
         product = get_product_scraperapi(asin)
         
-        if product:
-            try:
-                post = generate_post(product)
-                
-                if product.get('image'):
-                    bot.send_photo(CHANNEL_ID, product['image'], caption=post)
-                else:
-                    bot.send_message(CHANNEL_ID, post)
-                
-                bot.edit_message_text(
-                    f"✅ تم النشر!\n\n{product['title'][:40]}...\n{product['price']} ريال",
-                    chat_id,
-                    wait_msg.message_id
-                )
-                
-            except Exception as e:
-                print(f"❌ Error: {e}")
-                bot.edit_message_text("❌ خطأ في النشر", chat_id, wait_msg.message_id)
-        else:
+        if not product:
             bot.edit_message_text(
-                "❌ ما قدرت أقرأ المنتج\n\n"
-                "جربي رابط مباشر من amazon.sa",
+                "❌ ما قدرت أقرأ المنتج\n\nجربي رابط مباشر من amazon.sa",
                 chat_id,
                 wait_msg.message_id
             )
+            continue
+        
+        # محاولة النشر
+        try:
+            post = generate_post(product)
+            print(f"📝 Post: {post[:100]}...")
+            
+            # إرسال للقناة
+            if product.get('image'):
+                print(f"🖼️ Sending photo to {CHANNEL_ID}...")
+                sent = bot.send_photo(CHANNEL_ID, product['image'], caption=post)
+                print(f"✅ Photo sent! Message ID: {sent.message_id}")
+            else:
+                print(f"📤 Sending text to {CHANNEL_ID}...")
+                sent = bot.send_message(CHANNEL_ID, post)
+                print(f"✅ Text sent! Message ID: {sent.message_id}")
+            
+            # نجاح
+            bot.edit_message_text(
+                f"✅ تم النشر!\n\n{product['title'][:40]}...\n{product['price']} ريال",
+                chat_id,
+                wait_msg.message_id
+            )
+            
+        except Exception as e:
+            error_msg = str(e)
+            print(f"❌ Publish error: {error_msg}")
+            
+            if "chat not found" in error_msg.lower():
+                bot.edit_message_text(
+                    "❌ القناة @ouroodksa ما لقيتها!\n\nتأكدي:\n1. الاسم مكتوب صح\n2. القناة عامة (Public)",
+                    chat_id,
+                    wait_msg.message_id
+                )
+            elif "not enough rights" in error_msg.lower() or "forbidden" in error_msg.lower():
+                bot.edit_message_text(
+                    "❌ البوت ما عنده صلاحيات!\n\nروحي @ouroodksa → Administrators → ضيفي البوت → فعلي 'Post Messages'",
+                    chat_id,
+                    wait_msg.message_id
+                )
+            elif "wrong file identifier" in error_msg.lower() or "failed to get http url" in error_msg.lower():
+                # خطأ في الصورة، جرب نص فقط
+                try:
+                    bot.send_message(CHANNEL_ID, post)
+                    bot.edit_message_text(
+                        "✅ تم النشر (بدون صورة)\n\nالصورة ما رفعت بس المنشور نزل!",
+                        chat_id,
+                        wait_msg.message_id
+                    )
+                except Exception as e2:
+                    bot.edit_message_text(
+                        f"❌ فشل النشر نهائياً: {str(e2)[:100]}",
+                        chat_id,
+                        wait_msg.message_id
+                    )
+            else:
+                bot.edit_message_text(
+                    f"❌ خطأ غير متوقع: {error_msg[:200]}",
+                    chat_id,
+                    wait_msg.message_id
+                )
 
 def keep_alive():
     while True:
         time.sleep(60)
 
 if __name__ == "__main__":
-    print("🚀 Bot starting...")
+    print("🚀 Starting bot...")
+    
+    # فحص القناة عند التشغيل
+    check_channel()
     
     try:
         bot.remove_webhook()
