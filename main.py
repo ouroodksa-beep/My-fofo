@@ -98,13 +98,13 @@ def generate_post_with_ai(price, original_title, product_url, category):
 - الصنف: {category}
 - الرابط: {product_url}
 
-هيكل المنشور (جملتين تسويقيتين فقط + وصف + سعر):
+هيكل المنشور (جملتين تسويقيتين فقط + وصف تفصيلي):
 
 سطر 1: جملة تعبيرية واحدة تشد وتحمس
 
 سطر فاضي
 
-سطر 2: اسم المنتج مترجم + وصف كامل للمنتج (2-3 جمل بالذكاء الاصطناعي)
+سطر 2: اسم المنتج مترجم + وصف تفصيلي (اذكر المقاس/اللون/الموديل/المواصفات المهمة من الاسم)
 
 سطر فاضي
 
@@ -119,13 +119,13 @@ def generate_post_with_ai(price, original_title, product_url, category):
 سطر 5: الرابط كما هو
 
 مثال:
-هلا بالزين كله! 🤩
+هلا بالزين كله! 
 
-حذاء نايك الرياضي 👟 منتج رائع يوفر راحة فائقة في المشي، جودة عالمية تدوم سنين، مناسب للتمرين والخروج! 💎✨
+حذاء نايك رياضي مقاس 42 لون اسود - موديل اير ماكس 2024، راحة فائقة وجودة عالمية!
 
-كان بـ 280 ريال والحين بـ 199 ريال بس! 🔥💰
+كان بـ 280 ريال والحين بـ 199 ريال بس!
 
-فرصة ذهبية ما تتعوض! ⚡
+فرصة ذهبية ما تتعوض!
 
 {product_url}
 
@@ -134,7 +134,76 @@ def generate_post_with_ai(price, original_title, product_url, category):
         data = {
             "model": "gpt-4o-mini",
             "messages": [
-                {"role": "system", "content": "أنت مسوق سعودي أصيل، تكتب منشورات قصيرة. جملتين تسويقيتين فقط. وصف كامل للمنتج بالذكاء الاصطناعي. سطر فاضي بين كل جزء."},
+                {"role": "system", "content": "أنت مسوق سعودي أصيل، تكتب منشورات قصيرة. جملتين تسويقيتين فقط. وصف تفصيلي للمنتج يذكر المقاس واللون والمواصفات من الاسم. سطر فاضي']):
+        return "أحذية"
+    elif any(word in title_lower for word in ['phone', 'smartphone', 'laptop', 'computer', 'tablet', 'headphone', 'speaker', 'charger', 'camera', 'electronic']):
+        return "إلكترونيات"
+    elif any(word in title_lower for word in ['furniture', 'sofa', 'bed', 'mattress', 'pillow', 'blanket', 'carpet', 'lamp', 'pot', 'pan', 'blender', 'oven', 'fridge', 'washer', 'vacuum', 'fan', 'heater', 'kitchen']):
+        return "منزل ومطبخ"
+    elif any(word in title_lower for word in ['perfume', 'cream', 'shampoo', 'soap', 'makeup', 'lipstick', 'beauty', 'skin', 'hair']):
+        return "جمال وعناية"
+    elif any(word in title_lower for word in ['sport', 'fitness', 'gym', 'running', 'yoga', 'exercise', 'workout']):
+        return "رياضة"
+    elif any(word in title_lower for word in ['baby', 'kids', 'children', 'toy', 'doll', 'stroller', 'diaper']):
+        return "أطفال"
+    elif any(word in title_lower for word in ['watch', 'jewelry', 'ring', 'necklace', 'bracelet']):
+        return "ساعات ومجوهرات"
+    else:
+        return "ملابس وأزياء"
+
+def generate_post_with_ai(price, original_title, product_url, category):
+    """استخدام OpenAI GPT لكتابة بوست"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        prompt = f"""اكتب منشور تسويقي قصير باللهجة السعودية الأصيلة:
+
+بيانات المنتج:
+- الاسم: {original_title}
+- السعر: {price} ريال
+- الصنف: {category}
+- الرابط: {product_url}
+
+هيكل المنشور (جملتين تسويقيتين فقط + وصف تفصيلي):
+
+سطر 1: جملة تعبيرية واحدة تشد وتحمس
+
+سطر فاضي
+
+سطر 2: اسم المنتج مترجم + وصف تفصيلي (اذكر المقاس/اللون/الموديل/المواصفات المهمة من الاسم)
+
+سطر فاضي
+
+سطر 3: السعر القديم vs الجديد
+
+سطر فاضي
+
+سطر 4: جملة تسويقية واحدة + دعوة للشراء
+
+سطر فاضي
+
+سطر 5: الرابط كما هو
+
+مثال:
+هلا بالزين كله! 
+
+حذاء نايك رياضي مقاس 42 لون اسود - موديل اير ماكس 2024، راحة فائقة وجودة عالمية!
+
+كان بـ 280 ريال والحين بـ 199 ريال بس!
+
+فرصة ذهبية ما تتعوض!
+
+{product_url}
+
+اكتب المنشور:"""
+
+        data = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": "أنت مسوق سعودي أصيل، تكتب منشورات قصيرة. جملتين تسويقيتين فقط. وصف تفصيلي للمنتج يذكر المقاس واللون والمواصفات من الاسم. سطر فاضي بين كل جزء."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.9,
@@ -234,35 +303,16 @@ def generate_post(product):
     
     if not ai_text:
         fake_old = int(int(price) * 1.4)
-        arabic_name = original_title.split()[0] if len(original_title.split()) > 0 else "منتج رائع"
-        ai_text = f"""هلا بالزين كله! 🤩
+        # استخراج تفاصيل من الاسم
+        words = original_title.split()
+        details = " ".join(words[:6]) if len(words) > 6 else original_title
+        ai_text = f"""هلا بالزين كله!
 
-{arabic_name} 👟 منتج رائع يوفر راحة فائقة، جودة عالمية تدوم سنين! 💎✨
+{details} - منتج رائع بجودة عالمية!
 
-كان بـ {fake_old} ريال والحين بـ {price} بس! 🔥💰
+كان بـ {fake_old} ريال والحين بـ {price} بس!
 
-فرصة ذهبية! ⚡
-
-{url}"""
-    
-    if url not in ai_textوليد المنشور باستخدام AI"""
-    original_title = product['original_title']
-    price = product['price']
-    url = product['url']
-    category = product['category']
-    
-    ai_text = generate_post_with_ai(price, original_title, url, category)
-    
-    if not ai_text:
-        fake_old = int(int(price) * 1.4)
-        arabic_name = original_title.split()[0] if len(original_title.split()) > 0 else "منتج رائع"
-        ai_text = f"""هلا بالزين كله! 🤩
-
-{arabic_name} 👟 منتج رائع يوفر راحة فائقة، جودة عالمية تدوم سنين! 💎✨
-
-كان بـ {fake_old} ريال والحين بـ {price} بس! 🔥💰
-
-فرصة ذهبية! ⚡
+فرصة ذهبية!
 
 {url}"""
     
