@@ -3,12 +3,214 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import random
+import os
 
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 bot = telebot.TeleBot(TOKEN)
 
+# =========================
+# تخزين المنتجات لمنع التكرار
+# =========================
+
+DB_FILE = "posted.txt"
+
+if not os.path.exists(DB_FILE):
+    open(DB_FILE, "w").close()
+
+
+def is_posted(asin):
+    with open(DB_FILE, "r") as f:
+        return asin in f.read()
+
+
+def mark_posted(asin):
+    with open(DB_FILE, "a") as f:
+        f.write(asin + "\n")
+
 
 # =========================
+# جمل سعودي احترافي
+# =========================
+
+OPENINGS = [
+"بصراحة عرض خرافي.",
+"فرصة قوية اليوم.",
+"السعر حالياً مغري جداً.",
+"أفضل صفقة تشوفها اليوم.",
+"عرض ما يتكرر.",
+"منتج يستاهل كل ريال.",
+"اللي يفهم بالعروض يعرف قيمته.",
+"أفضل وقت للشراء."
+]
+
+HUMAN = [
+"أنصح فيه بقوة.",
+"ما راح تندم عليه.",
+"صفقة ناجحة فعلاً.",
+"يعجبك أكيد.",
+"خيار موفق جداً.",
+"يفرق معك فعلياً.",
+"جربه وبتشوف.",
+"يستاهل التجربة."
+]
+
+CTA = [
+"لا تنتظر لين يخلص.",
+"استغل السعر قبل يتغير.",
+"الكمية محدودة.",
+"اطلبه اليوم.",
+"عرض لفترة قصيرة.",
+"سارع قبل يرتفع السعر.",
+"لا تضيع الفرصة."
+]
+
+
+# =========================
+# استخراج ASIN
+# =========================
+
+def extract_asin(url):
+    m = re.search(r'/dp/([A-Z0-9]{10})', url)
+    return m.group(1) if m else None
+
+
+# =========================
+# قراءة المنتج من amazon.sa
+# =========================
+
+def get_product(asin):
+
+    url = f"https://www.amazon.sa/dp/{asin}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept-Language": "ar-SA,ar;q=0.9"
+    }
+
+    r = requests.get(url, headers=headers, timeout=20)
+    soup = BeautifulSoup(r.text, "html.parser")
+
+    # اسم المنتج
+    title = soup.select_one("#productTitle")
+    title = title.text.strip() if title else None
+
+    # السعر الحالي
+    price_elem = soup.select_one(".a-price .a-offscreen")
+    price = price_elem.text.strip() if price_elem else None
+
+    # السعر القديم
+    old_price_elem = soup.select_one(".priceBlockStrikePriceString")
+    old_price = old_price_elem.text.strip() if old_price_elem else None
+
+    # الصورة
+    img = soup.select_one("#landingImage")
+    image = img.get("src") if img else None
+
+    if not title or not price:
+        return None
+
+    # حساب نسبة الخصم
+    discount_percent = None
+
+    try:
+        if old_price:
+            old_num = float(re.findall(r'\d+', old_price.replace(",", ""))[0])
+            new_num = float(re.findall(r'\d+', price.replace(",", ""))[0])
+            discount_percent = int(((old_num - new_num) / old_num) * 100)
+    except:
+        discount_percent = None
+
+    return title, price, old_price, image, discount_percent
+
+
+# =========================
+# توليد البوست
+# =========================
+
+def generate_post(title, price, old_price, discount_percent, affiliate_url):
+
+    s1 = random.choice(OPENINGS)
+    s2 = random.choice(HUMAN)
+    s3 = random.choice(CTA)
+
+    discount_text = ""
+
+    if discount_percent and discount_percent > 5:
+        discount_text = f"خصم {discount_percent}% 🔥 بدل {old_price} صار {price}."
+    else:
+        discount_text = f"بسعر {price}."
+
+    post = f"""
+{s1} {discount_text} {s2} {s3}
+
+🛍️ {title}
+
+💰 السعر: {price}
+
+🔗 {affiliate_url}
+"""
+
+    return post
+
+
+# =========================
+# البوت
+# =========================
+
+@bot.message_handler(func=lambda m: True)
+def handler(msg):
+
+    urls = re.findall(r'https?://\S+', msg.text)
+
+    if not urls:
+        bot.reply_to(msg, "أرسل رابط المنتج من أمازون السعودية.")
+        return
+
+    for original_url in urls:
+
+        wait = bot.reply_to(msg, "⏳ جاري تحليل المنتج...")
+
+        asin = extract_asin(original_url)
+
+        if not asin:
+            bot.edit_message_text("الرابط غير صحيح.", msg.chat.id, wait.message_id)
+            return
+
+        if is_posted(asin):
+            bot.edit_message_text("⚠️ تم نشر هذا المنتج مسبقاً.", msg.chat.id, wait.message_id)
+            return
+
+        try:
+            product = get_product(asin)
+
+            if not product:
+                bot.edit_message_text("ما قدرت أقرأ المنتج من أمازون.", msg.chat.id, wait.message_id)
+                return
+
+            title, price, old_price, image, discount_percent = product
+
+            # فلترة: لو ما فيه خصم واضح ما ننزل
+            if discount_percent and discount_percent < 5:
+                bot.edit_message_text("المنتج ما عليه خصم حقيقي حالياً.", msg.chat.id, wait.message_id)
+                return
+
+            post = generate_post(title, price, old_price, discount_percent, original_url)
+
+            if image:
+                bot.send_photo(msg.chat.id, image, caption=post)
+            else:
+                bot.send_message(msg.chat.id, post)
+
+            mark_posted(asin)
+
+            bot.delete_message(msg.chat.id, wait.message_id)
+
+        except Exception:
+            bot.edit_message_text("صار خطأ أثناء قراءة المنتج.", msg.chat.id, wait.message_id)
+
+
+print("Bot Running...")
+bot.infinity_polling()# =========================
 # جمل سعودي احترافي (AI مجاني)
 # =========================
 
