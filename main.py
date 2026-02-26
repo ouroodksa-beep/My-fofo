@@ -7,44 +7,144 @@ import random
 TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
 bot = telebot.TeleBot(TOKEN)
 
-def expand_url(url):
-    """يفك الروابط المختصرة ويرجع الرابط النهائي"""
+# ===================================
+# 🔥 تحليل نوع المنتج
+# ===================================
+
+TECH_KEYWORDS = ["iphone", "samsung", "laptop", "tablet", "headphone", "airpods", "monitor", "camera"]
+FASHION_KEYWORDS = ["shirt", "dress", "shoes", "nike", "adidas", "bag", "watch"]
+PERFUME_KEYWORDS = ["perfume", "fragrance", "parfum", "oud", "attar"]
+
+def detect_product_style(title):
+    t = title.lower()
+
+    if any(k in t for k in TECH_KEYWORDS):
+        return "tech"
+    elif any(k in t for k in FASHION_KEYWORDS):
+        return "youth"
+    elif any(k in t for k in PERFUME_KEYWORDS):
+        return "luxury"
+    else:
+        return "general"
+
+
+# ===================================
+# 🎯 أساليب التسويق حسب الفئة
+# ===================================
+
+OPENINGS = {
+    "tech": [
+        "⚡️ عرض تقني قوي",
+        "🔥 سعر ممتاز على جهاز مطلوب",
+        "🚀 فرصة لمحبي التقنية",
+        "🎯 خيار ذكي حالياً",
+    ],
+    "youth": [
+        "🔥 ستايل وسعر بنفس الوقت",
+        "⚡️ خيار شبابي ملفت",
+        "💥 عرض مناسب للموضة",
+        "🎯 لقطة للشباب",
+    ],
+    "luxury": [
+        "💎 عرض فاخر بسعر ذكي",
+        "✨ خيار راقي حالياً",
+        "🔥 فخامة بسعر أقل",
+        "🎯 صفقة لمحبي الفخامة",
+    ],
+    "general": [
+        "🔥 تخفيض يستحق الانتباه",
+        "⚡️ سعر خارج التوقع",
+        "💥 فرصة مناسبة",
+        "🎯 عرض واضح إنه قوي",
+    ]
+}
+
+ENDINGS = {
+    "tech": [
+        "قرار ممتاز لعشاق التقنية",
+        "ممكن ما يتكرر",
+        "فرصة للتطوير",
+        "وقته مناسب للشراء",
+    ],
+    "youth": [
+        "اختيار مناسب حالياً",
+        "ستايل بسعر أقل",
+        "خيار شبابي ذكي",
+        "واضح إنه يستاهل",
+    ],
+    "luxury": [
+        "الفخامة ما تنتظر",
+        "فرصة للتميز",
+        "خيار راقي فعلاً",
+        "يستحق التجربة",
+    ],
+    "general": [
+        "خيار ذكي حالياً",
+        "وقته مناسب",
+        "اللي يحتاجه لا يفوت",
+        "السعر يتغير بأي وقت",
+    ]
+}
+
+
+# ===================================
+# 💰 السعر التشويقي
+# ===================================
+
+def format_price_saudia(price):
     try:
-        # لو الرابط مختصر
-        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ow.ly', 'short.link']):
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "ar-SA,ar;q=0.9,en;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1"
-            }
-            
-            # نستخدم allow_redirects=True عشان نتبع التوجيه
-            r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
-            final_url = r.url
-            print(f"Expanded: {url} -> {final_url}")
-            return final_url
-            
+        num = re.findall(r'[\d,]+', price)
+        if num:
+            main = num[0].replace(",", "")
+            main_int = int(float(main))
+
+            hooks = [
+                f"تخيل بس {main_int} ريال 😍",
+                f"بهالسعر فقط {main_int} ريال 🔥",
+                f"سعر رهيب {main_int} ريال ⚡️",
+                f"لقطة بـ {main_int} ريال 💥",
+                f"أقل من المتوقع {main_int} ريال 🎯",
+            ]
+            return random.choice(hooks)
+    except:
+        pass
+
+    return price
+
+
+# ===================================
+# 🏷 اختصار العنوان + البراند
+# ===================================
+
+def smart_title(title):
+    words = title.split()
+    brand = words[0] if words else ""
+    short = " ".join(words[:10])
+    return f"{brand} | {short}"
+
+
+# ===================================
+# باقي الكود كما هو
+# ===================================
+
+def expand_url(url):
+    try:
+        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co']):
+            r = requests.get(url, allow_redirects=True, timeout=20)
+            return r.url
         return url
-    except Exception as e:
-        print(f"Expand error: {e}")
+    except:
         return url
+
 
 def is_saudi_amazon(url):
-    """يتأكد إن الرابط لأمازون السعودية"""
-    saudi_domains = ['amazon.sa', 'www.amazon.sa', 'amazon.sa/']
-    url_lower = url.lower()
-    return any(domain in url_lower for domain in saudi_domains)
+    return "amazon.sa" in url.lower()
+
 
 def extract_asin(url):
-    """يستخرج ASIN من أي رابط أمازون"""
     patterns = [
         r'/dp/([A-Z0-9]{10})',
         r'/gp/product/([A-Z0-9]{10})',
-        r'/product/([A-Z0-9]{10})',
-        r'([A-Z0-9]{10})/?$',
         r'([A-Z0-9]{10})(?:[/?]|\b)'
     ]
     for p in patterns:
@@ -53,142 +153,46 @@ def extract_asin(url):
             return m.group(1)
     return None
 
+
 def get_product(asin):
-    """Scraping قوي لأمازون السعودية فقط"""
     url = f"https://www.amazon.sa/dp/{asin}"
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br",
-        "DNT": "1",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Cache-Control": "max-age=0",
-        "Referer": "https://www.google.com/",
-        "Origin": "https://www.amazon.sa"
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
 
     try:
         r = requests.get(url, headers=headers, timeout=30)
-        
         if r.status_code != 200:
-            print(f"Status: {r.status_code}")
             return None
-            
-        if len(r.text) < 3000 or "captcha" in r.text.lower():
-            print("Captcha or blocked")
-            return None
-            
-    except Exception as e:
-        print(f"Request error: {e}")
+    except:
         return None
 
     soup = BeautifulSoup(r.text, "html.parser")
 
-    # العنوان
-    title = None
-    title_selectors = [
-        "#productTitle",
-        "h1.a-size-large.a-spacing-none",
-        "h1.a-size-large",
-        "#title"
-    ]
-    
-    for selector in title_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            title = elem.text.strip()
-            if len(title) > 5:
-                break
-    
+    title = soup.select_one("#productTitle")
     if not title:
         return None
+    title = title.text.strip()
 
-    # السعر الحالي
     price = None
-    price_selectors = [
-        ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
-        ".a-price.a-text-price.apexPriceToPay .a-offscreen",
-        ".a-price.aok-align-center .a-offscreen",
-        ".a-price .a-offscreen",
-        "[data-a-color='price'] .a-offscreen",
-        ".a-price-to-pay .a-offscreen",
-        ".a-price-buy-box .a-offscreen",
-        ".a-price-whole"
-    ]
-    
-    for selector in price_selectors:
-        try:
-            elem = soup.select_one(selector)
-            if elem and elem.text:
-                text = elem.text.strip()
-                if any(c.isdigit() for c in text):
-                    price = text
-                    break
-        except:
-            continue
-    
-    # Regex لو فشلت كلهم
-    if not price:
-        price_matches = re.findall(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:ر\.?س|SAR|ريال|رس)', r.text)
-        if price_matches:
-            clean_nums = [float(p.replace(',', '')) for p in price_matches]
-            min_price = min(clean_nums)
-            price = f"{min_price:,.2f} ر.س"
+    price_elem = soup.select_one(".a-price .a-offscreen")
+    if price_elem:
+        price = price_elem.text.strip()
 
-    # السعر القديم
     old_price = None
-    old_selectors = [
-        ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
-        ".a-price.a-text-price .a-offscreen",
-        ".basisPrice .a-offscreen",
-        ".priceBlockStrikePriceString"
-    ]
-    
-    for selector in old_selectors:
-        try:
-            elem = soup.select_one(selector)
-            if elem and elem.text:
-                text = elem.text.strip()
-                if text != price and any(c.isdigit() for c in text):
-                    old_price = text
-                    break
-        except:
-            continue
+    old_elem = soup.select_one(".a-price.a-text-price .a-offscreen")
+    if old_elem:
+        old_price = old_elem.text.strip()
 
-    # الصورة
     image = None
     img_elem = soup.select_one("#landingImage")
     if img_elem:
-        image = img_elem.get("src") or img_elem.get("data-old-hires")
-        if not image:
-            data = img_elem.get("data-a-dynamic-image")
-            if data and data.startswith("{"):
-                try:
-                    import json
-                    img_dict = json.loads(data)
-                    image = list(img_dict.keys())[0] if img_dict else None
-                except:
-                    pass
+        image = img_elem.get("src")
 
-    # الخصم
     discount_percent = None
     try:
         if old_price and price:
-            def extract_num(text):
-                nums = re.findall(r'[\d,]+\.?\d*', str(text))
-                return float(nums[0].replace(",", "")) if nums else 0
-            
-            old_num = extract_num(old_price)
-            new_num = extract_num(price)
-            
-            if old_num > new_num > 0:
+            old_num = float(re.findall(r'[\d,.]+', old_price)[0].replace(",", ""))
+            new_num = float(re.findall(r'[\d,.]+', price)[0].replace(",", ""))
+            if old_num > new_num:
                 discount_percent = int(((old_num - new_num) / old_num) * 100)
     except:
         pass
@@ -198,108 +202,63 @@ def get_product(asin):
 
     return title, price, old_price, image, discount_percent
 
-OPENINGS = [
-    "🔥 سعر مجنون",
-    "⚡️ فرصة ذهبية",
-    "💥 عرض ناري",
-    "🎯 صفقة العمر",
-    "🔥 ما يتكرر",
-    "⚡️ الحين أو لا",
-    "💥 خصم خرافي"
-]
 
-REACTIONS = [
-    "هاته الحين",
-    "ما تفكر",
-    "خذه فوراً",
-    "بسرعة قبل ينتهي",
-    "لا تنام عليه",
-    "احجز فوري",
-    "ما راح تلقى مثله"
-]
-
-URGENCY = [
-    "ينتهي اليوم",
-    "الكمية قليلة",
-    "سعر مؤقت",
-    "بأي لحظة يرجع",
-    "الوقت ينفد",
-    "لا تتردد",
-    "فرصة لا تعوض"
-]
+# ===================================
+# ✨ التوليد النهائي الذكي
+# ===================================
 
 def generate_post(title, price, old_price, discount_percent, original_url):
-    opening = random.choice(OPENINGS)
-    reaction = random.choice(REACTIONS)
-    urgency = random.choice(URGENCY)
-    
-    display_title = title[:60] + "..." if len(title) > 60 else title
-    
+    style = detect_product_style(title)
+
+    opening = random.choice(OPENINGS[style])
+    ending = random.choice(ENDINGS[style])
+
+    display_title = smart_title(title)
+    price_line = format_price_saudia(price)
+
     if discount_percent and discount_percent > 5:
-        price_line = f"💰 {price} (وفر {discount_percent}%) | ❌ {old_price}"
-    else:
-        price_line = f"💰 {price}"
-    
+        price_line += f" (وفر {discount_percent}%)"
+
     post = f"""{opening}
 
 🛒 {display_title}
 
-{price_line}
+💰 {price_line}
 
-👉 {reaction} | ⏰ {urgency}
+👉 {ending}
 
 🔗 {original_url}"""
-    
+
     return post
+
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
     text = msg.text.strip()
     urls = re.findall(r'https?://\S+', text)
-    
-    print(f"Message: {text[:100]}")
 
     if not urls:
         bot.reply_to(msg, "❌ أرسل رابط منتج")
         return
 
     for original_url in urls:
-        # نفك الرابط الأول
         expanded = expand_url(original_url)
-        print(f"Expanded: {expanded[:100]}")
-        
-        # نتأكد إنه أمازون سعودية
+
         if not is_saudi_amazon(expanded):
-            bot.reply_to(msg, 
-                f"❌ الرابط مش لأمازون السعودية\n\n"
-                f"الرابط المفكوك: `{expanded[:60]}...`\n\n"
-                f"لازم يكون الرابط من `amazon.sa`\n"
-                f"جرب تحوله لأفيلييت سعودي من OneLink أو Amazon Associates SA",
-                parse_mode="Markdown"
-            )
-            continue
-        
-        asin = extract_asin(expanded)
-        if not asin:
-            bot.reply_to(msg, "❌ ما قدرت أستخرج رقم المنتج (ASIN)")
+            bot.reply_to(msg, "❌ الرابط لازم من أمازون السعودية")
             continue
 
-        print(f"ASIN: {asin}")
+        asin = extract_asin(expanded)
+        if not asin:
+            bot.reply_to(msg, "❌ ما قدرت أستخرج ASIN")
+            continue
 
         wait = bot.reply_to(msg, "⏳ جاري التحليل...")
 
         product = get_product(asin)
 
         if not product:
-            bot.edit_message_text(
-                f"❌ ما قدرت أقرأ المنتج\nASIN: `{asin}`\n\n"
-                f"ممكن يكون:\n"
-                f"• المنتج محذوف من أمازون السعودية\n"
-                f"• أمازون حاطة حماية مؤقتة\n"
-                f"• جرب منتج تاني", 
-                msg.chat.id, wait.message_id,
-                parse_mode="Markdown"
-            )
+            bot.edit_message_text("❌ ما قدرت أقرأ المنتج", msg.chat.id, wait.message_id)
             continue
 
         title, price, old_price, image, discount_percent = product
@@ -310,11 +269,13 @@ def handler(msg):
                 bot.send_photo(msg.chat.id, image, caption=post)
             else:
                 bot.send_message(msg.chat.id, post)
-            
+
             bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception as e:
-            print(f"Send error: {e}")
+        except:
             bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
+
 
 print("🤖 البوت يعمل...")
 bot.infinity_polling()
+
+
