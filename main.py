@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import random
+import time
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
@@ -305,10 +306,8 @@ def extract_asin(url):
 def clean_price(price_text):
     """ينظف السعر ويحوله لصيغة ريال سعودي بدون نقطة"""
     try:
-        # نستخرج الرقم
         nums = re.findall(r'[\d,]+', price_text)
         if nums:
-            # ننظف ونحط ريال سعودي
             num = nums[0].replace(",", "")
             return f"{num} ريال سعودي"
     except:
@@ -317,103 +316,219 @@ def clean_price(price_text):
 
 
 def get_product(asin):
+    """Scraping قوي مع محاولات متعددة"""
     url = f"https://www.amazon.sa/dp/{asin}"
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "ar-SA,ar;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "DNT": "1",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Cache-Control": "max-age=0",
-        "Referer": "https://www.google.com/"
-    }
-
-    try:
-        r = requests.get(url, headers=headers, timeout=30)
-        if r.status_code != 200:
-            return None
-    except:
-        return None
-
-    soup = BeautifulSoup(r.text, "html.parser")
-
-    # العنوان - اسم المنتج بس (أول 3-4 كلمات)
-    title_elem = soup.select_one("#productTitle")
-    if not title_elem:
-        return None
-    
-    full_title = title_elem.text.strip()
-    # ناخذ أول 3-4 كلمات كاسم للمنتج
-    words = full_title.split()
-    if len(words) > 4:
-        product_name = " ".join(words[:4])
-    else:
-        product_name = full_title
-    
-    # ننظف الاسم
-    product_name = product_name.replace("|", "").replace("-", "").strip()
-    if len(product_name) > 50:
-        product_name = product_name[:50] + "..."
-
-    # السعر الحالي
-    price = None
-    price_selectors = [
-        ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
-        ".a-price.a-text-price.apexPriceToPay .a-offscreen",
-        ".a-price.aok-align-center .a-offscreen",
-        ".a-price .a-offscreen",
-        "[data-a-color='price'] .a-offscreen",
-        ".a-price-whole"
+    # قائمة User-Agents مختلفة
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
     ]
     
-    for selector in price_selectors:
-        elem = soup.select_one(selector)
-        if elem and elem.text:
-            price = elem.text.strip()
-            if any(c.isdigit() for c in price):
-                break
+    for attempt, ua in enumerate(user_agents):
+        try:
+            print(f"Attempt {attempt + 1} with {ua[:50]}...")
+            
+            headers = {
+                "User-Agent": ua,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Cache-Control": "max-age=0",
+                "Referer": "https://www.google.com/search?q=amazon.sa",
+                "Origin": "https://www.amazon.sa"
+            }
 
-    # السعر القديم
-    old_price = None
-    old_selectors = [
-        ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
-        ".a-price.a-text-price .a-offscreen",
-        ".basisPrice .a-offscreen",
-        ".priceBlockStrikePriceString"
-    ]
+            # نعمل delay بين المحاولات
+            if attempt > 0:
+                time.sleep(2)
+            
+            r = requests.get(url, headers=headers, timeout=30)
+            print(f"Status: {r.status_code}, Size: {len(r.text)}")
+            
+            if r.status_code != 200:
+                continue
+                
+            # نتأكد إن الصفحة مش فارغة أو كابتشا
+            if len(r.text) < 5000:
+                print("Page too small, might be blocked")
+                continue
+            
+            # ندور على علامات المنتج
+            if "productTitle" not in r.text and "a-price" not in r.text:
+                print("No product data found")
+                continue
+                
+            soup = BeautifulSoup(r.text, "html.parser")
+            
+            # ===== العنوان =====
+            title = None
+            title_selectors = [
+                "#productTitle",
+                "h1.a-size-large.a-spacing-none",
+                "h1.a-size-large",
+                "#title",
+                "h1[data-testid='product-title']",
+                ".product-title"
+            ]
+            
+            for selector in title_selectors:
+                elem = soup.select_one(selector)
+                if elem:
+                    title = elem.text.strip()
+                    if len(title) > 3:
+                        print(f"Title found: {title[:60]}")
+                        break
+            
+            if not title:
+                continue
+
+            # ===== السعر الحالي =====
+            price = None
+            price_selectors = [
+                ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
+                ".a-price.a-text-price.apexPriceToPay .a-offscreen",
+                ".a-price.aok-align-center .a-offscreen",
+                ".a-price .a-offscreen",
+                "[data-a-color='price'] .a-offscreen",
+                ".a-price-to-pay .a-offscreen",
+                ".a-price-buy-box .a-offscreen",
+                ".a-price-whole",
+                ".a-price .a-price-whole",
+                ".a-offscreen",
+                ".a-price"
+            ]
+            
+            for selector in price_selectors:
+                try:
+                    elem = soup.select_one(selector)
+                    if elem and elem.text:
+                        text = elem.text.strip()
+                        if any(c.isdigit() for c in text):
+                            price = text
+                            print(f"Price found: {price}")
+                            break
+                except:
+                    continue
+            
+            # Regex كبديل أخير
+            if not price:
+                price_patterns = [
+                    r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:ر\.?س|SAR|ريال|رس)',
+                    r'(\d{1,3}(?:,\d{3})*)\s*(?:ر\.?س|SAR)',
+                    r'SAR\s*(\d{1,3}(?:,\d{3})*)',
+                    r'(\d+)\s*ريال'
+                ]
+                for pattern in price_patterns:
+                    matches = re.findall(pattern, r.text)
+                    if matches:
+                        price = f"{matches[0]} ر.س"
+                        print(f"Price from regex: {price}")
+                        break
+
+            # ===== السعر القديم =====
+            old_price = None
+            old_selectors = [
+                ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
+                ".a-price.a-text-price .a-offscreen",
+                ".basisPrice .a-offscreen",
+                ".priceBlockStrikePriceString",
+                "[data-a-color='secondary'] .a-offscreen",
+                ".a-price[data-a-strike='true'] .a-offscreen"
+            ]
+            
+            for selector in old_selectors:
+                try:
+                    elem = soup.select_one(selector)
+                    if elem and elem.text:
+                        text = elem.text.strip()
+                        if text != price and any(c.isdigit() for c in text):
+                            old_price = text
+                            print(f"Old price: {old_price}")
+                            break
+                except:
+                    continue
+
+            # ===== الصورة =====
+            image = None
+            img_selectors = [
+                "#landingImage",
+                "#imgBlkFront",
+                ".a-dynamic-image",
+                "#main-image",
+                "img[data-a-image-name='landingImage']"
+            ]
+            
+            for selector in img_selectors:
+                try:
+                    elem = soup.select_one(selector)
+                    if elem:
+                        for attr in ["src", "data-old-hires", "data-a-dynamic-image", "data-src"]:
+                            val = elem.get(attr)
+                            if val:
+                                if attr == "data-a-dynamic-image" and val.startswith("{"):
+                                    try:
+                                        import json
+                                        img_dict = json.loads(val)
+                                        image = list(img_dict.keys())[0] if img_dict else None
+                                    except:
+                                        continue
+                                else:
+                                    image = val
+                                if image and image.startswith("http"):
+                                    break
+                        if image:
+                            break
+                except:
+                    continue
+
+            # ===== الخصم =====
+            discount_percent = None
+            try:
+                if old_price and price:
+                    def extract_num(text):
+                        nums = re.findall(r'[\d,]+\.?\d*', str(text))
+                        return float(nums[0].replace(",", "")) if nums else 0
+                    
+                    old_num = extract_num(old_price)
+                    new_num = extract_num(price)
+                    
+                    if old_num > new_num > 0:
+                        discount_percent = int(((old_num - new_num) / old_num) * 100)
+                        print(f"Discount: {discount_percent}%")
+            except:
+                pass
+
+            if price:
+                # نختصر اسم المنتج
+                words = title.split()
+                if len(words) > 5:
+                    product_name = " ".join(words[:5])
+                else:
+                    product_name = title
+                
+                if len(product_name) > 60:
+                    product_name = product_name[:60] + "..."
+                
+                return product_name, price, old_price, image, discount_percent
+            else:
+                print("No price found in this attempt")
+                
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            continue
     
-    for selector in old_selectors:
-        elem = soup.select_one(selector)
-        if elem and elem.text:
-            old_text = elem.text.strip()
-            if old_text != price and any(c.isdigit() for c in old_text):
-                old_price = old_text
-                break
-
-    # الصورة
-    image = None
-    img_elem = soup.select_one("#landingImage")
-    if img_elem:
-        image = img_elem.get("src") or img_elem.get("data-old-hires")
-
-    # الخصم
-    discount_percent = None
-    try:
-        if old_price and price:
-            old_num = float(re.findall(r'[\d,.]+', old_price)[0].replace(",", ""))
-            new_num = float(re.findall(r'[\d,.]+', price)[0].replace(",", ""))
-            if old_num > new_num:
-                discount_percent = int(((old_num - new_num) / old_num) * 100)
-    except:
-        pass
-
-    if not price:
-        return None
-
-    return product_name, price, old_price, image, discount_percent
+    return None
 
 
 # ===================================
@@ -421,20 +536,16 @@ def get_product(asin):
 # ===================================
 
 def generate_post(product_name, price, old_price, discount_percent, original_url):
-    # جملة عشوائية في البداية
     opening = random.choice(OPENING_SENTENCES)
     
-    # تنظيف الأسعار
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else None
     
-    # بناء المنشور
     lines = [opening]
     lines.append("")
     lines.append(f"🛒 {product_name}")
     lines.append("")
     
-    # الأسعار
     if clean_old and discount_percent and discount_percent > 5:
         lines.append(f"❌ قبل: {clean_old}")
         lines.append(f"✅ الحين: {clean_current} (وفر {discount_percent}%)")
@@ -458,22 +569,41 @@ def handler(msg):
 
     for original_url in urls:
         expanded = expand_url(original_url)
+        print(f"\n{'='*50}")
+        print(f"Processing: {expanded[:100]}")
 
         if not is_saudi_amazon(expanded):
-            bot.reply_to(msg, "❌ الرابط لازم يكون من amazon.sa")
+            bot.reply_to(msg, 
+                f"❌ الرابط مش لأمازون السعودية\n\n"
+                f"الرابط المفكوك: `{expanded[:60]}...`\n\n"
+                f"لازم يكون من `amazon.sa`",
+                parse_mode="Markdown"
+            )
             continue
 
         asin = extract_asin(expanded)
         if not asin:
-            bot.reply_to(msg, "❌ ما قدرت أستخرج رقم المنتج")
+            bot.reply_to(msg, "❌ ما قدرت أستخرج رقم المنتج (ASIN)")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري التحليل...")
+        print(f"ASIN: {asin}")
+
+        wait = bot.reply_to(msg, "⏳ جاري تحليل المنتج...")
 
         product = get_product(asin)
 
         if not product:
-            bot.edit_message_text("❌ ما قدرت أقرأ المنتج", msg.chat.id, wait.message_id)
+            bot.edit_message_text(
+                f"❌ ما قدرت أقرأ المنتج بعد عدة محاولات\n\n"
+                f"ASIN: `{asin}`\n\n"
+                f"ممكن يكون:\n"
+                f"• أمازون حاط حماية قوية (Captcha)\n"
+                f"• المنتج محذوف\n"
+                f"• جرب منتج تاني\n\n"
+                f"💡 تلميح: جرب تبعت الرابط مباشرة من أمازون بدون اختصار",
+                msg.chat.id, wait.message_id,
+                parse_mode="Markdown"
+            )
             continue
 
         product_name, price, old_price, image, discount_percent = product
@@ -486,7 +616,8 @@ def handler(msg):
                 bot.send_message(msg.chat.id, post)
 
             bot.delete_message(msg.chat.id, wait.message_id)
-        except:
+        except Exception as e:
+            print(f"Send error: {e}")
             bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
 
 
