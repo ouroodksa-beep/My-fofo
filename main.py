@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import re
 import random
 
-TOKEN = "8769441239:AAEgX3uBbtWc_hHcqs0lmQ50AqKJGOWV6Ok"
+TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
 # ===================================
