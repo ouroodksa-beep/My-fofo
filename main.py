@@ -36,6 +36,206 @@ OPENING_SENTENCES = [
 ]
 
 # ===================================
+# 🔄 قاموس ترجمة المنتجات للعربي
+# ===================================
+
+TRANSLATION_DICT = {
+    # إلكترونيات
+    "iphone": "آيفون",
+    "samsung": "سامسونج",
+    "xiaomi": "شاومي",
+    "huawei": "هواوي",
+    "airpods": "سماعات آيربودز",
+    "earbuds": "سماعات أذن",
+    "headphones": "سماعات رأس",
+    "laptop": "لابتوب",
+    "macbook": "ماك بوك",
+    "tablet": "تابلت",
+    "ipad": "آيباد",
+    "watch": "ساعة ذكية",
+    "smartwatch": "ساعة ذكية",
+    "charger": "شاحن",
+    "cable": "كيبل",
+    "power bank": "باور بانك",
+    "battery": "بطارية",
+    "screen": "شاشة",
+    "monitor": "شاشة عرض",
+    "keyboard": "كيبورد",
+    "mouse": "ماوس",
+    "camera": "كاميرا",
+    "speaker": "سماعة",
+    "tv": "تلفزيون",
+    "television": "تلفزيون",
+    "router": "راوتر",
+    "modem": "مودم",
+    
+    # أحذية وملابس
+    "shoes": "حذاء",
+    "shoe": "حذاء",
+    "sneakers": "حذاء رياضي",
+    "boots": "بوت",
+    "sandals": "صندل",
+    "slippers": "شبشب",
+    "t-shirt": "تيشيرت",
+    "shirt": "قميص",
+    "pants": "بنطلون",
+    "jeans": "جينز",
+    "jacket": "جاكيت",
+    "hoodie": "هودي",
+    "dress": "فستان",
+    "skirt": "تنورة",
+    "socks": "شرابات",
+    "cap": "كاب",
+    "hat": "قبعة",
+    "bag": "شنطة",
+    "backpack": "حقيبة ظهر",
+    "wallet": "محفظة",
+    
+    # عطور ومستحضرات
+    "perfume": "عطر",
+    "fragrance": "عطر",
+    "oud": "عود",
+    "musk": "مسك",
+    "cream": "كريم",
+    "lotion": "لوشن",
+    "shampoo": "شامبو",
+    "conditioner": "بلسم",
+    "soap": "صابون",
+    
+    # أجهزة منزلية
+    "refrigerator": "ثلاجة",
+    "fridge": "ثلاجة",
+    "washing machine": "غسالة",
+    "vacuum cleaner": "مكنسة كهربائية",
+    "air conditioner": "مكيف",
+    "ac": "مكيف",
+    "heater": "دفاية",
+    "fan": "مروحة",
+    "blender": "خلاط",
+    "mixer": "عجانة",
+    "oven": "فرن",
+    "microwave": "مايكرويف",
+    "toaster": "محمصة",
+    "kettle": "غلاية",
+    "coffee maker": "ماكينة قهوة",
+    "iron": "مكواة",
+    "hair dryer": "سشوار",
+    
+    # أثاث وديكور
+    "chair": "كرسي",
+    "table": "طاولة",
+    "desk": "مكتب",
+    "bed": "سرير",
+    "sofa": "كنبة",
+    "couch": "كنبة",
+    "lamp": "لمبة",
+    "light": "إضاءة",
+    "mirror": "مرآة",
+    "carpet": "سجادة",
+    "curtain": "ستارة",
+    
+    # رياضة ولياقة
+    "treadmill": "سير كهربائي",
+    "dumbbell": "دامبل",
+    "yoga mat": "حصيرة يوغا",
+    "bicycle": "دراجة",
+    "ball": "كرة",
+    
+    # أطفال
+    "toys": "ألعاب",
+    "toy": "لعبة",
+    "baby": "أطفال",
+    "kids": "أطفال",
+    "stroller": "عربة أطفال",
+    "car seat": "كرسي سيارة للأطفال",
+    
+    # سيارات
+    "car": "سيارة",
+    "tire": "إطار",
+    "battery": "بطارية سيارة",
+    "oil": "زيت",
+    "cleaner": "منظف",
+    
+    # عام
+    "wireless": "لاسلكي",
+    "bluetooth": "بلوتوث",
+    "smart": "ذكي",
+    "digital": "رقمي",
+    "electric": "كهربائي",
+    "automatic": "أوتوماتيك",
+    "portable": "محمول",
+    "professional": "احترافي",
+    "original": "أصلي",
+    "new": "جديد",
+    "pro": "برو",
+    "max": "ماكس",
+    "plus": "بلس",
+    "ultra": "ألترا",
+    "mini": "ميني",
+    "premium": "بريميوم",
+    "deluxe": "ديلوكس",
+}
+
+
+def translate_to_arabic(text):
+    """
+    يترجم الكلمات الإنجليزية للعربي بشكل ذكي
+    """
+    text_lower = text.lower()
+    words = text_lower.split()
+    
+    # نبدأ بالبراند (أول كلمة)
+    translated_words = []
+    
+    for word in words:
+        # ننظف الكلمة من الرموز
+        clean_word = re.sub(r'[^\w\s]', '', word)
+        
+        # ندور على الترجمة
+        if clean_word in TRANSLATION_DICT:
+            translated_words.append(TRANSLATION_DICT[clean_word])
+        else:
+            # لو مالقناش ترجمة، نحتفظ بالكلمة الأصلية
+            translated_words.append(word)
+    
+    # ندمج الكلمات
+    result = " ".join(translated_words)
+    
+    # نحسن النتيجة (نشيل التكرارات)
+    result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)  # تكرار كلمات
+    
+    return result
+
+
+def smart_arabic_title(full_title):
+    """
+    يحول العنوان للعربي بشكل ذكي وقصير
+    """
+    # نختصر العنوان الأول
+    words = full_title.split()
+    
+    if len(words) <= 10:
+        short_title = full_title
+    else:
+        # ناخذ أول 10-12 كلمة
+        short_words = words[:12]
+        short_title = " ".join(short_words)
+    
+    # نترجم للعربي
+    arabic_title = translate_to_arabic(short_title)
+    
+    # نتأكد إن العنوان مش طويل (سطر ونصف)
+    if len(arabic_title) > 85:
+        # نختصر لآخر مسافة مناسبة
+        cut_point = arabic_title.rfind(' ', 50, 85)
+        if cut_point == -1:
+            cut_point = 80
+        arabic_title = arabic_title[:cut_point] + "..."
+    
+    return arabic_title
+
+
+# ===================================
 # 🔧 دوال المساعدة
 # ===================================
 
@@ -79,73 +279,6 @@ def clean_price(price_text):
     return price_text
 
 
-def extract_smart_title(full_title):
-    """
-    يستخرج عنوان ذكي وقصير:
-    - البراند (أول كلمة)
-    - النوع/الفئة (كلمات مفتاحية)
-    - يتجاهل الأرقام والمقاسات والألوان الطويلة
-    """
-    words = full_title.split()
-    
-    if not words:
-        return "منتج"
-    
-    # البراند دائماً أول كلمة
-    brand = words[0]
-    
-    # كلمات مفتاحية ندور عليها
-    key_types = {
-        "سماعة": ["سماعة", "سماعات", "headphone", "earbuds", "airpods", "سماعه"],
-        "حذاء": ["حذاء", "حذاء", "shoe", "shoes", "boot", "sneaker", "رياضي"],
-        "ساعة": ["ساعة", "ساعات", "watch", "smartwatch", "ساعه"],
-        "هاتف": ["هاتف", "جوال", "موبايل", "iphone", "samsung", "xiaomi", "هاتف"],
-        "لابتوب": ["لابتوب", "لابتوب", "laptop", "macbook", "notebook", "كمبيوتر"],
-        "شنطة": ["شنطة", "شنط", "bag", "backpack", "حقيبة", "شنطه"],
-        "نظارة": ["نظارة", "نظارات", "glass", "sunglasses", "نظاره"],
-        "كاميرا": ["كاميرا", "كاميرات", "camera", "كاميره"],
-        "تلفزيون": ["تلفزيون", "تلفزيون", "tv", "television", "شاشة"],
-        "عطر": ["عطر", "عطور", "perfume", "fragrance", "oud", "عطر"],
-        "مكيف": ["مكيف", "مكيفات", "ac", "air conditioner", "تكييف"],
-        "مروحة": ["مروحة", "مراوح", "fan", "مروحه"],
-        "ماكينة": ["ماكينة", "ماكينات", "machine", "ماكينه"],
-    }
-    
-    # ندور على النوع في العنوان
-    product_type = ""
-    for ptype, keywords in key_types.items():
-        for keyword in keywords:
-            if keyword.lower() in full_title.lower():
-                product_type = ptype
-                break
-        if product_type:
-            break
-    
-    # لو لقينا نوع، نرجع "براند + نوع"
-    if product_type:
-        return f"{brand} {product_type}"
-    
-    # لو مالقيناش، نرجع أول 3 كلمات مفيدة (نتجاهل الأرقام والمقاسات)
-    useful_words = []
-    for word in words[1:]:  # نبدأ من بعد البراند
-        # نتجاهل الأرقام والمقاسات والألوان الطويلة
-        if re.match(r'^\d', word):  # يبدأ برقم
-            continue
-        if any(x in word.lower() for x in ['eu', 'us', 'cm', 'mm', 'gb', 'tb', 'inch', '"']):  # مقاسات
-            continue
-        if len(word) > 15:  # كلمة طويلة جداً (وصف مفصل)
-            continue
-        useful_words.append(word)
-        if len(useful_words) >= 2:  # كلمتين كفاية بعد البراند
-            break
-    
-    if useful_words:
-        return f"{brand} {' '.join(useful_words)}"
-    
-    # آخر حل: نرجع البراند بس
-    return brand
-
-
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
     
@@ -179,17 +312,16 @@ def get_product(asin):
             
             soup = BeautifulSoup(r.text, "html.parser")
             
-            # العنوان الكامل
             title_elem = soup.select_one("#productTitle")
             if not title_elem:
                 continue
             
             full_title = title_elem.text.strip()
+            print(f"Original: {full_title[:80]}...")
             
-            # نستخرج عنوان ذكي
-            smart_title = extract_smart_title(full_title)
-            print(f"Full: {full_title[:80]}")
-            print(f"Smart: {smart_title}")
+            # نحول للعربي
+            arabic_title = smart_arabic_title(full_title)
+            print(f"Arabic: {arabic_title}")
 
             # السعر
             price = None
@@ -241,7 +373,7 @@ def get_product(asin):
                 pass
 
             if price:
-                return smart_title, price, old_price, image, discount_percent
+                return arabic_title, price, old_price, image, discount_percent
                 
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
@@ -262,7 +394,7 @@ def generate_post(product_name, price, old_price, discount_percent, original_url
     
     lines = [opening]
     lines.append("")
-    lines.append(f"🛒 {product_name}")  # اسم المنتج المحسن
+    lines.append(f"🛒 {product_name}")  # اسم المنتج بالعربي
     lines.append("")
     
     if clean_old and discount_percent and discount_percent > 5:
