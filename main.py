@@ -40,7 +40,6 @@ OPENING_SENTENCES = [
 # ===================================
 
 TRANSLATION_DICT = {
-    # إلكترونيات
     "iphone": "آيفون",
     "samsung": "سامسونج",
     "xiaomi": "شاومي",
@@ -68,8 +67,6 @@ TRANSLATION_DICT = {
     "television": "تلفزيون",
     "router": "راوتر",
     "modem": "مودم",
-    
-    # أحذية وملابس
     "shoes": "حذاء",
     "shoe": "حذاء",
     "sneakers": "حذاء رياضي",
@@ -90,8 +87,6 @@ TRANSLATION_DICT = {
     "bag": "شنطة",
     "backpack": "حقيبة ظهر",
     "wallet": "محفظة",
-    
-    # عطور ومستحضرات
     "perfume": "عطر",
     "fragrance": "عطر",
     "oud": "عود",
@@ -101,8 +96,6 @@ TRANSLATION_DICT = {
     "shampoo": "شامبو",
     "conditioner": "بلسم",
     "soap": "صابون",
-    
-    # أجهزة منزلية
     "refrigerator": "ثلاجة",
     "fridge": "ثلاجة",
     "washing machine": "غسالة",
@@ -120,8 +113,6 @@ TRANSLATION_DICT = {
     "coffee maker": "ماكينة قهوة",
     "iron": "مكواة",
     "hair dryer": "سشوار",
-    
-    # أثاث وديكور
     "chair": "كرسي",
     "table": "طاولة",
     "desk": "مكتب",
@@ -133,30 +124,21 @@ TRANSLATION_DICT = {
     "mirror": "مرآة",
     "carpet": "سجادة",
     "curtain": "ستارة",
-    
-    # رياضة ولياقة
     "treadmill": "سير كهربائي",
     "dumbbell": "دامبل",
     "yoga mat": "حصيرة يوغا",
     "bicycle": "دراجة",
     "ball": "كرة",
-    
-    # أطفال
     "toys": "ألعاب",
     "toy": "لعبة",
     "baby": "أطفال",
     "kids": "أطفال",
     "stroller": "عربة أطفال",
     "car seat": "كرسي سيارة للأطفال",
-    
-    # سيارات
     "car": "سيارة",
     "tire": "إطار",
-    "battery": "بطارية سيارة",
     "oil": "زيت",
     "cleaner": "منظف",
-    
-    # عام
     "wireless": "لاسلكي",
     "bluetooth": "بلوتوث",
     "smart": "ذكي",
@@ -187,17 +169,12 @@ TRANSLATION_DICT = {
 
 
 def translate_to_arabic(text):
-    """
-    يترجم الكلمات الإنجليزية للعربي بشكل ذكي
-    """
     text_lower = text.lower()
     words = text_lower.split()
-    
     translated_words = []
     
     for word in words:
         clean_word = re.sub(r'[^\w\s]', '', word)
-        
         if clean_word in TRANSLATION_DICT:
             translated_words.append(TRANSLATION_DICT[clean_word])
         else:
@@ -205,16 +182,11 @@ def translate_to_arabic(text):
     
     result = " ".join(translated_words)
     result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
-    
     return result
 
 
 def smart_arabic_title(full_title):
-    """
-    يحول العنوان للعربي بشكل ذكي وقصير
-    """
     words = full_title.split()
-    
     if len(words) <= 10:
         short_title = full_title
     else:
@@ -237,34 +209,21 @@ def smart_arabic_title(full_title):
 # ===================================
 
 def expand_url(url):
-    """
-    يفك الروابط المختصرة ويرجع الرابط النهائي
-    """
     try:
-        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ow.ly']):
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "ar-SA,ar;q=0.9,en;q=0.8",
-            }
+        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co']):
+            headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
-            print(f"Expanded: {url} -> {r.url}")
             return r.url
         return url
-    except Exception as e:
-        print(f"Expand error: {e}")
+    except:
         return url
 
 
-def extract_domain_and_asin(url):
-    """
-    يستخرج الدومين وASIN من أي رابط أمازون
-    """
-    # نستخرج الدومين
-    domain_match = re.search(r'amazon\.([a-z\.]+)', url.lower())
-    domain = domain_match.group(1) if domain_match else "sa"
-    
-    # نستخرج ASIN
+def is_saudi_amazon(url):
+    return "amazon.sa" in url.lower()
+
+
+def extract_asin(url):
     patterns = [
         r'/dp/([A-Z0-9]{10})',
         r'/gp/product/([A-Z0-9]{10})',
@@ -272,21 +231,39 @@ def extract_domain_and_asin(url):
         r'([A-Z0-9]{10})/?$',
         r'([A-Z0-9]{10})(?:[/?]|\b)'
     ]
-    
     for p in patterns:
         m = re.search(p, url)
         if m:
-            return domain, m.group(1)
-    
-    return domain, None
+            return m.group(1)
+    return None
 
 
-def get_product(domain, asin):
+# ===================================
+# 💰 تنظيف السعر - بدون نقاط ولا هللات
+# ===================================
+
+def clean_price(price_text):
     """
-    يجيب المنتج من أي دومين أمازون
+    ينظف السعر ويحط رقم صحيح + ريال سعودي
+    مثال: 299.00 -> 299 ريال سعودي
     """
-    url = f"https://www.amazon.{domain}/dp/{asin}"
-    print(f"Trying: {url}")
+    try:
+        # نستخرج الرقم (مع الفاصلة أو النقطة)
+        nums = re.findall(r'[\d,]+(?:\.\d+)?', price_text)
+        if nums:
+            # ناخذ أول رقم ونحوله لـ float ثم int (نشيل العلامة العشرية)
+            num_str = nums[0].replace(",", "")
+            num_float = float(num_str)
+            num_int = int(num_float)  # نشيل الهللات
+            
+            return f"{num_int} ريال سعودي"
+    except:
+        pass
+    return price_text
+
+
+def get_product(asin):
+    url = f"https://www.amazon.sa/dp/{asin}"
     
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -301,7 +278,7 @@ def get_product(domain, asin):
             
             headers = {
                 "User-Agent": ua,
-                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Encoding": "gzip, deflate, br",
                 "DNT": "1",
@@ -314,7 +291,6 @@ def get_product(domain, asin):
             r = requests.get(url, headers=headers, timeout=30)
             
             if r.status_code != 200 or len(r.text) < 5000:
-                print(f"Attempt {attempt + 1} failed: Status {r.status_code}, Size {len(r.text)}")
                 continue
             
             soup = BeautifulSoup(r.text, "html.parser")
@@ -324,20 +300,16 @@ def get_product(domain, asin):
                 continue
             
             full_title = title_elem.text.strip()
-            print(f"Original: {full_title[:80]}...")
-            
-            # نحول للعربي
-            arabic_title = smart_arabic_title(full_title)
-            print(f"Arabic: {arabic_title}")
 
-            # السعر (نبحث عن أي عملة)
+            # السعر
             price = None
             price_selectors = [
                 ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
                 ".a-price.a-text-price.apexPriceToPay .a-offscreen",
+                ".a-price.aok-align-center .a-offscreen",
                 ".a-price .a-offscreen",
                 "[data-a-color='price'] .a-offscreen",
-                ".a-price-whole",
+                ".a-price-whole"
             ]
             
             for selector in price_selectors:
@@ -345,29 +317,6 @@ def get_product(domain, asin):
                 if elem and elem.text:
                     price = elem.text.strip()
                     if any(c.isdigit() for c in price):
-                        break
-
-            # لو ملقناش، ندور في النص
-            if not price:
-                # ندور على $ أو € أو £ أو ر.س
-                price_patterns = [
-                    r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:ر\.?س|SAR|ريال|رس)',
-                    r'\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-                    r'€\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-                    r'£\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-                ]
-                for pattern in price_patterns:
-                    matches = re.findall(pattern, r.text)
-                    if matches:
-                        price_val = matches[0]
-                        if '$' in r.text[:2000]:
-                            price = f"${price_val}"
-                        elif '€' in r.text[:2000]:
-                            price = f"€{price_val}"
-                        elif '£' in r.text[:2000]:
-                            price = f"£{price_val}"
-                        else:
-                            price = f"{price_val} ر.س"
                         break
 
             # السعر القديم
@@ -396,79 +345,38 @@ def get_product(domain, asin):
             discount_percent = None
             try:
                 if old_price and price:
-                    def extract_num(text):
-                        nums = re.findall(r'[\d,.]+', str(text))
-                        return float(nums[0].replace(",", "")) if nums else 0
-                    
-                    old_num = extract_num(old_price)
-                    new_num = extract_num(price)
-                    
+                    old_num = float(re.findall(r'[\d,.]+', old_price)[0].replace(",", ""))
+                    new_num = float(re.findall(r'[\d,.]+', price)[0].replace(",", ""))
                     if old_num > new_num:
                         discount_percent = int(((old_num - new_num) / old_num) * 100)
             except:
                 pass
 
             if price:
-                # نضيف علم الدولة لو مش سعودي
-                domain_flag = ""
-                if domain != "sa":
-                    flags = {
-                        "com": "🇺🇸",
-                        "ae": "🇦🇪",
-                        "uk": "🇬🇧",
-                        "de": "🇩🇪",
-                        "fr": "🇫🇷",
-                        "it": "🇮🇹",
-                        "es": "🇪🇸",
-                        "ca": "🇨🇦",
-                        "au": "🇦🇺",
-                        "in": "🇮🇳",
-                        "jp": "🇯🇵",
-                    }
-                    domain_flag = flags.get(domain, "🌍")
-                
-                return arabic_title, price, old_price, image, discount_percent, domain_flag
+                arabic_title = smart_arabic_title(full_title)
+                return arabic_title, price, old_price, image, discount_percent
                 
         except Exception as e:
-            print(f"Attempt {attempt + 1} error: {e}")
+            print(f"Attempt {attempt + 1} failed: {e}")
             continue
     
     return None
-
-
-def clean_price(price_text):
-    try:
-        nums = re.findall(r'[\d,]+', price_text)
-        if nums:
-            num = nums[0].replace(",", "")
-            # نحط ريال سعودي للأسعار بالريال، أو نحتفظ بالعملة الأصلية
-            if any(x in price_text for x in ['ر.س', 'ريال', 'SAR']):
-                return f"{num} ريال سعودي"
-            return price_text
-    except:
-        pass
-    return price_text
 
 
 # ===================================
 # ✨ التوليد النهائي
 # ===================================
 
-def generate_post(product_name, price, old_price, discount_percent, domain_flag, original_url):
+def generate_post(product_name, price, old_price, discount_percent, original_url):
     opening = random.choice(OPENING_SENTENCES)
     
+    # ننظف الأسعار - بدون نقاط ولا هللات
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else None
     
     lines = [opening]
     lines.append("")
-    
-    # لو منتج من دولة تانية نحط العلم
-    if domain_flag:
-        lines.append(f"{domain_flag} {product_name}")
-    else:
-        lines.append(f"🛒 {product_name}")
-    
+    lines.append(f"🛒 {product_name}")
     lines.append("")
     
     if clean_old and discount_percent and discount_percent > 5:
@@ -493,41 +401,27 @@ def handler(msg):
         return
 
     for original_url in urls:
-        # نفك الرابط
         expanded = expand_url(original_url)
-        print(f"\n{'='*50}")
-        print(f"Processing: {expanded[:100]}")
 
-        # نستخرج الدومين وASIN
-        domain, asin = extract_domain_and_asin(expanded)
-        
-        if not asin:
-            bot.reply_to(msg, "❌ ما قدرت أستخرج رقم المنتج (ASIN)")
+        if not is_saudi_amazon(expanded):
+            bot.reply_to(msg, "❌ الرابط لازم يكون من amazon.sa")
             continue
 
-        print(f"Domain: {domain}, ASIN: {asin}")
+        asin = extract_asin(expanded)
+        if not asin:
+            bot.reply_to(msg, "❌ ما قدرت أستخرج رقم المنتج")
+            continue
 
-        wait = bot.reply_to(msg, "⏳ جاري تحليل المنتج...")
+        wait = bot.reply_to(msg, "⏳ جاري التحليل...")
 
-        # نجيب المنتج من أي دومين
-        product = get_product(domain, asin)
+        product = get_product(asin)
 
         if not product:
-            bot.edit_message_text(
-                f"❌ ما قدرت أقرأ المنتج\n\n"
-                f"ASIN: `{asin}`\n"
-                f"Domain: `{domain}`\n\n"
-                f"ممكن يكون:\n"
-                f"• المنتج محذوف\n"
-                f"• أمازون حاط حماية\n"
-                f"• جرب منتج تاني",
-                msg.chat.id, wait.message_id,
-                parse_mode="Markdown"
-            )
+            bot.edit_message_text("❌ ما قدرت أقرأ المنتج", msg.chat.id, wait.message_id)
             continue
 
-        product_name, price, old_price, image, discount_percent, domain_flag = product
-        post = generate_post(product_name, price, old_price, discount_percent, domain_flag, original_url)
+        product_name, price, old_price, image, discount_percent = product
+        post = generate_post(product_name, price, old_price, discount_percent, original_url)
 
         try:
             if image:
@@ -536,8 +430,7 @@ def handler(msg):
                 bot.send_message(msg.chat.id, post)
 
             bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception as e:
-            print(f"Send error: {e}")
+        except:
             bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
 
 
