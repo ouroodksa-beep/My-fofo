@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import re
 import random
 import time
+import json
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
@@ -262,6 +263,100 @@ def clean_price(price_text):
     return price_text
 
 
+# ===================================
+# 🖼️ استخراج صورة عالية الجودة - التحسين الرئيسي
+# ===================================
+
+def get_high_quality_image(soup):
+    """
+    يستخرج رابط الصورة بأعلى جودة متاحة من Amazon
+    """
+    image = None
+    
+    # محاولات متعددة للحصول على أعلى جودة
+    # 1. البحث في landingImage (الصورة الرئيسية)
+    img_elem = soup.select_one("#landingImage")
+    if img_elem:
+        # محاولة 1: data-old-hires (أعلى جودة)
+        image = img_elem.get("data-old-hires")
+        
+        # محاولة 2: data-a-dynamic-image (JSON يحتوي على URLs متعددة)
+        if not image:
+            dynamic_data = img_elem.get("data-a-dynamic-image")
+            if dynamic_data:
+                try:
+                    img_dict = json.loads(dynamic_data)
+                    # نختار أكبر URL (عادة آخر واحد في القائمة)
+                    if img_dict:
+                        # نرتب حسب الحجم ونختار الأكبر
+                        sorted_urls = sorted(img_dict.keys(), key=lambda x: img_dict[x][0] * img_dict[x][1], reverse=True)
+                        image = sorted_urls[0] if sorted_urls else None
+                except:
+                    pass
+        
+        # محاولة 3: src attribute (الجودة العادية)
+        if not image:
+            image = img_elem.get("src")
+    
+    # 2. البحث في صور Gallery (أحياناً تكون أحسن)
+    if not image:
+        gallery_img = soup.select_one("#imgTagWrapperId img")
+        if gallery_img:
+            image = gallery_img.get("data-old-hires") or gallery_img.get("src")
+    
+    # 3. البحث في meta tags (OG image - عادة جودة عالية)
+    if not image:
+        og_img = soup.select_one('meta[property="og:image"]')
+        if og_img:
+            image = og_img.get("content")
+    
+    # 4. تنظيف الرابط لإزالة أي parameters تقلل الجودة
+    if image:
+        image = clean_image_url(image)
+    
+    return image
+
+
+def clean_image_url(url):
+    """
+    ينظف رابط الصورة ويحوله لأعلى جودة ممكنة
+    """
+    if not url:
+        return None
+    
+    # إزالة parameters الضغط والresize
+    # Amazon يستخدم _SXxxx_SYxxx_ للتحكم في الحجم
+    
+    # نحول أي صورة لـ SL1500 (أعلى جودة قياسية في Amazon)
+    # أو نستخدم SL1200 لو 1500 مش متاح
+    
+    patterns_to_remove = [
+        r'_SX\d+_SY\d+_',  # أبعاد محددة
+        r'_SX\d+_',        # عرض فقط
+        r'_SY\d+_',        # ارتفاع فقط
+        r'_CR\d+,\d+,\d+,\d+_',  # crop
+        r'_AC_SL\d+_',      # anti-aliasing + dimensions
+        r'_SCLZZZZZZZ_',    # zoom
+        r'_FMwebp_',         # webp format
+        r'_QL\d+_',          # quality level
+    ]
+    
+    cleaned = url
+    for pattern in patterns_to_remove:
+        cleaned = re.sub(pattern, '_', cleaned)
+    
+    # نحول لـ SL1500 (أو SL1200) للحصول على أعلى جودة
+    # نبحث عن .jpg أو .png في الرابط
+    if '_SL' not in cleaned and 'amazon' in cleaned:
+        # نضيف SL1500 قبل الامتداد
+        cleaned = re.sub(r'(\.[a-zA-Z]+)(\?.*)?$', r'_SL1500\1', cleaned)
+    
+    # إزالة أي query parameters
+    cleaned = cleaned.split('?')[0]
+    
+    return cleaned
+
+
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
     
@@ -335,11 +430,8 @@ def get_product(asin):
                         old_price = text
                         break
 
-            # الصورة
-            image = None
-            img_elem = soup.select_one("#landingImage")
-            if img_elem:
-                image = img_elem.get("src") or img_elem.get("data-old-hires")
+            # ✅ الصورة عالية الجودة - التحسين الرئيسي
+            image = get_high_quality_image(soup)
 
             # الخصم
             discount_percent = None
@@ -425,13 +517,20 @@ def handler(msg):
 
         try:
             if image:
+                # ✅ نرسل الصورة عالية الجودة
                 bot.send_photo(msg.chat.id, image, caption=post)
             else:
                 bot.send_message(msg.chat.id, post)
 
             bot.delete_message(msg.chat.id, wait.message_id)
-        except:
-            bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
+        except Exception as e:
+            print(f"Error sending: {e}")
+            # لو فشل إرسال الصورة، نرسل نص فقط
+            try:
+                bot.send_message(msg.chat.id, post)
+                bot.delete_message(msg.chat.id, wait.message_id)
+            except:
+                bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
 
 
 print("🤖 البوت يعمل...")
