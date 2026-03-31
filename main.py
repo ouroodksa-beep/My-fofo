@@ -5,11 +5,14 @@ import re
 import random
 import json
 
-TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
+# ================================
+# 🎯 إعدادات البوت
+# ================================
+TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"  # ضع توكن البوت هنا
 bot = telebot.TeleBot(TOKEN)
 
 # ================================
-# 🔥 جمل عادية
+# 🔥 جمل افتتاحية
 # ================================
 OPENING_SENTENCES = [
     "هذا من الأشياء اللي تستاهل تجربها 👍",
@@ -20,7 +23,7 @@ OPENING_SENTENCES = [
 ]
 
 # ================================
-# 💣 Hooks تيك توك
+# 💣 تيك توك هوكس
 # ================================
 TIKTOK_HOOKS = [
     "😳 محد كان يتوقع السعر كذا!",
@@ -31,7 +34,7 @@ TIKTOK_HOOKS = [
 ]
 
 # ================================
-# 📦 Hooks حسب الفئة
+# 📦 هوكس حسب الفئة
 # ================================
 CATEGORY_HOOKS = {
     "electronics": ["📱 عرض قوي على الأجهزة!", "🔥 خيار تقني ممتاز!"],
@@ -77,9 +80,7 @@ def detect_style(price):
 # ================================
 def smart_title(title):
     words = title.split()
-
     important = ["آيفون","سامسونج","سماعات","لابتوب","عطر"]
-
     keep = [w for w in words if any(k in w for k in important)]
 
     if len(keep) < 2:
@@ -88,7 +89,7 @@ def smart_title(title):
     return " ".join(dict.fromkeys(keep))[:50]
 
 # ================================
-# 🔥 Hook ذكي
+# 🔥 هوك ذكي
 # ================================
 def get_hook(name, price):
     cat = detect_category(name)
@@ -102,7 +103,11 @@ def get_hook(name, price):
         hooks += ["💎 منتج فاخر!", "👑 مستوى عالي!"]
 
     return random.choice(hooks)
-    def clean_price(price):
+
+# ================================
+# 💵 تنظيف السعر
+# ================================
+def clean_price(price):
     try:
         num = int(float(re.findall(r'[\d,.]+', price)[0].replace(",", "")))
         return f"{num} ريال سعودي"
@@ -110,23 +115,19 @@ def get_hook(name, price):
         return price
 
 # ================================
-# 🖼️ صورة HD
+# 🖼️ تنظيف رابط الصورة
 # ================================
 def clean_image_url(url):
     url = re.sub(r'_SX\d+_', '_', url)
     url = re.sub(r'_SY\d+_', '_', url)
-
     if "_SL" not in url:
         url = url.replace(".jpg", "_SL1500_.jpg")
-
     return url
 
 def get_image(soup):
     img = soup.select_one("#landingImage")
-
     if img:
         image = img.get("data-old-hires")
-
         if not image:
             data = img.get("data-a-dynamic-image")
             if data:
@@ -135,16 +136,13 @@ def get_image(soup):
                     image = list(img_dict.keys())[0]
                 except:
                     pass
-
         if not image:
             image = img.get("src")
-
         return clean_image_url(image)
-
     return None
 
 # ================================
-# 📦 جلب المنتج
+# 📦 جلب بيانات المنتج
 # ================================
 def get_product(url):
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -158,11 +156,10 @@ def get_product(url):
         return None
 
     image = get_image(soup)
-
     return title.text.strip(), price.text.strip(), image
 
 # ================================
-# ✨ إنشاء البوست
+# ✨ إنشاء البوست النهائي
 # ================================
 def generate_post(name, price, url):
     hook = get_hook(name, price)
@@ -185,16 +182,13 @@ def generate_post(name, price, url):
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
     urls = re.findall(r'https?://\S+', msg.text)
-
     if not urls:
         bot.reply_to(msg, "❌ ارسل رابط امازون")
         return
 
     for url in urls:
         wait = bot.reply_to(msg, "⏳ جاري التحليل...")
-
         product = get_product(url)
-
         if not product:
             bot.send_message(msg.chat.id, "❌ فشل التحليل")
             continue
@@ -207,7 +201,6 @@ def handler(msg):
                 bot.send_photo(msg.chat.id, image, caption=post)
             else:
                 bot.send_message(msg.chat.id, post)
-
             bot.delete_message(msg.chat.id, wait.message_id)
         except:
             bot.send_message(msg.chat.id, post)
