@@ -5,87 +5,101 @@ import re
 import random
 import time
 import json
+from urllib.parse import parse_qs, urlparse
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
 # ===================================
-# 🧠 قاعدة بيانات الجمل السعودية الأصيلة
+# 🎯 أسلوب اكس زون - افتتاحيات قوية
 # ===================================
 
-# أنماط الجمل السعودية الخالصة
-SENTENCE_PATTERNS = [
-    # نمط الاستعجال والندرة
-    "شف هالعرض، ما يتفوت 👀",
-    "يا هلا بالسعر الزين 💰",
-    "من الآخر، {product} يستاهل التجربة 👌",
-    "بلا كلام فاضي، هالسعر مناسب 🔥",
-    "باختصار، {product} من {brand} يستحق الشراء 💯",
-    "ما راح تلقى مثل هالسعر 👍",
-    "فرصة تجي مرة، لا تطوفها ⏰",
-    "هالعرض يبي له سرعة 🏃‍♂️",
-    "اللي يدور {benefit}، هنا موجود 👌",
-    "ما في زيه بهالسعر 🔥",
-    
-    # نمط الثقة والجودة
-    "{product} من {brand}، شغل نظيف 👌",
-    "جودة {brand} معروفة، و{product} يثبتها 💯",
-    "منتج {brand} على الطبيعة زي ما تشوف 👍",
-    "{product} فخم ويستاهل كل ريال 💎",
-    "اختار {product} من {brand} وارتاح بال 👌",
-    "هالمنتج رايق ويخدمك زين 🎯",
-    "{product} من {brand}، موضوع ثابت ومضمون ✅",
-    "اللي يبغى الاحترافية، {product} حلالها 🏆",
-    
-    # نمط التوصية الشخصية
-    "أقول لك شي؟ {product} من {brand} يستاهل 👍",
-    "جربته وعجبني، ودك تجربه؟ {product} من {brand} 👌",
-    "من وجهة نظري، {product} خيار طيب 💡",
-    "أنصح فيه بقوة: {product} من {brand} 💪",
-    "لو تسألني، أقول لك {product} من {brand} 🔥",
-    "من تجربة، {product} يستاهل كل ريال 💰",
-    
-    # نمط الشرهة (الحاجة الملحة)
-    "{product} شرهة ما تتأخر عليها 🚨",
-    "هالسعر ما يتكرر، خذه ولا تفكر كثير 💸",
-    "{product} من {brand}، خذه وارتاح 🎯",
-    "ما يحتاج تفكير، {product} من {brand} واضح 👌",
-    "القرار سهل: {product} بسعر مناسب ✅",
-    
-    # نمط المقارنة والقيمة
-    "سعره طيب مقابل اللي يعطيك إياه 💰",
-    "قيمة {product} فوق السعر 👆",
-    "ما راح تندم على هالشراء 👍",
-    "استثمارك في {product} مضمون 📈",
-    "{product} من {brand}، سعره مناسب وجودته زينة 👌",
-]
-
-# افتتاحيات سعودية
 OPENING_HOOKS = [
-    "صدقني،",
-    "والله،",
-    "من الآخر،",
-    "باختصار،",
-    "بلا كلام كثير،",
-    "أقول لك شي؟",
-    "شف،",
-    "يا هلا،",
-    "طال عمرك،",
-    "بكل بساطة،",
-    "ما في أحسن من",
-    "لو تدور",
+    "العرض نزل على",
+    "وصلني عرض",
+    "تخفيض على",
+    "فرصة",
+    "عرض محدود على",
+    "سارعوا على",
+    "خصم على",
+    "🔥 عرض",
+    "✨ وصل",
+    "💥 تخفيض",
 ]
 
-# مفردات سعودية حسب الفئة
-PRODUCT_BENEFITS = {
-    "phone": ["الأداء", "التصوير", "السرعة", "الجودة", "الموثوقية"],
-    "laptop": ["الشغل", "الدراسة", "الإنتاج", "الأداء", "الكفاءة"],
-    "audio": ["الصوت النقي", "الوضوح", "العزل", "الجودة", "التجربة"],
-    "home": ["البيت", "الراحة", "النظافة", "الطهي", "الاسترخاء"],
-    "fashion": ["الأناقة", "الطلة", "المناسبات", "الجودة", "الراحة"],
-    "beauty": ["العناية", "النضارة", "الثقة", "الجودة", "التميز"],
-    "default": ["الجودة", "الأداء", "الراحة", "القيمة", "التميز"]
-}
+# أنماط الجمل القصيرة
+PRODUCT_PATTERNS = [
+    "{product} من {brand}",
+    "{product} - {brand}",
+    "{brand} {product}",
+]
+
+# وصف سريع
+QUICK_DESC = [
+    "جودة عالية 👌",
+    "يستاهل التجربة 🔥",
+    "منتج ممتاز 👍",
+    "خيار ذكي 💡",
+    "جودة مضمونة ✅",
+]
+
+# ===================================
+# 🔧 استخراج المقاس واللون من الرابط
+# ===================================
+
+def extract_selected_size_color(url):
+    """
+    استخراج المقاس واللون المختارين من رابط أمازون
+    """
+    selected_size = None
+    selected_color = None
+    
+    try:
+        # تحليل الرابط
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+        
+        # البحث عن المقاس في المعاملات المختلفة
+        size_params = ['size', 'th', 'psc']
+        for param in size_params:
+            if param in params:
+                value = params[param][0]
+                selected_size = value.replace('_', ' ').replace('-', ' ')
+                # لو الرقم 1 أو 2 إلخ، ممكن يكون index فنتركه
+                if value.isdigit() and int(value) < 10:
+                    selected_size = None
+                break
+        
+        # البحث عن اللون
+        color_params = ['color', 'colour', 'col']
+        for param in color_params:
+            if param in params:
+                value = params[param][0]
+                selected_color = value.replace('_', ' ').replace('-', ' ')
+                break
+        
+        # البحث في المسار (path) عن مقاسات مثل 40x60
+        path = parsed.path + '?' + parsed.query
+        
+        # استخراج المقاسات بالصيغة الرقمية (40x60, 50x70, إلخ)
+        size_match = re.search(r'(\d+)\s*[xX]\s*(\d+)', path)
+        if size_match and not selected_size:
+            selected_size = f"{size_match.group(1)}x{size_match.group(2)}"
+        
+        # استخراج أسماء المقاسات الشائعة
+        size_names = re.search(r'(small|medium|large|xl|xxl|xxxl|king|queen|single|twin|full|double)', path, re.IGNORECASE)
+        if size_names and not selected_size:
+            selected_size = size_names.group(1).upper()
+        
+        # استخراج الألوان الشائعة
+        color_names = re.search(r'(black|white|red|blue|green|yellow|gray|grey|brown|pink|purple|orange|beige|navy|gold|silver)', path, re.IGNORECASE)
+        if color_names and not selected_color:
+            selected_color = color_names.group(1).capitalize()
+            
+    except Exception as e:
+        print(f"Error extracting size/color: {e}")
+    
+    return selected_size, selected_color
 
 # ===================================
 # 🔧 دوال استخراج المعلومات
@@ -104,7 +118,8 @@ def extract_brand_and_product(title):
         "Sandisk", "Seagate", "Western Digital", "Logitech", "Razer", "Corsair",
         "HyperX", "SteelSeries", "BenQ", "AOC", "MSI", "Gigabyte", "AMD", "Intel",
         "NVIDIA", "PlayStation", "Xbox", "Nintendo", "GoPro", "DJI", "Fitbit",
-        "Garmin", "Apple Watch", "iPhone", "iPad", "MacBook", "AirPods", "Galaxy"
+        "Garmin", "Apple Watch", "iPhone", "iPad", "MacBook", "AirPods", "Galaxy",
+        "Sleep", "Factory", "Luna", "Maybelline", "Loreal", "LC Waikiki"
     ]
     
     title_clean = title.strip()
@@ -132,47 +147,8 @@ def extract_brand_and_product(title):
     
     return brand or "ماركة معروفة", product_name or title_clean[:50]
 
-def detect_product_category(title):
-    title_lower = title.lower()
-    
-    if any(word in title_lower for word in ['phone', 'iphone', 'samsung', 'xiaomi', 'mobile', 'هاتف', 'جوال']):
-        return "phone"
-    elif any(word in title_lower for word in ['laptop', 'macbook', 'notebook', 'computer', 'لابتوب', 'كمبيوتر']):
-        return "laptop"
-    elif any(word in title_lower for word in ['headphone', 'earbuds', 'airpods', 'speaker', 'سماعة', 'مكبر']):
-        return "audio"
-    elif any(word in title_lower for word in ['shoes', 'shirt', 'dress', 'bag', 'watch', 'حذاء', 'قميص', 'فستان', 'شنطة', 'ساعة']):
-        return "fashion"
-    elif any(word in title_lower for word in ['cream', 'perfume', 'lotion', 'shampoo', 'عطر', 'كريم', 'شامبو']):
-        return "beauty"
-    elif any(word in title_lower for word in ['fridge', 'washer', 'oven', 'vacuum', 'tv', 'ثلاجة', 'غسالة', 'فرن', 'تلفزيون']):
-        return "home"
-    else:
-        return "default"
-
-def generate_smart_sentence(product_name, brand, category):
-    pattern = random.choice(SENTENCE_PATTERNS)
-    benefits = PRODUCT_BENEFITS.get(category, PRODUCT_BENEFITS["default"])
-    benefit = random.choice(benefits)
-    
-    opening = ""
-    if random.random() < 0.4:  # 40% احتمالية إضافة افتتاحية
-        opening = random.choice(OPENING_HOOKS) + " "
-    
-    try:
-        sentence = pattern.format(
-            product=product_name,
-            brand=brand,
-            benefit=benefit
-        )
-    except:
-        # لو النمط ما يحتوي على متغيرات
-        sentence = pattern
-    
-    return opening + sentence
-
 # ===================================
-# 🔄 قاموس الترجمة السعودي
+# 🔄 قاموس الترجمة
 # ===================================
 
 TRANSLATION_DICT = {
@@ -255,6 +231,12 @@ TRANSLATION_DICT = {
     "apple watch": "ساعة آبل",
     "airpods pro": "آيربودز برو",
     "airpods max": "آيربودز ماكس",
+    "sleep": "سليب",
+    "factory": "فاكتوري",
+    "luna": "لونا",
+    "maybelline": "ميبيلين",
+    "loreal": "لوريال",
+    "lc waikiki": "ال سي وايكيكي",
     "wireless": "لاسلكي",
     "bluetooth": "بلوتوث",
     "smart": "ذكي",
@@ -264,9 +246,41 @@ TRANSLATION_DICT = {
     "ultra": "ألترا",
     "original": "أصلي",
     "new": "جديد",
+    "pillow": "مخدة",
+    "milk powder": "حليب مجفف",
+    "black": "أسود",
+    "white": "أبيض",
+    "red": "أحمر",
+    "blue": "أزرق",
+    "green": "أخضر",
+    "yellow": "أصفر",
+    "gray": "رمادي",
+    "grey": "رمادي",
+    "brown": "بني",
+    "pink": "وردي",
+    "purple": "بنفسجي",
+    "orange": "برتقالي",
+    "beige": "بيج",
+    "navy": "كحلي",
+    "gold": "ذهبي",
+    "silver": "فضي",
+    "small": "صغير",
+    "medium": "وسط",
+    "large": "كبير",
+    "xl": "XL",
+    "xxl": "XXL",
+    "xxxl": "XXXL",
+    "king": "كينج",
+    "queen": "كوين",
+    "single": "فردي",
+    "twin": "توين",
+    "full": "فول",
+    "double": "مزدوج",
 }
 
 def translate_to_arabic(text):
+    if not text:
+        return text
     text_lower = text.lower()
     words = text_lower.split()
     translated_words = []
@@ -480,33 +494,57 @@ def get_product(asin):
     return None
 
 # ===================================
-# ✨ التوليد النهائي السعودي
+# ✨ توليد منشور اكس زون
 # ===================================
 
-def generate_post(full_title, price, old_price, discount_percent, original_url):
+def generate_xzone_post(full_title, price, old_price, discount_percent, selected_size, selected_color, original_url):
     brand, product_name = extract_brand_and_product(full_title)
     brand_ar = translate_to_arabic(brand)
     product_name_ar = translate_to_arabic(product_name)
-    category = detect_product_category(full_title)
     
-    smart_sentence = generate_smart_sentence(product_name_ar, brand_ar, category)
+    # افتتاحية قوية
+    opening = random.choice(OPENING_HOOKS)
     
+    # اسم المنتج
+    pattern = random.choice(PRODUCT_PATTERNS)
+    product_line = pattern.format(product=product_name_ar, brand=brand_ar)
+    
+    # بناء المنشور
+    lines = [f"{opening} {product_line}"]
+    lines.append("")  # سطر فارغ
+    
+    # إضافة المقاس المختار فقط
+    if selected_size:
+        size_ar = translate_to_arabic(selected_size)
+        lines.append(f"المقاس: {size_ar} 📏")
+        lines.append("")
+    
+    # إضافة اللون المختار فقط
+    if selected_color:
+        color_ar = translate_to_arabic(selected_color)
+        lines.append(f"اللون: {color_ar} 🎨")
+        lines.append("")
+    
+    # السعر بشكل مباشر
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else None
     
-    lines = [smart_sentence]
-    lines.append("")
-    
     if clean_old and discount_percent and discount_percent > 5:
-        lines.append(f"قبل: {clean_old} ❌")
-        lines.append(f"الآن: {clean_current} (وفر {discount_percent}%) 🔥")
+        lines.append(f"❌ في السوق: {clean_old}")
+        lines.append(f"✅ الآن: {clean_current} (وفر {discount_percent}%) 💥")
     else:
-        lines.append(f"السعر: {clean_current} 💰")
+        lines.append(f"💰 السعر: {clean_current}")
     
     lines.append("")
-    lines.append(f"🔗 {original_url}")
     
-    return "\n".join(lines), product_name_ar, brand_ar
+    # وصف سريع
+    desc = random.choice(QUICK_DESC)
+    lines.append(desc)
+    
+    lines.append("")
+    lines.append(f"🔗 الرابط: {original_url}")
+    
+    return "\n".join(lines)
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -514,10 +552,13 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ يرسل رابط المنتج من أمازون السعودية")
+        bot.reply_to(msg, "❌ أرسل رابط المنتج من أمازون السعودية")
         return
 
     for original_url in urls:
+        # استخراج المقاس واللون المختارين من الرابط الأصلي
+        selected_size, selected_color = extract_selected_size_color(original_url)
+        
         expanded = expand_url(original_url)
 
         if not is_saudi_amazon(expanded):
@@ -540,8 +581,9 @@ def handler(msg):
         full_title, price, old_price, image, discount_percent = product
         
         try:
-            post, product_ar, brand_ar = generate_post(full_title, price, old_price, discount_percent, original_url)
+            post = generate_xzone_post(full_title, price, old_price, discount_percent, selected_size, selected_color, original_url)
             
+            # إرسال الصورة مع المنشور
             if image:
                 bot.send_photo(msg.chat.id, image, caption=post)
             else:
@@ -553,5 +595,5 @@ def handler(msg):
             print(f"Error: {e}")
             bot.edit_message_text("❌ صار خطأ في الإرسال", msg.chat.id, wait.message_id)
 
-print("🤖 البوت شغال باللهجة السعودية...")
+print("🤖 البوت شغال بأسلوب اكس زون...")
 bot.infinity_polling()
