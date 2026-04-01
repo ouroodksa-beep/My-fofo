@@ -11,30 +11,199 @@ TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
 # ===================================
-# 🎯 أسلوب اكس زون - افتتاحيات قوية
+# 🇸🇦 افتتاحيات سعودية (كثيرة ومتغيرة)
 # ===================================
 
-OPENING_HOOKS = [
-    "العرض نزل على",
-    "وصلني عرض",
-    "تخفيض على",
-    "فرصة",
-    "عرض محدود على",
-    "سارعوا على",
-    "خصم على",
-    "🔥 عرض",
-    "✨ وصل",
-    "💥 تخفيض",
+SAUDI_HOOKS_1 = [
+    "🔥 عرض نار على", "💥 لقطة اليوم على", "✨ جاكم عرض على",
+    "🚨 انتبهوا على", "🔥 لا يفوتكم", "💣 كسر السعر على",
+    "⚡ عرض قوي على", "🔥 الحق العرض على", "💯 من أقوى العروض على",
+    "👀 شوفوا هذا العرض على", "🔥 سعر خرافي على", "💥 عرض مجنون على",
+    "📢 إعلان مهم على", "🔥 فرصة ذهبية على", "💸 سعر ما يتعوض على",
 ]
 
-# أنماط الجمل القصيرة
-PRODUCT_PATTERNS = [
-    "{product} من {brand}",
-    "{product} - {brand}",
-    "{brand} {product}",
+SAUDI_HOOKS_2 = [
+    "سعر ما يتكرر 🔥", "فرصة لا تفوت 👌", "اللي يعرف يعرف 😏",
+    "سعر كسر السوق 💥", "محد بيقول لا 🔥", "يستاهل وبقوة 💯",
+    "خذها قبل تخلص 🚨", "العرض عليه كلام 🔥", "صفقة رابحة 👌",
+    "لا تفكر كثير وخذها 🔥", "بتندم لو فاتك 😅",
+    "سعر بلاش حرفياً 💸", "شيء فخم الصراحة ✨",
+    "مطلوب وبقوة 🔥", "الناس طايحين عليه 👀",
 ]
 
-# وصف سريع
+SMART_ENDINGS = [
+    "👌 خيار ممتاز",
+    "🔥 يستاهل التجربة",
+    "💯 من الآخر",
+    "✨ جودة توب",
+    "😎 اختيار ذكي",
+    "📦 عملي ومفيد",
+]
+
+# ===================================
+# 🔤 ترجمة بدون تقطيع
+# ===================================
+
+TRANSLATION_DICT = {
+    "pillow": "مخدة",
+    "memory": "ميموري",
+    "foam": "فوم",
+    "wireless": "لاسلكي",
+    "bluetooth": "بلوتوث",
+    "smart": "ذكي",
+    "black": "أسود",
+    "white": "أبيض",
+    "blue": "أزرق",
+    "red": "أحمر",
+    "green": "أخضر",
+}
+
+def translate_to_arabic(text):
+    if not text:
+        return text
+
+    for eng, ar in TRANSLATION_DICT.items():
+        text = re.sub(r'\b' + re.escape(eng) + r'\b', ar, text, flags=re.IGNORECASE)
+
+    return text
+
+# ===================================
+# 🔧 أدوات مساعدة
+# ===================================
+
+def extract_asin(url):
+    m = re.search(r'/dp/([A-Z0-9]{10})', url)
+    return m.group(1) if m else None
+
+def clean_price(price_text):
+    nums = re.findall(r'[\d,.]+', price_text)
+    if nums:
+        return f"{int(float(nums[0].replace(',', '')))} ريال"
+    return price_text
+
+def extract_size_color(url):
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+
+    size = params.get("size", [None])[0]
+    color = params.get("color", [None])[0]
+
+    return size, color
+
+# ===================================
+# 📦 جلب المنتج
+# ===================================
+
+def get_product(asin):
+    url = f"https://www.amazon.sa/dp/{asin}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept-Language": "ar-SA,ar;q=0.9"
+    }
+
+    r = requests.get(url, headers=headers)
+    soup = BeautifulSoup(r.text, "html.parser")
+
+    title = soup.select_one("#productTitle")
+    price = soup.select_one(".a-price .a-offscreen")
+
+    old_price = soup.select_one(".a-text-price .a-offscreen")
+
+    image = soup.select_one("#landingImage")
+
+    if not title or not price:
+        return None
+
+    return (
+        title.text.strip(),
+        price.text.strip(),
+        old_price.text.strip() if old_price else None,
+        image.get("src") if image else None
+    )
+
+# ===================================
+# 🧠 توليد البوست (ستايل X)
+# ===================================
+
+def generate_post(title, price, old_price, size, color, url):
+    product_name = translate_to_arabic(title[:60])
+
+    hook1 = random.choice(SAUDI_HOOKS_1)
+    hook2 = random.choice(SAUDI_HOOKS_2)
+
+    lines = []
+
+    lines.append(f"{hook1} {product_name}")
+    lines.append(hook2)
+    lines.append("")
+
+    lines.append(product_name)
+
+    extras = []
+    if size:
+        extras.append(f"📏 {size}")
+    if color:
+        extras.append(f"🎨 {color}")
+
+    if extras:
+        lines.append(" | ".join(extras))
+
+    current = clean_price(price)
+    old = clean_price(old_price) if old_price else None
+
+    if old:
+        lines.append(f"❌ {old}")
+        lines.append(f"✅ {current} 🔥")
+    else:
+        lines.append(f"💰 {current}")
+
+    lines.append(random.choice(SMART_ENDINGS))
+    lines.append(f"🔗 {url}")
+
+    return "\n".join(lines)
+
+# ===================================
+# 🤖 البوت
+# ===================================
+
+@bot.message_handler(func=lambda m: True)
+def handler(msg):
+    urls = re.findall(r'https?://\S+', msg.text)
+
+    if not urls:
+        bot.reply_to(msg, "❌ ارسل رابط امازون")
+        return
+
+    for url in urls:
+        asin = extract_asin(url)
+
+        if not asin:
+            bot.reply_to(msg, "❌ رابط غير صحيح")
+            continue
+
+        wait = bot.reply_to(msg, "⏳ جاري التحليل...")
+
+        product = get_product(asin)
+
+        if not product:
+            bot.edit_message_text("❌ فشل استخراج المنتج", msg.chat.id, wait.message_id)
+            continue
+
+        title, price, old_price, image = product
+        size, color = extract_size_color(url)
+
+        post = generate_post(title, price, old_price, size, color, url)
+
+        if image:
+            bot.send_photo(msg.chat.id, image, caption=post)
+        else:
+            bot.send_message(msg.chat.id, post)
+
+        bot.delete_message(msg.chat.id, wait.message_id)
+
+print("🤖 شغال بأسلوب سعودي احترافي")
+bot.infinity_polling()# وصف سريع
 QUICK_DESC = [
     "جودة عالية 👌",
     "يستاهل التجربة 🔥",
