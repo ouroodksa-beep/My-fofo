@@ -517,10 +517,11 @@ try:
     print("✅ No syntax errors!")
 except SyntaxError as e:
     print(f"❌ Syntax Error: {e}")
+    print(f"Line {e.lineno}: {e.text}")
 
 # Save
-with open('/mnt/kimi/output/amazon_bot_ai_hooks.py', 'w', encoding='utf-8') as f:
+with open('/mnt/kimi/output/amazon_bot_fixed_final.py', 'w', encoding='utf-8') as f:
     f.write(final_code)
 
-print("✅ تم حفظ الكود مع AI Hooks!")
-print("📁 الملف: amazon_bot_ai_hooks.py")
+print("✅ تم حفظ الكود المصلح!")
+print("📁 الملف: amazon_bot_fixed_final.py")
