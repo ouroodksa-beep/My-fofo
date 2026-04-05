@@ -3,38 +3,41 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import random
-import json
+import time
 
-TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
+TOKEN = "YOUR_TOKEN"
 bot = telebot.TeleBot(TOKEN)
+
+# ---------------- HEADERS ----------------
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+]
+
+def get_headers():
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept-Language": "en-US,en;q=0.9",
+    }
 
 # ---------------- GENERATOR ----------------
 class SmartGenerator:
     def __init__(self):
-        self.brands = {
-            "Apple": ["iphone", "ipad", "macbook", "airpods"],
-            "Samsung": ["samsung", "galaxy"],
-            "Nike": ["nike", "air max"],
-            "Adidas": ["adidas"]
-        }
-
-        self.female_keywords = [
-            "dress", "skirt", "heels", "makeup", "lipstick",
-            "perfume", "bag", "handbag", "women", "girl"
-        ]
+        self.female_keywords = ["dress", "heels", "makeup", "bag", "perfume"]
 
         self.templates_female = [
-            "{emoji} {product} من {brand}\n\n{price} {cta}",
-            "{emoji} يا هلا بالأناقة! {product}\n\n{price} {cta}"
+            "{emoji} {product} 💕\n\n{price} {cta}",
+            "{emoji} يا هلا بالأناقة! {product}\n\n{price} {cta}",
         ]
 
         self.templates_male = [
-            "{emoji} {product} من {brand}\n\n{price} {cta}",
-            "{emoji} عرض مميز: {product}\n\n{price} {cta}"
+            "{emoji} {product} 🔥\n\n{price} {cta}",
+            "{emoji} عرض مميز: {product}\n\n{price} {cta}",
         ]
 
-        self.cta_female = ["👉 اشتري الآن", "👉 سارعي بالشراء"]
-        self.cta_male = ["👉 اشتري الآن", "👉 سارع بالشراء"]
+        self.cta_female = ["👉 سارعي بالشراء", "👉 اشتري الآن"]
+        self.cta_male = ["👉 سارع بالشراء", "👉 اشتري الآن"]
 
         self.emojis_female = ["💕", "✨", "🌸"]
         self.emojis_male = ["🔥", "⚡", "💪"]
@@ -43,47 +46,16 @@ class SmartGenerator:
         t = title.lower()
         return any(k in t for k in self.female_keywords)
 
-    def get_brand(self, title):
-        t = title.lower()
-        for brand, keys in self.brands.items():
-            if any(k in t for k in keys):
-                return brand
-        return "ماركة مميزة"
-
-    def clean_name(self, title, brand):
-        name = title
-        if brand:
-            name = re.sub(rf"\b{re.escape(brand)}\b", "", name, flags=re.IGNORECASE)
-        name = re.sub(r"\b(for|with|and|the|new|original)\b", "", name, flags=re.IGNORECASE)
-        name = re.sub(r"\s+", " ", name).strip()
-        return " ".join(name.split()[:5])
-
-    def format_price(self, price, old_price):
+    def format_price(self, price):
         try:
-            nums = re.findall(r"[\d,.]+", price)
-            if not nums:
-                return price
-            new = float(nums[0].replace(",", ""))
+            num = float(re.findall(r"[\d,.]+", price)[0].replace(",", ""))
+            return f"*{int(num):,}* ريال 🏷️"
         except:
             return price
 
-        try:
-            if old_price:
-                old_nums = re.findall(r"[\d,.]+", old_price)
-                if old_nums:
-                    old = float(old_nums[0].replace(",", ""))
-                    if old > new:
-                        disc = int(((old - new) / old) * 100)
-                        return f"~~{int(old):,}~~ → *{int(new):,}* ريال (-{disc}%) 🏷️"
-        except:
-            pass
-
-        return f"*{int(new):,}* ريال 🏷️"
-
-    def generate(self, title, price, old_price, url):
+    def generate(self, title, price, url):
         is_female = self.is_female(title)
-        brand = self.get_brand(title)
-        product = self.clean_name(title, brand)
+        product = " ".join(title.split()[:5])
 
         if is_female:
             emoji = random.choice(self.emojis_female)
@@ -94,11 +66,11 @@ class SmartGenerator:
             template = random.choice(self.templates_male)
             cta = random.choice(self.cta_male)
 
-        price_str = self.format_price(price, old_price)
+        price_str = self.format_price(price)
+
         post = template.format(
             emoji=emoji,
             product=product,
-            brand=brand,
             price=price_str,
             cta=cta
         )
@@ -111,55 +83,50 @@ def is_amazon_url(url):
 
 def expand_url(url):
     try:
-        r = requests.get(url, allow_redirects=True, timeout=10)
+        r = requests.get(url, headers=get_headers(), allow_redirects=True, timeout=10)
         return r.url
     except:
         return url
 
 def extract_asin(url):
-    patterns = [
-        r"/dp/([A-Z0-9]{10})",
-        r"/gp/product/([A-Z0-9]{10})"
-    ]
+    patterns = [r"/dp/([A-Z0-9]{10})", r"/gp/product/([A-Z0-9]{10})"]
     for p in patterns:
         m = re.search(p, url)
         if m:
             return m.group(1)
     return None
 
-def get_image(soup):
-    img = soup.select_one("#landingImage")
-    if img:
-        return img.get("src")
-    return None
-
 def get_product(asin):
-    url = f"https://www.amazon.sa/dp/{asin}"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    domains = ["amazon.sa", "amazon.com"]
 
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        if r.status_code != 200:
-            return None
+    for domain in domains:
+        url = f"https://{domain}/dp/{asin}"
 
-        soup = BeautifulSoup(r.text, "html.parser")
-        title = soup.select_one("#productTitle")
-        price = soup.select_one(".a-price .a-offscreen")
-        old = soup.select_one(".a-text-price .a-offscreen")
+        for attempt in range(3):
+            try:
+                r = requests.get(url, headers=get_headers(), timeout=10)
 
-        if not title or not price:
-            return None
+                if r.status_code != 200:
+                    time.sleep(2)
+                    continue
 
-        return {
-            "title": title.text.strip(),
-            "price": price.text.strip(),
-            "old_price": old.text.strip() if old else None,
-            "image": get_image(soup)
-        }
+                soup = BeautifulSoup(r.text, "html.parser")
 
-    except Exception as e:
-        print("Error:", e)
-        return None
+                title = soup.select_one("#productTitle")
+                price = soup.select_one(".a-price .a-offscreen")
+
+                if title and price:
+                    return {
+                        "title": title.text.strip(),
+                        "price": price.text.strip()
+                    }
+
+            except:
+                pass
+
+            time.sleep(2)
+
+    return None
 
 # ---------------- BOT ----------------
 gen = SmartGenerator()
@@ -167,6 +134,7 @@ gen = SmartGenerator()
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
     urls = re.findall(r"https?://\S+", msg.text)
+
     if not urls:
         bot.reply_to(msg, "❌ ارسل رابط أمازون")
         return
@@ -176,7 +144,7 @@ def handler(msg):
             continue
 
         wait = bot.reply_to(msg, "⏳ جاري جلب المنتج...")
-        original_url = url
+
         expanded = expand_url(url)
         asin = extract_asin(expanded)
 
@@ -185,21 +153,15 @@ def handler(msg):
             continue
 
         prod = get_product(asin)
+
         if not prod:
             bot.edit_message_text("❌ فشل في جلب المنتج", msg.chat.id, wait.message_id)
             continue
 
-        post = gen.generate(prod["title"], prod["price"], prod["old_price"], original_url)
+        post = gen.generate(prod["title"], prod["price"], url)
 
-        try:
-            if prod["image"]:
-                bot.send_photo(msg.chat.id, prod["image"], caption=post, parse_mode="Markdown")
-            else:
-                bot.send_message(msg.chat.id, post, parse_mode="Markdown")
-            bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception as e:
-            print("Send Error:", e)
-            bot.send_message(msg.chat.id, post, parse_mode="Markdown")
+        bot.send_message(msg.chat.id, post, parse_mode="Markdown")
+        bot.delete_message(msg.chat.id, wait.message_id)
 
 # ---------------- RUN ----------------
 print("🔥 البوت شغال!")
