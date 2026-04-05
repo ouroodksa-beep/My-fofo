@@ -362,8 +362,8 @@ def handler(msg):
 
 print("🔥 البوت شغال!")
 bot.infinity_polling()
-        
-        self.templates_female = [
+
+ self.female_keywords = [
     "dress", "skirt", "blouse", "gown", "frock", "maxi", "midi", "mini",
     "abaya", "kaftan", "kimono", "robe", "nightgown", "lingerie", "bra", "panties",
     "tights", "leggings", "yoga pants", "palazzo", "saree", "lehenga",
@@ -391,6 +391,7 @@ bot.infinity_polling()
     "women", "woman", "lady", "ladies", "female", "girl", "girls",
     "for her", "hers", "she", "madam", "miss", "mrs", "ms",
 ]
+
 
             "{emoji} {product} من {brand}\\n\\n{price} {cta}",
             "{emoji} وصل حديثاً: {product} ✨\\n\\n{price} {cta}",
