@@ -247,7 +247,8 @@ def get_high_quality_image(soup):
             url = img.get("src")
             if url and url.startswith("http"):
                 url = re.sub(r"\\._.*_\\.", ".", url)
-                url = re.sub(r"_SL\\url = re.sub(r"_SX\\d+_", "_SX1500_", url)
+                url = re.sub(r"_SL\\d+_", "_SL1500_", url)
+                url = re.sub(r"_SX\\d+_", "_SX1500_", url)
                 url = re.sub(r"_SY\\d+_", "_SY1500_", url)
                 return url
         
