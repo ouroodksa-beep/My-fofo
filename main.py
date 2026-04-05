@@ -332,4 +332,3 @@ def handler(msg):
 
 print("🔥 شغال!")
 bot.infinity_polling()
-'''
