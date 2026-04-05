@@ -18,41 +18,138 @@ class SmartGenerator:
             "Nike": ["nike", "air max", "jordan"],
             "Adidas": ["adidas", "ultraboost"],
             "Chanel": ["chanel", "no.5"],
-            "Dior": ["dior", "sauvage"],
+            "Dior": ["dior", "sauvage", "jadore"],
             "Gucci": ["gucci", "bloom"],
             "Zara": ["zara"],
             "H&M": ["h&m"],
             "Shein": ["shein"],
             "MAC": ["mac ", "lipstick"],
             "L'Oreal": ["l'oreal", "loreal"],
+            "Maybelline": ["maybelline"],
+            "Estee Lauder": ["estee lauder"],
+            "Lancome": ["lancome"],
         }
         
-        self.female_words = ["woman", "women", "lady", "dress", "skirt", "heels", "makeup", "lipstick", "perfume", "cream", "handbag", "purse", "jewelry", "earrings", "necklace", "lingerie", "bra"]
-        
-        self.templates = [
-            "{emoji} {brand} {product}\\n\\n{hook}\\n\\n{price}\\n{cta}\\n🔗 {url}",
-            "{emoji} وصل: {brand} {product}\\n\\n✨ {benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
-            "{emoji} تدورين على {product}؟\\n\\n{brand} يجيب لكِ {benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
-            "{emoji} {brand} {product}\\n\\nقبل: {old_price}\\nالحين: {price}\\n\\n{cta}\\n🔗 {url}",
-            "{emoji} جربتِ {brand} {product}؟\\n\\n{benefit} من أول استخدام\\n\\n{price}\\n{cta}\\n🔗 {url}",
-            "{emoji} متوفر الآن:\\n{brand} {product}\\n\\n{hook}\\n{price}\\n\\n{cta}\\n🔗 {url}",
-            "{emoji} خصم على {product}\\n\\n{brand} الأصلي\\n{price}\\n\\n{cta}\\n🔗 {url}",
-            "{emoji} فخامة {brand}\\n\\n{product}\\n{benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+        # كلمات نسائية قوية
+        self.female_keywords = [
+            # ملابس نسائية
+            "dress", "skirt", "blouse", "gown", "frock", "maxi", "midi", "mini",
+            "abaya", "kaftan", "kimono", "robe", "nightgown", "lingerie", "bra", "panties",
+            "tights", "leggings", "yoga pants", "palazzo", "saree", "lehenga",
+            # أحذية وإكسسوارات
+            "heels", "high heels", "pumps", "stiletto", "wedges", "sandals women",
+            "handbag", "purse", "clutch", "tote", "sling bag", "backpack women",
+            # مجوهرات
+            "jewelry", "earrings", "necklace", "bracelet", "ring", "pendant",
+            "gold", "diamond", "silver", "pearl", "ruby", "emerald",
+            # مكياج وعناية
+            "makeup", "lipstick", "lip gloss", "mascara", "eyeliner", "eyeshadow",
+            "foundation", "concealer", "blush", "bronzer", "highlighter",
+            "primer", "setting spray", "makeup remover",
+            "skincare", "cream", "serum", "moisturizer", "toner", "cleanser",
+            "face mask", "sheet mask", "eye cream", "anti-aging", "wrinkle",
+            "perfume", "fragrance", "eau de parfum", "eau de toilette", "attar",
+            "hair care", "shampoo", "conditioner", "hair mask", "hair oil",
+            "nail polish", "manicure", "pedicure", "nail care",
+            # أدوات تجميل
+            "hair dryer", "straightener", "curler", "curling iron", "hair brush",
+            "makeup brushes", "beauty blender", "sponge", "tweezers", "razor women",
+            # أمومة وطفل
+            "maternity", "pregnancy", "nursing", "breast pump", "diaper bag",
+            "baby care", "stretch mark", "prenatal",
+            # صحة نسائية
+            "feminine wash", "intimate care", "sanitary", "menstrual", "period",
+            "menopause", "fertility", "ovulation",
+            # إكسسوارات شعر
+            "hijab", "scarf", "shawl", "headband", "hair clip", "hair band",
+            "wig", "hair extension", "hair accessory",
+            # رياضة نسائية
+            "sports bra", "yoga mat women", "fitness women", "gym wear women",
+            # كلمات توجيه
+            "women", "woman", "lady", "ladies", "female", "girl", "girls",
+            "for her", "hers", "she", "madam", "miss", "mrs", "ms",
         ]
         
-        self.hooks_female = ["أناقة تليق بكِ ✨", "طلّة ما تتفوت 💕", "جمال يخطف الأنظار 🌸", "فخامة بأسلوبكِ 💎"]
-        self.hooks_male = ["أداء يتكلم 🎯", "جودة تدوم 💪", "فخامة ببساطة 👌", "تميز واضح ⚡"]
+        self.templates_female = [
+            "{emoji} {brand} {product}\\n\\n{hook}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} وصل حديثاً: {brand} {product}\\n\\n✨ {benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} يا هلا بالأناقة! {brand} {product}\\n\\n{benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} {product} من {brand}\\n\\n{hook}\\n{benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} تدورين على {product}؟\\n\\n{brand} يجيب لكِ {benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} جربتِ {brand} {product}؟\\n\\n{benefit} من أول استخدام 💕\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} فخامة {brand} لكِ\\n\\n{product}\\n{hook}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} خصم حصري! {product}\\n\\n{brand} الأصلي\\n{benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+        ]
         
-        self.benefits_female = ["يعطيكِ إشراقة طبيعية", "يناسب ذوقكِ الرفيع", "يبرز أناقتكِ", "راحة تكمل يومكِ"]
-        self.benefits_male = ["أداء قوي يتحمل", "جودة تدوم معك", "تصميم عملي وأنيق", "راحة تكمل يومك"]
+        self.templates_male = [
+            "{emoji} {brand} {product}\\n\\n{hook}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} وصل: {brand} {product}\\n\\n✨ {benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} {product} من {brand}\\n\\n{hook}\\n{benefit}\\n\\n{price}\\n{cta}\\n🔗 {url}",
+            "{emoji} {brand} {product}\\n\\nقبل: {old_price}\\nالحين: {price}\\n\\n{cta}\\n🔗 {url}",
+        ]
         
-        self.cta_female = ["👉 لا تفوتي - اشتري الحين", "👉 اضغطي واطلبي قبل ينتهي", "👉 حصلي عليه الحين"]
-        self.cta_male = ["👉 لا تفوت - اشتري الحين", "👉 اضغط واطلب قبل ينتهي", "👉 احصل عليه الحين"]
+        self.hooks_female = [
+            "أناقة تليق بكِ يا بنت ✨",
+            "طلّة تخطف الأنظار 💕",
+            "جمال يتكلم عن نفسه 🌸",
+            "فخامة بأسلوبكِ الخاص 💎",
+            "تميزي باختياركِ 👌",
+            "أصالة وجودة عالية 💅",
+            "لأنكِ تستاهلين الأفضل 👑",
+        ]
         
-        self.emojis = ["✨", "🔥", "💎", "⚡", "🌟", "💥", "👌", "🎯"]
+        self.hooks_male = [
+            "أداء يتكلم 🎯",
+            "جودة تدوم 💪",
+            "فخامة ببساطة 👌",
+            "تميز واضح ⚡",
+        ]
+        
+        self.benefits_female = [
+            "يعطيكِ إشراقة طبيعية",
+            "يناسب ذوقكِ الرفيع",
+            "يبرز جمالكِ الطبيعي",
+            "راحة تكمل يومكِ بنشاط",
+            "جودة تستاهل ثقتكِ",
+            "تصميم يخطف الأنظار",
+            "نتيجة واضحة من أول استخدام",
+            "يعتني بكِ بعمق",
+        ]
+        
+        self.benefits_male = [
+            "أداء قوي يتحمل",
+            "جودة تدوم معك",
+            "تصميم عملي وأنيق",
+            "راحة تكمل يومك",
+        ]
+        
+        self.cta_female = [
+            "👉 لا تفوتي - اشتري الحين",
+            "👉 اضغطي واطلبي قبل ينتهي",
+            "👉 حصلي عليه الحين يا هلا",
+            "👉 جربيه بنفسكِ وشوفي الفرق",
+            "👉 استمتعي بأناقتكِ",
+            "👉 اطلبي الآن بسعر مميز",
+        ]
+        
+        self.cta_male = [
+            "👉 لا تفوت - اشتري الحين",
+            "👉 اضغط واطلب قبل ينتهي",
+            "👉 احصل عليه الحين",
+            "👉 جرب بنفسك",
+        ]
+        
+        self.emojis_female = ["💕", "✨", "🌸", "💎", "🦋", "🌺", "💖", "👜", "💄", "👗"]
+        self.emojis_male = ["💥", "⚡", "🔥", "📱", "💻", "🎧", "📸", "⌚", "🎯", "💪"]
     
     def is_female(self, title):
-        return any(w in title.lower() for w in self.female_words)
+        t = title.lower()
+        score = sum(2 if w in t else 0 for w in self.female_keywords)
+        # لو فيه كلمات نسائية واضحة
+        strong_female = ["dress", "skirt", "heels", "makeup", "lipstick", "perfume", "jewelry", "handbag", "lingerie", "maternity"]
+        if any(w in t for w in strong_female):
+            return True
+        return score >= 2
     
     def get_brand(self, title):
         t = title.lower()
@@ -66,12 +163,14 @@ class SmartGenerator:
         if brand:
             name = re.sub(brand, '', name, flags=re.IGNORECASE)
         
-        for j in ["with", "and", "the", "for", "new", "original", "genuine", "official", "men", "women", "man", "woman", "male", "female"]:
+        junk = ["with", "and", "the", "for", "new", "original", "genuine", "official", 
+                "men", "women", "man", "woman", "male", "female", "unisex"]
+        for j in junk:
             name = re.sub(r'\\b' + j + r'\\b', '', name, flags=re.IGNORECASE)
         
         name = re.sub(r'\\s+', ' ', name).strip()
         words = name.split()
-        return ' '.join(words[:6]) if len(words) > 6 else name
+        return ' '.join(words[:5]) if len(words) > 5 else name
     
     def format_price(self, price, old_price):
         if old_price and price:
@@ -91,16 +190,23 @@ class SmartGenerator:
             return price, None
     
     def generate(self, title, price, old_price, url):
-        is_f = self.is_female(title)
+        is_female = self.is_female(title)
         brand = self.get_brand(title) or "ماركة مميزة"
         product = self.clean_name(title, brand)
         
-        emoji = random.choice(self.emojis)
-        template = random.choice(self.templates)
-        
-        hook = random.choice(self.hooks_female if is_f else self.hooks_male)
-        benefit = random.choice(self.benefits_female if is_f else self.benefits_male)
-        cta = random.choice(self.cta_female if is_f else self.cta_male)
+        # اختيارات حسب الجنس
+        if is_female:
+            emoji = random.choice(self.emojis_female)
+            template = random.choice(self.templates_female)
+            hook = random.choice(self.hooks_female)
+            benefit = random.choice(self.benefits_female)
+            cta = random.choice(self.cta_female)
+        else:
+            emoji = random.choice(self.emojis_male)
+            template = random.choice(self.templates_male)
+            hook = random.choice(self.hooks_male)
+            benefit = random.choice(self.benefits_male)
+            cta = random.choice(self.cta_male)
         
         price_str, old_str = self.format_price(price, old_price)
         
@@ -110,7 +216,8 @@ class SmartGenerator:
             cta=cta, url=url
         )
         
-        return '\\n'.join([l for l in post.split('\\n') if l.strip()])
+        lines = [l for l in post.split('\\n') if l.strip()]
+        return '\\n'.join(lines)
 
 def expand_url(url):
     try:
@@ -233,10 +340,10 @@ try:
     ast.parse(code)
     print("✅ Syntax OK!")
 except SyntaxError as e:
-    print(f"❌ Syntax Error: {e}")
+    print(f"❌ Error: {e}")
 
-with open('/mnt/kimi/output/bot_clean.py', 'w', encoding='utf-8') as f:
+with open('/mnt/kimi/output/bot_female_focused.py', 'w', encoding='utf-8') as f:
     f.write(code)
 
-print("✅ Saved: bot_clean.py")
-print(f"✅ Size: {len(code)} chars")
+print("✅ Saved: bot_female_focused.py")
+print(f"✅ Lines: {len(code.split(chr(10)))}")
