@@ -333,17 +333,3 @@ def handler(msg):
 print("🔥 شغال!")
 bot.infinity_polling()
 '''
-
-# Verify and save
-import ast
-try:
-    ast.parse(code)
-    print("✅ Syntax OK!")
-except SyntaxError as e:
-    print(f"❌ Error: {e}")
-
-with open('/mnt/kimi/output/bot_female_focused.py', 'w', encoding='utf-8') as f:
-    f.write(code)
-
-print("✅ Saved: bot_female_focused.py")
-print(f"✅ Lines: {len(code.split(chr(10)))}")
