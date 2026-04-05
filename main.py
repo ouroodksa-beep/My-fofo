@@ -5,7 +5,7 @@ import re
 import random
 import time
 
-TOKEN = "YOUR_TOKEN"
+TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
 # ---------------- HEADERS ----------------
