@@ -121,17 +121,17 @@ class SmartGenerator:
         junk = ["with", "and", "the", "for", "new", "original", "genuine", "official", 
                 "men", "women", "man", "woman", "male", "female", "unisex"]
         for j in junk:
-            name = re.sub(r"\\b" + j + r"\\b", "", name, flags=re.IGNORECASE)
+            name = re.sub(r"\b" + j + r"\b", "", name, flags=re.IGNORECASE)
         
-        name = re.sub(r"\\s+", " ", name).strip()
+        name = re.sub(r"\s+", " ", name).strip()
         words = name.split()
         return " ".join(words[:5]) if len(words) > 5 else name
     
     def format_price(self, price, old_price):
         if old_price and price:
             try:
-                old = float(re.findall(r"[\\d,.]+", old_price)[0].replace(",", ""))
-                new = float(re.findall(r"[\\d,.]+", price)[0].replace(",", ""))
+                old = float(re.findall(r"[\d,.]+", old_price)[0].replace(",", ""))
+                new = float(re.findall(r"[\d,.]+", price)[0].replace(",", ""))
                 if old > new:
                     disc = int(((old - new) / old) * 100)
                     return f"~~{int(old):,}~~ → *{int(new):,}* ريال (-{disc}%) 🏷️"
@@ -139,7 +139,7 @@ class SmartGenerator:
                 pass
         
         try:
-            num = float(re.findall(r"[\\d,.]+", price)[0].replace(",", ""))
+            num = float(re.findall(r"[\d,.]+", price)[0].replace(",", ""))
             return f"*{int(num):,}* ريال 🏷️"
         except:
             return price
@@ -166,18 +166,34 @@ class SmartGenerator:
         )
         
         post = post.replace("\\n", "\n")
-        post += f"\\n\\n🔗 {original_url}"
+        post += f"\n\n🔗 {original_url}"
         
         return post
 
-def expand_url(url):
+def is_amazon_url(url):
+    """التحقق إذا كان الرابط أمازون أو لينك مختصر"""
+    amazon_patterns = [
+        "amazon.",
+        "amzn.to",
+        "amzn.com",
+    ]
+    url_lower = url.lower()
+    return any(pattern in url_lower for pattern in amazon_patterns)
+
+def expand_short_url(url):
+    """توسيع الروابط المختصرة"""
     try:
-        if "amazon.sa" in url or "amazon.com" in url:
-            return url
-        r = requests.get(url, allow_redirects=True, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        return r.url if "amazon." in r.url else url
-    except:
-        return url if "amazon." in url else None
+        if "amzn.to" in url or "amzn.com" in url:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            }
+            r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
+            final_url = r.url
+            return final_url if "amazon." in final_url else url
+        return url
+    except Exception as e:
+        print(f"Error expanding URL: {e}")
+        return url
 
 def extract_asin(url):
     for p in [r"/dp/([A-Z0-9]{10})", r"/gp/product/([A-Z0-9]{10})"]:
@@ -206,10 +222,10 @@ def get_high_quality_image(soup):
             
             url = img.get("src")
             if url and url.startswith("http"):
-                url = re.sub(r"\\._.*_\\.", ".", url)
-                url = re.sub(r"_SL\\d+_", "_SL1500_", url)
-                url = re.sub(r"_SX\\d+_", "_SX1500_", url)
-                url = re.sub(r"_SY\\d+_", "_SY1500_", url)
+                url = re.sub(r"\._.*_\.", ".", url)
+                url = re.sub(r"_SL\d+_", "_SL1500_", url)
+                url = re.sub(r"_SX\d+_", "_SX1500_", url)
+                url = re.sub(r"_SY\d+_", "_SY1500_", url)
                 return url
         
         alt_images = soup.select("#altImages img")
@@ -264,31 +280,36 @@ gen = SmartGenerator()
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
-    urls = re.findall(r"https?://\\S+", msg.text)
+    urls = re.findall(r"https?://\S+", msg.text)
     
     if not urls:
         bot.reply_to(msg, "❌ ارسل رابط أمازون")
         return
     
     for url in urls:
-        if "amazon." not in url and "amzn." not in url:
+        # التحقق من الرابط باستخدام الدالة الجديدة
+        if not is_amazon_url(url):
             continue
         
         wait = bot.reply_to(msg, "⏳ جاري جلب المنتج...")
         
+        # حفظ الرابط الأصلي اللي بعته
         original_url = url
         
-        expanded = expand_url(url)
-        if not expanded:
+        # توسيع الروابط المختصرة
+        expanded_url = expand_short_url(url)
+        
+        # لو مقدرناش نوسع الرابط
+        if not expanded_url or "amazon." not in expanded_url:
             bot.delete_message(msg.chat.id, wait.message_id)
             continue
         
-        asin = extract_asin(expanded)
+        asin = extract_asin(expanded_url)
         if not asin:
             bot.delete_message(msg.chat.id, wait.message_id)
             continue
         
-        domain = "amazon.com" if "amazon.com" in expanded else "amazon.sa"
+        domain = "amazon.com" if "amazon.com" in expanded_url else "amazon.sa"
         
         try:
             with ThreadPoolExecutor(max_workers=1) as ex:
@@ -300,6 +321,7 @@ def handler(msg):
             bot.edit_message_text("❌ فشل في جلب المنتج", msg.chat.id, wait.message_id)
             continue
         
+        # نستخدم الرابط الأصلي اللي بعته مش الموسع
         post = gen.generate(prod["title"], prod["price"], prod["old_price"], original_url)
         
         try:
@@ -315,4 +337,3 @@ def handler(msg):
 
 print("🔥 البوت شغال!")
 bot.infinity_polling()
-
