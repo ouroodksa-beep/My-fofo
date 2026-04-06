@@ -5,6 +5,7 @@ import re
 import random
 import json
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
@@ -63,37 +64,37 @@ class SmartGenerator:
         ]
         
         self.templates_female = [
-            "{emoji} {product} من {brand}\\n\\n{price}\\n{cta}",
-            "{emoji} وصل حديثاً: {product} ✨\\n\\n{price}\\n{cta}",
-            "{emoji} يا هلا بالأناقة! {product}\\n\\n{price}\\n{cta}",
-            "{emoji} {product} 💕\\n\\n{price}\\n{cta}",
-            "{emoji} خصم حصري على {product}\\n\\n{price}\\n{cta}",
-            "{emoji} {product} بجودة عالية\\n\\n{price}\\n{cta}",
-            "{emoji} لا يفوتكِ: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} {product} الأكثر مبيعاً 🔥\\n\\n{price}\\n{cta}",
-            "{emoji} عرض محدود ⏰ {product}\\n\\n{price}\\n{cta}",
-            "{emoji} الكمية محدودة! {product}\\n\\n{price}\\n{cta}",
-            "{emoji} ينتهي اليوم: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} رشحنا لكِ: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} الأفضل مبيعاً: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} تجربة عملاء: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} قبل ما ينتهي: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} آخر فرصة! {product}\\n\\n{price}\\n{cta}",
-            "{emoji} نفذت الكمية قريباً: {product}\\n\\n{price}\\n{cta}",
+            "{emoji} {product} من {brand}\n\n{price}\n{cta}",
+            "{emoji} وصل حديثاً: {product} ✨\n\n{price}\n{cta}",
+            "{emoji} يا هلا بالأناقة! {product}\n\n{price}\n{cta}",
+            "{emoji} {product} 💕\n\n{price}\n{cta}",
+            "{emoji} خصم حصري على {product}\n\n{price}\n{cta}",
+            "{emoji} {product} بجودة عالية\n\n{price}\n{cta}",
+            "{emoji} لا يفوتكِ: {product}\n\n{price}\n{cta}",
+            "{emoji} {product} الأكثر مبيعاً 🔥\n\n{price}\n{cta}",
+            "{emoji} عرض محدود ⏰ {product}\n\n{price}\n{cta}",
+            "{emoji} الكمية محدودة! {product}\n\n{price}\n{cta}",
+            "{emoji} ينتهي اليوم: {product}\n\n{price}\n{cta}",
+            "{emoji} رشحنا لكِ: {product}\n\n{price}\n{cta}",
+            "{emoji} الأفضل مبيعاً: {product}\n\n{price}\n{cta}",
+            "{emoji} تجربة عملاء: {product}\n\n{price}\n{cta}",
+            "{emoji} قبل ما ينتهي: {product}\n\n{price}\n{cta}",
+            "{emoji} آخر فرصة! {product}\n\n{price}\n{cta}",
+            "{emoji} نفذت الكمية قريباً: {product}\n\n{price}\n{cta}",
         ]
         
         self.templates_male = [
-            "{emoji} {product} من {brand}\\n\\n{price}\\n{cta}",
-            "{emoji} وصل: {product} ⚡\\n\\n{price}\\n{cta}",
-            "{emoji} {product} بأفضل سعر\\n\\n{price}\\n{cta}",
-            "{emoji} {product} الأصلي\\n\\n{price}\\n{cta}",
-            "{emoji} عرض مميز: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} {product} بجودة عالية\\n\\n{price}\\n{cta}",
-            "{emoji} لا يفوتك: {product}\\n\\n{price}\\n{cta}",
-            "{emoji} {product} الأكثر مبيعاً 🔥\\n\\n{price}\\n{cta}",
-            "{emoji} عرض محدود ⏰ {product}\\n\\n{price}\\n{cta}",
-            "{emoji} الكمية محدودة! {product}\\n\\n{price}\\n{cta}",
-            "{emoji} قبل ما ينتهي: {product}\\n\\n{price}\\n{cta}",
+            "{emoji} {product} من {brand}\n\n{price}\n{cta}",
+            "{emoji} وصل: {product} ⚡\n\n{price}\n{cta}",
+            "{emoji} {product} بأفضل سعر\n\n{price}\n{cta}",
+            "{emoji} {product} الأصلي\n\n{price}\n{cta}",
+            "{emoji} عرض مميز: {product}\n\n{price}\n{cta}",
+            "{emoji} {product} بجودة عالية\n\n{price}\n{cta}",
+            "{emoji} لا يفوتك: {product}\n\n{price}\n{cta}",
+            "{emoji} {product} الأكثر مبيعاً 🔥\n\n{price}\n{cta}",
+            "{emoji} عرض محدود ⏰ {product}\n\n{price}\n{cta}",
+            "{emoji} الكمية محدودة! {product}\n\n{price}\n{cta}",
+            "{emoji} قبل ما ينتهي: {product}\n\n{price}\n{cta}",
         ]
         
         self.cta_female = [
@@ -144,26 +145,26 @@ class SmartGenerator:
         junk = ["with", "and", "the", "for", "new", "original", "genuine", "official", 
                 "men", "women", "man", "woman", "male", "female", "unisex"]
         for j in junk:
-            name = re.sub(r"\\b" + j + r"\\b", "", name, flags=re.IGNORECASE)
+            name = re.sub(r"\b" + j + r"\b", "", name, flags=re.IGNORECASE)
         
-        name = re.sub(r"\\s+", " ", name).strip()
+        name = re.sub(r"\s+", " ", name).strip()
         words = name.split()
         return " ".join(words[:5]) if len(words) > 5 else name
     
     def format_price(self, price, old_price):
         if old_price and price:
             try:
-                old = float(re.findall(r"[\\d,.]+", old_price)[0].replace(",", ""))
-                new = float(re.findall(r"[\\d,.]+", price)[0].replace(",", ""))
+                old = float(re.findall(r"[\d,.]+", old_price)[0].replace(",", ""))
+                new = float(re.findall(r"[\d,.]+", price)[0].replace(",", ""))
                 if old > new:
                     disc = int(((old - new) / old) * 100)
                     # السعر القديم في سطر والجديد في سطر
-                    return f"~~{int(old):,}~~ ريال\\n*{int(new):,}* ريال (-{disc}%) 🏷️"
+                    return f"~~{int(old):,}~~ ريال\n*{int(new):,}* ريال (-{disc}%) 🏷️"
             except:
                 pass
         
         try:
-            num = float(re.findall(r"[\\d,.]+", price)[0].replace(",", ""))
+            num = float(re.findall(r"[\d,.]+", price)[0].replace(",", ""))
             return f"*{int(num):,}* ريال 🏷️"
         except:
             return price
@@ -189,8 +190,8 @@ class SmartGenerator:
             price=price_str, cta=cta
         )
         
-        post = post.replace("\\n", "\\n")
-        post += f"\\n\\n🔗 {original_url}"
+        # نحافظ على اللينك الأصلي كما هو (سواء أفيليت أو عادي)
+        post += f"\n\n🔗 {original_url}"
         
         return post
 
@@ -308,10 +309,10 @@ def get_high_quality_image(soup):
             
             url = img.get("src")
             if url and url.startswith("http"):
-                url = re.sub(r"\\._.*_\\.", ".", url)
-                url = re.sub(r"_SL\\d+_", "_SL1500_", url)
-                url = re.sub(r"_SX\\d+_", "_SX1500_", url)
-                url = re.sub(r"_SY\\d+_", "_SY1500_", url)
+                url = re.sub(r"\._.*_\.", ".", url)
+                url = re.sub(r"_SL\d+_", "_SL1500_", url)
+                url = re.sub(r"_SX\d+_", "_SX1500_", url)
+                url = re.sub(r"_SY\d+_", "_SY1500_", url)
                 return url
         
         alt_images = soup.select("#altImages img")
@@ -366,7 +367,7 @@ gen = SmartGenerator()
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
-    urls = re.findall(r"https?://\\S+", msg.text)
+    urls = re.findall(r"https?://\S+", msg.text)
     
     if not urls:
         bot.reply_to(msg, "❌ ارسل رابط أمازون")
@@ -378,8 +379,10 @@ def handler(msg):
         
         wait = bot.reply_to(msg, "⏳ جاري جلب المنتج...")
         
+        # نحفظ اللينك الأصلي كما هو (سواء أفيليت أو مختصر)
         original_url = url
         
+        # نوسع اللينك عشان نجيب بيانات المنتج بس
         expanded_url = expand_short_url(url)
         print(f"Original: {url}")
         print(f"Expanded: {expanded_url}")
@@ -410,6 +413,7 @@ def handler(msg):
             bot.edit_message_text("❌ فشل في جلب المنتج", msg.chat.id, wait.message_id)
             continue
         
+        # نستخدم اللينك الأصلي اللي المستخدم بعته (مع الأفيليت تاج)
         post = gen.generate(prod["title"], prod["price"], prod["old_price"], original_url)
         
         try:
