@@ -5,17 +5,16 @@ import re
 import random
 import json
 import time
-from concurrent.futures import ThreadPoolExecutor
+import subprocess
+import tempfile
+import os
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
-# ===== تدوير User-Agents =====
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
 ]
 
 class SmartGenerator:
@@ -204,7 +203,7 @@ class SmartGenerator:
 def get_random_headers():
     return {
         "User-Agent": random.choice(USER_AGENTS),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9,ar-SA;q=0.8",
         "Accept-Encoding": "gzip, deflate, br",
         "DNT": "1",
@@ -219,76 +218,21 @@ def get_random_headers():
     }
 
 def is_amazon_url(url):
-    amazon_patterns = ["amazon.", "amzn.to", "amzn.com"]
-    return any(p in url.lower() for p in amazon_patterns)
-
-def expand_amzn_to_url(url):
-    try:
-        session = requests.Session()
-        r = session.get(url, headers=get_random_headers(), allow_redirects=True, timeout=20)
-        
-        print(f"Status: {r.status_code}")
-        print(f"Final URL: {r.url}")
-        
-        if "amazon." in r.url:
-            return r.url
-            
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.text, "html.parser")
-            
-            # meta refresh
-            meta_refresh = soup.find("meta", attrs={"http-equiv": "refresh"})
-            if meta_refresh:
-                content = meta_refresh.get("content", "")
-                if "url=" in content:
-                    redirect_url = content.split("url=")[1].strip()
-                    if "amazon." in redirect_url:
-                        return redirect_url
-            
-            # canonical
-            canonical = soup.find("link", attrs={"rel": "canonical"})
-            if canonical:
-                href = canonical.get("href", "")
-                if "amazon." in href:
-                    return href
-        
-        return url
-    except Exception as e:
-        print(f"Error expanding amzn.to: {e}")
-        return url
+    return any(p in url.lower() for p in ["amazon.", "amzn.to", "amzn.com"])
 
 def expand_short_url(url):
     try:
         if "amzn.to" in url.lower():
-            return expand_amzn_to_url(url)
-        
-        if "amzn.com" in url.lower():
-            try:
-                r = requests.head(url, headers=get_random_headers(), allow_redirects=True, timeout=10)
-                if "amazon." in r.url:
-                    return r.url
-            except:
-                pass
-            
-            try:
-                r = requests.get(url, headers=get_random_headers(), allow_redirects=True, timeout=15)
-                if "amazon." in r.url:
-                    return r.url
-            except:
-                pass
-        
+            session = requests.Session()
+            r = session.get(url, headers=get_random_headers(), allow_redirects=True, timeout=20)
+            if "amazon." in r.url:
+                return r.url
         return url
-    except Exception as e:
-        print(f"Error expanding URL: {e}")
+    except:
         return url
 
 def extract_asin(url):
-    patterns = [
-        r"/dp/([A-Z0-9]{10})",
-        r"/gp/product/([A-Z0-9]{10})",
-        r"/([A-Z0-9]{10})(?:[/?]|$)",
-    ]
-    for p in patterns:
+    for p in [r"/dp/([A-Z0-9]{10})", r"/gp/product/([A-Z0-9]{10})", r"/([A-Z0-9]{10})(?:[/?]|$)"]:
         m = re.search(p, url)
         if m:
             return m.group(1)
@@ -296,147 +240,203 @@ def extract_asin(url):
 
 def get_high_quality_image(soup):
     try:
-        # الطريقة 1: landingImage
         img = soup.select_one("#landingImage")
         if img:
-            # data-old-hires
             url = img.get("data-old-hires")
-            if url and url.startswith("http"):
+            if url:
                 return url
             
-            # data-a-dynamic-image
             dyn = img.get("data-a-dynamic-image")
             if dyn:
                 try:
                     data = json.loads(dyn)
-                    # اختيار الأكبر
                     max_url = max(data.keys(), key=lambda x: data[x][0] * data[x][1] if isinstance(data[x], list) and len(data[x]) >= 2 else 0)
-                    if max_url.startswith("http"):
-                        return max_url
+                    return max_url
                 except:
                     pass
             
-            # src
             url = img.get("src")
-            if url and url.startswith("http"):
+            if url:
                 url = re.sub(r"\._.*_\.", ".", url)
                 url = re.sub(r"_SL\d+_", "_SL1500_", url)
-                url = re.sub(r"_SX\d+_", "_SX1500_", url)
-                url = re.sub(r"_SY\d+_", "_SY1500_", url)
                 return url
         
-        # الطريقة 2: altImages
         alt_images = soup.select("#altImages img")
         for alt_img in alt_images:
             url = alt_img.get("src")
             if url and "images-na" in url:
                 url = url.replace("_SS40_", "_SL1500_")
-                url = url.replace("_SX38_", "_SL1500_")
-                url = url.replace("_US40_", "_SL1500_")
-                if url.startswith("http"):
-                    return url
-        
-        # الطريقة 3: imageBlock
-        img_block = soup.select_one("#imgTagWrapperId img")
-        if img_block:
-            url = img_block.get("src")
-            if url and url.startswith("http"):
                 return url
-                
-    except Exception as e:
-        print(f"Error getting image: {e}")
-    
+    except:
+        pass
     return None
 
-def get_product_with_retry(asin, domain, max_retries=3):
-    """محاولات متعددة مع تأخير عشوائي"""
-    for attempt in range(max_retries):
-        try:
-            # تأخير عشوائي بين المحاولات
-            if attempt > 0:
-                time.sleep(random.uniform(1, 3))
-            
-            # تبديل الدومين لو فشلت
-            current_domain = domain if attempt == 0 else ("amazon.com" if domain == "amazon.sa" else "amazon.sa")
-            
-            url = f"https://{current_domain}/dp/{asin}"
-            headers = get_random_headers()
-            
-            print(f"Attempt {attempt + 1}: {url}")
-            
-            session = requests.Session()
-            r = session.get(url, headers=headers, timeout=15, allow_redirects=True)
-            
-            print(f"Status: {r.status_code}")
-            
-            if r.status_code in [503, 403, 429]:
-                print(f"Blocked on attempt {attempt + 1}")
-                continue
-            
-            if r.status_code == 200:
-                soup = BeautifulSoup(r.text, "html.parser")
-                
-                # التحقق من وجود كابتشا أو حظر
-                if "captcha" in r.text.lower() or "robot" in r.text.lower():
-                    print("Captcha detected")
-                    continue
-                
-                title = soup.select_one("#productTitle")
-                price_elem = soup.select_one(".a-price .a-offscreen")
-                old_price_elem = soup.select_one(".a-text-price .a-offscreen")
-                
-                if title and price_elem:
-                    title_text = title.text.strip()
-                    price_text = price_elem.text.strip()
-                    old_price_text = old_price_elem.text.strip() if old_price_elem else None
-                    
-                    # تنظيف السعر
-                    if not price_text and soup.select_one(".a-price"):
-                        # محاولة استخراج السعر من النص
-                        price_container = soup.select_one(".a-price")
-                        if price_container:
-                            price_text = price_container.get_text(strip=True)
-                    
-                    print(f"Found: {title_text[:50]}... | Price: {price_text}")
-                    
-                    return {
-                        "title": title_text,
-                        "price": price_text,
-                        "old_price": old_price_text,
-                        "image": get_high_quality_image(soup)
-                    }
-                else:
-                    print(f"Missing data - Title: {title is not None}, Price: {price_elem is not None}")
-                    
-        except Exception as e:
-            print(f"Error on attempt {attempt + 1}: {e}")
-            continue
-    
-    return None
-
-def get_product_scraperapi(asin, domain):
-    """استخدام ScraperAPI كبديل - تحتاج API Key"""
-    # لو عندك ScraperAPI key، شيل التعليق وحط مفتاحك
-    """
-    SCRAPER_API_KEY = "YOUR_API_KEY"
-    url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url=https://{domain}/dp/{asin}"
+# ===== الطريقة 1: Google Cache =====
+def get_from_google_cache(asin, domain):
     try:
-        r = requests.get(url, timeout=30)
+        url = f"https://webcache.googleusercontent.com/search?q=cache:https://{domain}/dp/{asin}"
+        headers = get_random_headers()
+        r = requests.get(url, headers=headers, timeout=15)
+        
+        if r.status_code == 200 and "amazon" in r.text.lower():
+            soup = BeautifulSoup(r.text, "html.parser")
+            title = soup.select_one("#productTitle")
+            price = soup.select_one(".a-price .a-offscreen")
+            
+            if title:
+                return {
+                    "title": title.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
+                    "old_price": None,
+                    "image": get_high_quality_image(soup)
+                }
+    except Exception as e:
+        print(f"Google cache error: {e}")
+    return None
+
+# ===== الطريقة 2: textise dot iitty =====
+def get_from_textise(asin, domain):
+    try:
+        url = f"https://r.jina.ai/http://{domain}/dp/{asin}"
+        headers = get_random_headers()
+        r = requests.get(url, headers=headers, timeout=15)
+        
+        if r.status_code == 200:
+            text = r.text
+            # jina.ai بيرجع نص مرتب، نحاول نستخرج منه
+            lines = [l.strip() for l in text.split('\n') if l.strip()]
+            if len(lines) >= 2:
+                title = lines[0][:200]
+                # البحث عن سعر في النص
+                price_match = re.search(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:SAR|USD|\$|ريال)', text)
+                price = price_match.group(1) + " ريال" if price_match else "غير متوفر"
+                
+                return {
+                    "title": title,
+                    "price": price,
+                    "old_price": None,
+                    "image": None
+                }
+    except Exception as e:
+        print(f"Textise error: {e}")
+    return None
+
+# ===== الطريقة 3: curl impersonate (أقوى) =====
+def get_with_curl(asin, domain):
+    try:
+        url = f"https://{domain}/dp/{asin}"
+        
+        # curl impersonate بيقلد Chrome بالضبط
+        cmd = [
+            "curl", "--silent", "--location",
+            "--header", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "--header", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "--header", "Accept-Language: en-US,en;q=0.5",
+            "--header", "Accept-Encoding: gzip, deflate, br",
+            "--header", "DNT: 1",
+            "--header", "Connection: keep-alive",
+            "--header", "Upgrade-Insecure-Requests: 1",
+            "--header", "Sec-Fetch-Dest: document",
+            "--header", "Sec-Fetch-Mode: navigate",
+            "--header", "Sec-Fetch-Site: none",
+            "--header", "Sec-Fetch-User: ?1",
+            "--compressed",
+            "--max-time", "20",
+            url
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0 and "productTitle" in result.stdout:
+            soup = BeautifulSoup(result.stdout, "html.parser")
+            title = soup.select_one("#productTitle")
+            price = soup.select_one(".a-price .a-offscreen")
+            old = soup.select_one(".a-text-price .a-offscreen")
+            
+            if title:
+                return {
+                    "title": title.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
+                    "old_price": old.text.strip() if old else None,
+                    "image": get_high_quality_image(soup)
+                }
+    except Exception as e:
+        print(f"Curl error: {e}")
+    return None
+
+# ===== الطريقة 4: Amazon Smile (أقل حماية) =====
+def get_from_smile(asin, domain):
+    try:
+        smile_domain = "smile.amazon.com" if "amazon.com" in domain else "smile.amazon.sa"
+        url = f"https://{smile_domain}/dp/{asin}"
+        headers = get_random_headers()
+        
+        r = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+        
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, "html.parser")
             title = soup.select_one("#productTitle")
             price = soup.select_one(".a-price .a-offscreen")
             old = soup.select_one(".a-text-price .a-offscreen")
-            if title and price:
+            
+            if title:
                 return {
                     "title": title.text.strip(),
-                    "price": price.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
                     "old_price": old.text.strip() if old else None,
                     "image": get_high_quality_image(soup)
                 }
     except Exception as e:
-        print(f"ScraperAPI error: {e}")
-    """
+        print(f"Smile error: {e}")
+    return None
+
+# ===== المحاولة المباشرة الأخيرة =====
+def get_direct(asin, domain):
+    try:
+        url = f"https://{domain}/dp/{asin}"
+        headers = get_random_headers()
+        
+        session = requests.Session()
+        r = session.get(url, headers=headers, timeout=15)
+        
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, "html.parser")
+            title = soup.select_one("#productTitle")
+            price = soup.select_one(".a-price .a-offscreen")
+            old = soup.select_one(".a-text-price .a-offscreen")
+            
+            if title:
+                return {
+                    "title": title.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
+                    "old_price": old.text.strip() if old else None,
+                    "image": get_high_quality_image(soup)
+                }
+    except Exception as e:
+        print(f"Direct error: {e}")
+    return None
+
+# ===== الدالة الرئيسية =====
+def get_product(asin, domain):
+    methods = [
+        ("Google Cache", get_from_google_cache),
+        ("Textise", get_from_textise),
+        ("Curl", get_with_curl),
+        ("Amazon Smile", get_from_smile),
+        ("Direct", get_direct),
+    ]
+    
+    for name, method in methods:
+        print(f"Trying {name}...")
+        try:
+            result = method(asin, domain)
+            if result and result.get("title"):
+                print(f"✅ {name} worked!")
+                return result
+        except Exception as e:
+            print(f"❌ {name} failed: {e}")
+        time.sleep(0.5)
+    
     return None
 
 gen = SmartGenerator()
@@ -462,7 +462,7 @@ def handler(msg):
         print(f"Expanded: {expanded_url}")
         
         if expanded_url == url and "amzn.to" in url.lower():
-            bot.edit_message_text("❌ فشل في توسيع الرابط المختصر. جرب رابط أمازون مباشر.", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ فشل في توسيع الرابط المختصر.", msg.chat.id, wait.message_id)
             continue
         
         if "amazon." not in expanded_url:
@@ -478,15 +478,17 @@ def handler(msg):
         
         domain = "amazon.com" if "amazon.com" in expanded_url else "amazon.sa"
         
-        # محاولة جلب المنتج
-        prod = get_product_with_retry(asin, domain, max_retries=3)
-        
-        # لو فشلت كل المحاولات، جرب ScraperAPI (لو مفعل)
-        if not prod:
-            prod = get_product_scraperapi(asin, domain)
+        prod = get_product(asin, domain)
         
         if not prod:
-            bot.edit_message_text("❌ فشل في جلب المنتج. أمازون قد تحظر الطلبات التلقائية. جرب لاحقاً.", msg.chat.id, wait.message_id)
+            bot.edit_message_text(
+                "❌ فشل في جلب المنتج من كل المصادر.\n\n"
+                "جرب:\n"
+                "• تأكد أن الرابط شغال في المتصفح\n"
+                "• جرب تبعت الرابط من أمازون مباشرة مش مختصر\n"
+                "• لو المنتج محظور جغرافياً ممكن مينفعش", 
+                msg.chat.id, wait.message_id
+            )
             continue
         
         post = gen.generate(prod["title"], prod["price"], prod["old_price"], original_url)
