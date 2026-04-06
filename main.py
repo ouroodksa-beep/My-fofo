@@ -6,8 +6,6 @@ import random
 import json
 import time
 import subprocess
-import tempfile
-import os
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
@@ -17,28 +15,151 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
 ]
 
+# ===== قاموس ترجمة بسيط للكلمات الشائعة =====
+TRANSLATIONS = {
+    # الملابس
+    "dress": "فستان", "skirt": "تنورة", "blouse": "بلوزة", "shirt": "قميص",
+    "pants": "بنطلون", "jeans": "جينز", "jacket": "جاكيت", "coat": "معطف",
+    "sweater": "كنزة", "hoodie": "هودي", "t-shirt": "تيشيرت", "shorts": "شورت",
+    "leggings": "ليقنز", "abaya": "عباية", "kaftan": "قفطان", "robe": "روب",
+    "suit": "بدلة", "uniform": "زي", "sportswear": "ملابس رياضية",
+    
+    # الأحذية
+    "shoes": "حذاء", "sneakers": "حذاء رياضي", "heels": "كعب عالي", "pumps": "حذاء كعب",
+    "sandals": "صندل", "boots": "بوت", "slippers": "شبشب", "loafers": "لوفر",
+    
+    # الإكسسوارات
+    "watch": "ساعة", "sunglasses": "نظارة شمسية", "bag": "شنطة", "handbag": "حقيبة يد",
+    "backpack": "حقيبة ظهر", "wallet": "محفظة", "belt": "حزام", "scarf": "وشاح",
+    "hat": "قبعة", "cap": "كاب", "gloves": "قفازات", "jewelry": "مجوهرات",
+    "necklace": "عقد", "earrings": "حلق", "bracelet": "سوار", "ring": "خاتم",
+    
+    # الإلكترونيات
+    "phone": "موبايل", "smartphone": "سنارت فون", "laptop": "لابتوب", "tablet": "تابلت",
+    "headphones": "سماعات", "earbuds": "سماعات أذن", "charger": "شاحن", "cable": "كابل",
+    "case": "جراب", "screen": "شاشة", "camera": "كاميرا", "speaker": "سماعة",
+    "keyboard": "كيبورد", "mouse": "ماوس", "watch": "ساعة ذكية",
+    
+    # الميك أب والعناية
+    "makeup": "ميك أب", "lipstick": "أحمر شفاه", "mascara": "ماسكارا", "eyeliner": "آيلاينر",
+    "foundation": "فاونديشن", "concealer": "كونسيلر", "powder": "بودرة", "blush": "بلاشر",
+    "perfume": "عطر", "cream": "كريم", "lotion": "لوشن", "shampoo": "شامبو",
+    "conditioner": "بلسم", "serum": "سيروم", "mask": "ماسك",
+    
+    # المنزل
+    "furniture": "أثاث", "chair": "كرسي", "table": "طاولة", "bed": "سرير",
+    "sofa": "كنبة", "lamp": "لمبة", "carpet": "سجادة", "curtain": "ستارة",
+    "kitchen": "مطبخ", "bathroom": "حمام", "bedroom": "غرفة نوم",
+    
+    # الأطفال
+    "toys": "ألعاب", "stroller": "عربية أطفال", "diaper": "حفاض", "baby": "بيبي",
+    "kids": "أطفال", "children": "أطفال",
+    
+    # صفات عامة
+    "new": "جديد", "original": "أصلي", "genuine": "أصلي", "official": "رسمي",
+    "premium": "بريميوم", "professional": "احترافي", "waterproof": "مقاوم للماء",
+    "wireless": "لاسلكي", "bluetooth": "بلوتوث", "smart": "ذكي", "portable": "محمول",
+    "adjustable": "قابل للتعديل", "foldable": "قابل للطي", "rechargeable": "قابل لإعادة الشحن",
+    "automatic": "أوتوماتيك", "manual": "يدوي", "digital": "ديجيتال", "electric": "كهربائي",
+    
+    # ألوان
+    "black": "أسود", "white": "أبيض", "red": "أحمر", "blue": "أزرق", "green": "أخضر",
+    "yellow": "أصفر", "pink": "وردي", "purple": "بنفسجي", "gold": "ذهبي", "silver": "فضي",
+}
+
 class SmartGenerator:
     def __init__(self):
         self.brands = {
-            "Apple": ["iphone", "ipad", "macbook", "airpods"],
+            "Apple": ["iphone", "ipad", "macbook", "airpods", "apple"],
             "Samsung": ["samsung", "galaxy"],
-            "Sony": ["sony", "playstation"],
-            "Nike": ["nike", "air max", "jordan"],
-            "Adidas": ["adidas", "ultraboost"],
-            "Chanel": ["chanel", "no.5"],
+            "Sony": ["sony", "playstation", "wh-", "xm", "xb"],
+            "Nike": ["nike", "air max", "jordan", "dunk"],
+            "Adidas": ["adidas", "ultraboost", "yeezy", "nmd"],
+            "Chanel": ["chanel", "no.5", "coco"],
             "Dior": ["dior", "sauvage", "jadore"],
-            "Gucci": ["gucci", "bloom"],
+            "Gucci": ["gucci", "bloom", "flora"],
             "Zara": ["zara"],
             "H&M": ["h&m"],
             "Shein": ["shein"],
-            "MAC": ["mac ", "lipstick"],
-            "L'Oreal": ["l'oreal", "loreal"],
+            "MAC": ["mac ", "lipstick", "mac cosmetics"],
+            "L'Oreal": ["l'oreal", "loreal", "l'oréal"],
             "Maybelline": ["maybelline"],
             "Estee Lauder": ["estee lauder"],
-            "Lancome": ["lancome"],
+            "Lancome": ["lancome", "lancome"],
             "Timon": ["timon", "تمون"],
-            "X Zone": ["x zone", "زي اكس زون", "اكس زون"],
-            "Saudi": ["السعودي", "saudi", "السعودية"],
+            "X Zone": ["x zone", "اكس زون"],
+            "Saudi": ["السعودي", "saudi"],
+            "Rolex": ["rolex"],
+            "Casio": ["casio"],
+            "Ray-Ban": ["ray-ban", "rayban"],
+            "Victoria's Secret": ["victoria's secret", "victoria secret"],
+            "Calvin Klein": ["calvin klein", "ck "],
+            "Tommy Hilfiger": ["tommy hilfiger"],
+            "Lacoste": ["lacoste"],
+            "Puma": ["puma"],
+            "Reebok": ["reebok"],
+            "Under Armour": ["under armour"],
+            "The North Face": ["the north face", "north face"],
+            "Levi's": ["levi's", "levis"],
+            "Hugo Boss": ["hugo boss", "boss "],
+            "Dolce & Gabbana": ["dolce", "gabbana", "d&g"],
+            "Prada": ["prada"],
+            "Versace": ["versace"],
+            "Armani": ["armani", "giorgio armani"],
+            "Guess": ["guess"],
+            "Michael Kors": ["michael kors", "mk "],
+            "Coach": ["coach"],
+            "Fossil": ["fossil"],
+            "Daniel Wellington": ["daniel wellington", "dw "],
+            "Anker": ["anker"],
+            "Logitech": ["logitech"],
+            "JBL": ["jbl"],
+            "Bose": ["bose"],
+            "Beats": ["beats", "beats by dre"],
+            "Sennheiser": ["sennheiser"],
+            "Philips": ["philips"],
+            "Braun": ["braun"],
+            "Dyson": ["dyson"],
+            "Nespresso": ["nespresso"],
+            "KitchenAid": ["kitchenaid"],
+            "Tefal": ["tefal", "t-fal"],
+            "Kenwood": ["kenwood"],
+            "Bosch": ["bosch"],
+            "Siemens": ["siemens"],
+            "LG": ["lg ", "life's good"],
+            "Panasonic": ["panasonic"],
+            "Sharp": ["sharp"],
+            "Toshiba": ["toshiba"],
+            "Hitachi": ["hitachi"],
+            "Whirlpool": ["whirlpool"],
+            "Samsung": ["samsung"],
+            "Huawei": ["huawei"],
+            "Xiaomi": ["xiaomi", "mi "],
+            "Oppo": ["oppo"],
+            "Vivo": ["vivo"],
+            "Realme": ["realme"],
+            "OnePlus": ["oneplus"],
+            "Nokia": ["nokia"],
+            "Motorola": ["motorola"],
+            "Lenovo": ["lenovo"],
+            "HP": ["hp ", "hewlett packard"],
+            "Dell": ["dell"],
+            "Asus": ["asus"],
+            "Acer": ["acer"],
+            "MSI": ["msi"],
+            "Razer": ["razer"],
+            "Alienware": ["alienware"],
+            "Corsair": ["corsair"],
+            "SteelSeries": ["steelseries"],
+            "HyperX": ["hyperx"],
+            "BenQ": ["benq"],
+            "ViewSonic": ["viewsonic"],
+            "Epson": ["epson"],
+            "Canon": ["canon"],
+            "Nikon": ["nikon"],
+            "Fujifilm": ["fujifilm", "fuji"],
+            "GoPro": ["gopro"],
+            "DJI": ["dji"],
         }
         
         self.female_keywords = [
@@ -70,64 +191,29 @@ class SmartGenerator:
             "for her", "hers", "she", "madam", "miss", "mrs", "ms",
         ]
         
+        # قوالب قصيرة ومختلفة للستات
         self.templates_female = [
-            "{emoji} {product} من {brand}\n\n{price}\n{cta}",
-            "{emoji} وصل حديثاً: {product} ✨\n\n{price}\n{cta}",
-            "{emoji} يا هلا بالأناقة! {product}\n\n{price}\n{cta}",
-            "{emoji} {product} 💕\n\n{price}\n{cta}",
-            "{emoji} خصم حصري على {product}\n\n{price}\n{cta}",
-            "{emoji} {product} بجودة عالية\n\n{price}\n{cta}",
-            "{emoji} لا يفوتكِ: {product}\n\n{price}\n{cta}",
-            "{emoji} {product} الأكثر مبيعاً 🔥\n\n{price}\n{cta}",
-            "{emoji} عرض محدود ⏰ {product}\n\n{price}\n{cta}",
-            "{emoji} الكمية محدودة! {product}\n\n{price}\n{cta}",
-            "{emoji} ينتهي اليوم: {product}\n\n{price}\n{cta}",
-            "{emoji} رشحنا لكِ: {product}\n\n{price}\n{cta}",
-            "{emoji} الأفضل مبيعاً: {product}\n\n{price}\n{cta}",
-            "{emoji} تجربة عملاء: {product}\n\n{price}\n{cta}",
-            "{emoji} قبل ما ينتهي: {product}\n\n{price}\n{cta}",
-            "{emoji} آخر فرصة! {product}\n\n{price}\n{cta}",
-            "{emoji} نفذت الكمية قريباً: {product}\n\n{price}\n{cta}",
+            "{emoji} {product} {brand}",
+            "{emoji} {product} من {brand}",
+            "{emoji} وصل: {product} {brand}",
+            "{emoji} {product} الأنيق {brand}",
+            "{emoji} {product} الفاخر {brand}",
+            "{emoji} {product} المميز {brand}",
+            "{emoji} {product} الأصلي {brand}",
         ]
         
+        # قوالب للرجالة
         self.templates_male = [
-            "{emoji} {product} من {brand}\n\n{price}\n{cta}",
-            "{emoji} وصل: {product} ⚡\n\n{price}\n{cta}",
-            "{emoji} {product} بأفضل سعر\n\n{price}\n{cta}",
-            "{emoji} {product} الأصلي\n\n{price}\n{cta}",
-            "{emoji} عرض مميز: {product}\n\n{price}\n{cta}",
-            "{emoji} {product} بجودة عالية\n\n{price}\n{cta}",
-            "{emoji} لا يفوتك: {product}\n\n{price}\n{cta}",
-            "{emoji} {product} الأكثر مبيعاً 🔥\n\n{price}\n{cta}",
-            "{emoji} عرض محدود ⏰ {product}\n\n{price}\n{cta}",
-            "{emoji} الكمية محدودة! {product}\n\n{price}\n{cta}",
-            "{emoji} قبل ما ينتهي: {product}\n\n{price}\n{cta}",
+            "{emoji} {product} {brand}",
+            "{emoji} {product} من {brand}",
+            "{emoji} وصل: {product} {brand}",
+            "{emoji} {product} الأصلي {brand}",
+            "{emoji} {product} المميز {brand}",
+            "{emoji} {product} الاحترافي {brand}",
         ]
         
-        self.cta_female = [
-            "👉 اشتري الآن",
-            "👉 اضغطي للطلب",
-            "👉 حصلي عليه",
-            "👉 سارعي بالشراء",
-            "👉 احجزي قبل ينتهي",
-            "👉 اطلبي بسرعة",
-            "👉 لا تفوتي الفرصة",
-            "👉 تسوقي الآن",
-        ]
-        
-        self.cta_male = [
-            "👉 اشتري الآن",
-            "👉 اضغط للطلب",
-            "👉 احصل عليه",
-            "👉 سارع بالشراء",
-            "👉 احجز قبل ينتهي",
-            "👉 اطلب بسرعة",
-            "👉 لا تفوت الفرصة",
-            "👉 تسوق الآن",
-        ]
-        
-        self.emojis_female = ["💕", "✨", "🌸", "💎", "🦋", "🌺", "💖", "👜", "💄", "👗", "🛍️", "🎀"]
-        self.emojis_male = ["💥", "⚡", "🔥", "📱", "💻", "🎧", "📸", "⌚", "🎯", "💪", "🛒", "🏆"]
+        self.emojis_female = ["✨", "💎", "👑", "🌸", "💖", "👜", "💄", "👗", "🛍️", "🎀", "🌟", "💫"]
+        self.emojis_male = ["🔥", "⚡", "💪", "🎯", "🏆", "🚀", "⭐", "👊", "🎮", "📱", "💻", "⌚"]
     
     def is_female(self, title):
         t = title.lower()
@@ -144,59 +230,108 @@ class SmartGenerator:
                 return brand
         return None
     
-    def clean_name(self, title, brand):
-        name = title
+    def translate_product_name(self, title, brand):
+        """يترجم اسم المنتج للعربي بشكل ذكي"""
+        t = title.lower()
+        
+        # نشيل البراند من العنوان
         if brand:
-            name = re.sub(brand, "", name, flags=re.IGNORECASE)
+            t = re.sub(brand, "", t, flags=re.IGNORECASE)
         
+        # نشيل الكلمات المشتركة الزايدة
         junk = ["with", "and", "the", "for", "new", "original", "genuine", "official", 
-                "men", "women", "man", "woman", "male", "female", "unisex"]
+                "men", "women", "man", "woman", "male", "female", "unisex", "edition",
+                "version", "model", "series", "pack", "set", "kit", "bundle"]
         for j in junk:
-            name = re.sub(r"\b" + j + r"\b", "", name, flags=re.IGNORECASE)
+            t = re.sub(r"\b" + j + r"\b", "", t, flags=re.IGNORECASE)
         
-        name = re.sub(r"\s+", " ", name).strip()
-        words = name.split()
-        return " ".join(words[:5]) if len(words) > 5 else name
+        # نترجم الكلمات المتاحة
+        words = t.split()
+        translated_words = []
+        
+        for word in words:
+            clean_word = re.sub(r'[^\w]', '', word.lower())
+            if clean_word in TRANSLATIONS:
+                translated_words.append(TRANSLATIONS[clean_word])
+            elif len(clean_word) > 2:  # نحتفظ بالكلمات الإنجليزية المهمة
+                # نحاول نبسط
+                if any(char.isdigit() for char in clean_word):  # موديلات زي iPhone 15
+                    translated_words.append(word)
+        
+        # لو مفيش ترجمة، نرجع أول 3 كلمات من العنوان الأصلي
+        if not translated_words:
+            original_words = title.split()
+            # نشيل البراند
+            if brand:
+                original_words = [w for w in original_words if brand.lower() not in w.lower()]
+            return " ".join(original_words[:3]) if len(original_words) > 3 else title
+        
+        # نرجع 2-3 كلمات بس
+        return " ".join(translated_words[:3])
+    
+    def clean_brand(self, brand):
+        """تنظيف اسم البراند للعرض"""
+        if not brand:
+            return ""
+        return f"({brand})"
     
     def format_price(self, price, old_price):
+        """تنسيق السعر: السعر القديم في سطر والجديد في سطر تاني"""
         if old_price and price:
             try:
-                old = float(re.findall(r"[\d,.]+", old_price)[0].replace(",", ""))
-                new = float(re.findall(r"[\d,.]+", price)[0].replace(",", ""))
-                if old > new:
-                    disc = int(((old - new) / old) * 100)
-                    return f"~~{int(old):,}~~ ريال\n*{int(new):,}* ريال (-{disc}%) 🏷️"
+                # نستخرج الأرقام
+                old_nums = re.findall(r"[\d,.]+", old_price)
+                new_nums = re.findall(r"[\d,.]+", price)
+                
+                if old_nums and new_nums:
+                    old_val = float(old_nums[0].replace(",", ""))
+                    new_val = float(new_nums[0].replace(",", ""))
+                    
+                    if old_val > new_val:
+                        disc = int(((old_val - new_val) / old_val) * 100)
+                        # السطر الأول: السعر القديم مع ❌
+                        # السطر الثاني: السعر الجديد مع نسبة الخصم
+                        return f"❌ ~~{int(old_val):,}~~ ريال\n🔥 *{int(new_val):,}* ريال (-{disc}%)"
             except:
                 pass
         
+        # لو مفيش خصم أو فشل التحليل
         try:
-            num = float(re.findall(r"[\d,.]+", price)[0].replace(",", ""))
-            return f"*{int(num):,}* ريال 🏷️"
+            nums = re.findall(r"[\d,.]+", price)
+            if nums:
+                val = float(nums[0].replace(",", ""))
+                return f"🔥 *{int(val):,}* ريال"
         except:
-            return price
+            pass
+        
+        return f"🔥 {price}"
     
     def generate(self, title, price, old_price, original_url):
         is_female = self.is_female(title)
-        brand = self.get_brand(title) or "ماركة مميزة"
-        product = self.clean_name(title, brand)
+        brand = self.get_brand(title)
         
+        # نترجم اسم المنتج
+        product_ar = self.translate_product_name(title, brand)
+        
+        # نجهز البراند
+        brand_str = self.clean_brand(brand) if brand else ""
+        
+        # نختار الإيموجي والقالب
         if is_female:
             emoji = random.choice(self.emojis_female)
             template = random.choice(self.templates_female)
-            cta = random.choice(self.cta_female)
         else:
             emoji = random.choice(self.emojis_male)
             template = random.choice(self.templates_male)
-            cta = random.choice(self.cta_male)
         
-        price_str = self.format_price(price, old_price)
+        # نبني السطر الأول
+        line1 = template.format(emoji=emoji, product=product_ar, brand=brand_str)
         
-        post = template.format(
-            emoji=emoji, brand=brand, product=product, 
-            price=price_str, cta=cta
-        )
+        # نبني السطر الثاني (السعر)
+        line2 = self.format_price(price, old_price)
         
-        post += f"\n\n🔗 {original_url}"
+        # البوست النهائي: سطرين فقط + اللينك
+        post = f"{line1}\n\n{line2}\n\n🔗 {original_url}"
         
         return post
 
@@ -212,7 +347,6 @@ def get_random_headers():
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
         "Cache-Control": "max-age=0",
         "Referer": "https://www.google.com/",
     }
@@ -271,7 +405,6 @@ def get_high_quality_image(soup):
         pass
     return None
 
-# ===== الطريقة 1: Google Cache =====
 def get_from_google_cache(asin, domain):
     try:
         url = f"https://webcache.googleusercontent.com/search?q=cache:https://{domain}/dp/{asin}"
@@ -294,7 +427,6 @@ def get_from_google_cache(asin, domain):
         print(f"Google cache error: {e}")
     return None
 
-# ===== الطريقة 2: textise dot iitty =====
 def get_from_textise(asin, domain):
     try:
         url = f"https://r.jina.ai/http://{domain}/dp/{asin}"
@@ -303,11 +435,9 @@ def get_from_textise(asin, domain):
         
         if r.status_code == 200:
             text = r.text
-            # jina.ai بيرجع نص مرتب، نحاول نستخرج منه
             lines = [l.strip() for l in text.split('\n') if l.strip()]
             if len(lines) >= 2:
                 title = lines[0][:200]
-                # البحث عن سعر في النص
                 price_match = re.search(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:SAR|USD|\$|ريال)', text)
                 price = price_match.group(1) + " ريال" if price_match else "غير متوفر"
                 
@@ -321,12 +451,10 @@ def get_from_textise(asin, domain):
         print(f"Textise error: {e}")
     return None
 
-# ===== الطريقة 3: curl impersonate (أقوى) =====
 def get_with_curl(asin, domain):
     try:
         url = f"https://{domain}/dp/{asin}"
         
-        # curl impersonate بيقلد Chrome بالضبط
         cmd = [
             "curl", "--silent", "--location",
             "--header", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -336,10 +464,6 @@ def get_with_curl(asin, domain):
             "--header", "DNT: 1",
             "--header", "Connection: keep-alive",
             "--header", "Upgrade-Insecure-Requests: 1",
-            "--header", "Sec-Fetch-Dest: document",
-            "--header", "Sec-Fetch-Mode: navigate",
-            "--header", "Sec-Fetch-Site: none",
-            "--header", "Sec-Fetch-User: ?1",
             "--compressed",
             "--max-time", "20",
             url
@@ -364,7 +488,6 @@ def get_with_curl(asin, domain):
         print(f"Curl error: {e}")
     return None
 
-# ===== الطريقة 4: Amazon Smile (أقل حماية) =====
 def get_from_smile(asin, domain):
     try:
         smile_domain = "smile.amazon.com" if "amazon.com" in domain else "smile.amazon.sa"
@@ -390,7 +513,6 @@ def get_from_smile(asin, domain):
         print(f"Smile error: {e}")
     return None
 
-# ===== المحاولة المباشرة الأخيرة =====
 def get_direct(asin, domain):
     try:
         url = f"https://{domain}/dp/{asin}"
@@ -416,7 +538,6 @@ def get_direct(asin, domain):
         print(f"Direct error: {e}")
     return None
 
-# ===== الدالة الرئيسية =====
 def get_product(asin, domain):
     methods = [
         ("Google Cache", get_from_google_cache),
@@ -485,8 +606,7 @@ def handler(msg):
                 "❌ فشل في جلب المنتج من كل المصادر.\n\n"
                 "جرب:\n"
                 "• تأكد أن الرابط شغال في المتصفح\n"
-                "• جرب تبعت الرابط من أمازون مباشرة مش مختصر\n"
-                "• لو المنتج محظور جغرافياً ممكن مينفعش", 
+                "• جرب تبعت الرابط من أمازون مباشرة مش مختصر", 
                 msg.chat.id, wait.message_id
             )
             continue
