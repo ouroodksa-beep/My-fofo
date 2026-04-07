@@ -5,282 +5,277 @@ import re
 import random
 import time
 import json
-from urllib.parse import parse_qs, urlparse
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
 # ===================================
-# 🎯 أسلوب اكس زون - افتتاحيات قوية
+# 🎯 جمل تسويقية سعودية عشوائية - موسعة جداً
 # ===================================
 
-OPENING_HOOKS = [
-    "العرض نزل على",
-    "وصلني عرض",
-    "تخفيض على",
-    "فرصة",
-    "عرض محدود على",
-    "سارعوا على",
-    "خصم على",
-    "🔥 عرض",
-    "✨ وصل",
-    "💥 تخفيض",
+OPENING_SENTENCES = [
+    # 🔥 صيدات والحقو
+    "والله صيدة صيدة 🎣🔥",
+    "صيدة العمر هذي 💯",
+    "صيدة ما تتعوض 🎯",
+    "الحقو الحقو قبل يروح 🏃‍♂️💨",
+    "الحقو يا جماعة الخير ⚡️",
+    "صيدة ذهبية 🏆",
+    "فرصة صيد نادرة 💎",
+    "الحقو الفرصة ذي 👊",
+    "صيدة السنة هذي 🌟",
+    "ما راح تلقى زيها أبداً 🚨",
+    "صيدة تاريخية 📉🔥",
+    "الحقو قبل الكل 🏃‍♂️🏃‍♀️",
+    "صيدة مجنونة 🤯",
+    "الحقو الحقو يا شباب 💪",
+    "صيدة العروض 💰",
+    "فرصة صيد ما تتكرر ⏰",
+    "الحقو يا ولد ⚠️",
+    "صيدة فخمة 👑",
+    "الحقو الكمية محدودة جداً 🔥",
+    "صيدة صيدة صيدة 🎣🎣🎣",
+    
+    # ⏰ عروض بتروح بسرعة
+    "ينتهي بأي لحظة ⏰⚡️",
+    "الوقت ينفد بسرعة ⏳🔥",
+    "لا تنام عليه 🚨🚨",
+    "ينتهي اليوم 🌙",
+    "العرض ينتهي بسرعة 💨",
+    "فرصة لحظية ⚡️",
+    "الحقو قبل ينتهي العرض ⏰",
+    "ينتهي خلال ساعات ⏳",
+    "الوقت ضيق جداً 🚨",
+    "العرض محدود الوقت ⏰💥",
+    "ينتهي بدون سابق إنذار ⚠️",
+    "الحقو الحين 🏃‍♂️",
+    "ما في وقت للتفكير 🤔❌",
+    "قرر الحين أو ندم بكرة 😢",
+    "العرض على وشك الانتهاء 🔥",
+    "الكمية قليلة والوقت ينفد ⚡️",
+    "الحقو الفرصة الأخيرة 🎯",
+    "ينتهي قبل ما تلحق 🚨",
+    "الوقت ما ينتظر أحد ⏳",
+    "العرض يروح بسرعة البرق ⚡️",
+    
+    # 💥 إثارة وحماس
+    "سعر خرافي صراحة 🔥🔥",
+    "ما شاء الله تبارك الله السعر حلو 💥",
+    "والله صفقة ما تتفوت 🎯",
+    "عرض ناري وما يتكرر 🔥🔥🔥",
+    "الحين أو لا 💪💪",
+    "ببلاش تقريباً 😍🎉",
+    "تخفيض مجنون 👌👌",
+    "صفقة العمر هذي 💯🏆",
+    "الكمية قليلة جداً ⚠️⚠️",
+    "خذه فوراً 💨💨",
+    "هاته الحين قبل يروح 🏃‍♂️💨",
+    "ما راح تلقى مثله 👀👀",
+    "سعر تاريخي 📉🔥",
+    "فرصة لا تعوض أبداً 💎💎",
+    "احجز قبل الكل 🏆🥇",
+    "المنتج مطلوب جداً 🔥🔥",
+    "سعر جنوني 🤯",
+    "صفقة مجنونة 💥💥",
+    "السعر كأنه غلطة 😂",
+    "هذا سعر ولا حلم؟ 💭",
+    
+    # 🎯 حماس سعودي أصيل
+    "يا أخي الحقو 🙏",
+    "والله العظيم صفقة 👌",
+    "ما راح تندم أبداً 💯",
+    "ثقة في الله واشتري 🤲",
+    "السعر يتكلم 🔊",
+    "جودة وسعر منافس 💪",
+    "تبي تنتظر زيادة السعر؟ 📈❌",
+    "الحقو يا أهل الرياض 🏙️",
+    "يا أهل جدة الحقو 🌊",
+    "يا أهل مكة الحقو 🕋",
+    "يا أهل الشرقية الحقو 🌅",
+    "الحقو يا أهل السعودية 🇸🇦",
+    "عرض للسعوديين الأوفياء 💚",
+    "بسعر الجملة تقريباً 💰",
+    "أرخص من السوق بكثير 📉",
+    "توفير خرافي 💸",
+    "وفر فلوسك 💵",
+    "استغل الفرصة يا بطل 🦸‍♂️",
+    "الحقو يا صياد 🎣",
+    "صيدة الصيادين المحترفين 🏆",
+    
+    # 😱 فOMO (Fear Of Missing Out)
+    "الكل يتكلم عنه 📢",
+    "المنتج رقم 1 مبيعاً 🥇",
+    "نفذ من المخزن مرتين 🔥",
+    "الطلبات جاية من كل مكان 📦",
+    "المنتج الأشهر الحين 🔝",
+    "ترند السعودية 🇸🇦🔥",
+    "الكل يبغاه 😍",
+    "الكمية نفذت مرة وردت بصعوبة ⚠️",
+    "المنتج اللي كله يدور عليه 👀",
+    "الحقو قبل ينفذ نهائياً 🚫",
+    "آخر فرصة للحصول عليه 🎯",
+    "المنتج نادر في المخزون 📉",
+    "نفذ سريع في المرات السابقة ⚡️",
+    "الطلب مرتفع جداً 📈",
+    "الحقو قبل ما ينتهي المخزون 🚨",
+    
+    # 💪 تحفيز وحماس
+    "قرر الآن ولا تتردد ✅",
+    "التردد خسارة 💸",
+    "الفرصة ما تنتظر 🏃‍♂️",
+    "الحقو ولا تفكر كثير 🤔❌",
+    "اشتري الحين وارتح بالباقي 😌",
+    "السعر ما راح ينزل أكثر 📉❌",
+    "هذا أقل سعر ممكن 💯",
+    "السعر الأخير 🔚",
+    "ما في أرخص من كذا 👌",
+    "العرض الأقوى 💪🔥",
+    "صفقة القرن 🌍",
+    "الحقو يا صاحبي 👊",
+    "يا ولد الحقو 🏃‍♂️💨",
+    "السعر يصرخ 📢🔥",
+    "فرصة العمر لا تفوتها 🎯",
+    "الحقو واستغل 🎣",
+    "السعر يناديك 📞💰",
+    "المنتج ينتظرك 🎁",
+    "الحقو قبل الغيرك 🏃‍♂️🏃‍♂️",
+    "السعر حقيقي ومو مزح 💯",
 ]
 
-# أنماط الجمل القصيرة
-PRODUCT_PATTERNS = [
-    "{product} من {brand}",
-    "{product} - {brand}",
-    "{brand} {product}",
-]
-
-# وصف سريع
-QUICK_DESC = [
-    "جودة عالية 👌",
-    "يستاهل التجربة 🔥",
-    "منتج ممتاز 👍",
-    "خيار ذكي 💡",
-    "جودة مضمونة ✅",
-]
-
 # ===================================
-# 🔧 استخراج المقاس واللون من الرابط
-# ===================================
-
-def extract_selected_size_color(url):
-    """
-    استخراج المقاس واللون المختارين من رابط أمازون
-    """
-    selected_size = None
-    selected_color = None
-    
-    try:
-        # تحليل الرابط
-        parsed = urlparse(url)
-        params = parse_qs(parsed.query)
-        
-        # البحث عن المقاس في المعاملات المختلفة
-        size_params = ['size', 'th', 'psc']
-        for param in size_params:
-            if param in params:
-                value = params[param][0]
-                selected_size = value.replace('_', ' ').replace('-', ' ')
-                # لو الرقم 1 أو 2 إلخ، ممكن يكون index فنتركه
-                if value.isdigit() and int(value) < 10:
-                    selected_size = None
-                break
-        
-        # البحث عن اللون
-        color_params = ['color', 'colour', 'col']
-        for param in color_params:
-            if param in params:
-                value = params[param][0]
-                selected_color = value.replace('_', ' ').replace('-', ' ')
-                break
-        
-        # البحث في المسار (path) عن مقاسات مثل 40x60
-        path = parsed.path + '?' + parsed.query
-        
-        # استخراج المقاسات بالصيغة الرقمية (40x60, 50x70, إلخ)
-        size_match = re.search(r'(\d+)\s*[xX]\s*(\d+)', path)
-        if size_match and not selected_size:
-            selected_size = f"{size_match.group(1)}x{size_match.group(2)}"
-        
-        # استخراج أسماء المقاسات الشائعة
-        size_names = re.search(r'(small|medium|large|xl|xxl|xxxl|king|queen|single|twin|full|double)', path, re.IGNORECASE)
-        if size_names and not selected_size:
-            selected_size = size_names.group(1).upper()
-        
-        # استخراج الألوان الشائعة
-        color_names = re.search(r'(black|white|red|blue|green|yellow|gray|grey|brown|pink|purple|orange|beige|navy|gold|silver)', path, re.IGNORECASE)
-        if color_names and not selected_color:
-            selected_color = color_names.group(1).capitalize()
-            
-    except Exception as e:
-        print(f"Error extracting size/color: {e}")
-    
-    return selected_size, selected_color
-
-# ===================================
-# 🔧 دوال استخراج المعلومات
-# ===================================
-
-def extract_brand_and_product(title):
-    known_brands = [
-        "Apple", "Samsung", "Xiaomi", "Huawei", "Sony", "LG", "Nike", "Adidas",
-        "Puma", "Gucci", "Chanel", "Dior", "HP", "Dell", "Lenovo", "Asus",
-        "Microsoft", "Canon", "Nikon", "Bose", "JBL", "Anker", "Philips",
-        "Panasonic", "Toshiba", "Hisense", "TCL", "Dyson", "Nespresso",
-        "Ray-Ban", "Oakley", "Zara", "H&M", "Uniqlo", "Levi's", "Calvin Klein",
-        "Lacoste", "Tommy Hilfiger", "Ralph Lauren", "Under Armour", "Reebok",
-        "New Balance", "Asics", "Converse", "Vans", "The North Face", "Columbia",
-        "Patagonia", "IKEA", "Home Center", "Extra", "Jarir", "Amazon Basics",
-        "Sandisk", "Seagate", "Western Digital", "Logitech", "Razer", "Corsair",
-        "HyperX", "SteelSeries", "BenQ", "AOC", "MSI", "Gigabyte", "AMD", "Intel",
-        "NVIDIA", "PlayStation", "Xbox", "Nintendo", "GoPro", "DJI", "Fitbit",
-        "Garmin", "Apple Watch", "iPhone", "iPad", "MacBook", "AirPods", "Galaxy",
-        "Sleep", "Factory", "Luna", "Maybelline", "Loreal", "LC Waikiki"
-    ]
-    
-    title_clean = title.strip()
-    brand = None
-    product_name = title_clean
-    
-    for known_brand in known_brands:
-        if known_brand.lower() in title_clean.lower():
-            brand = known_brand
-            product_name = re.sub(r'\b' + re.escape(known_brand) + r'\b', '', title_clean, flags=re.IGNORECASE).strip()
-            product_name = re.sub(r'^(Original|New|Official|Authentic|Genuine)\s+', '', product_name, flags=re.IGNORECASE)
-            break
-    
-    if not brand:
-        words = title_clean.split()
-        if len(words) > 0:
-            potential_brand = words[0]
-            if len(potential_brand) > 2 and potential_brand.lower() not in ['the', 'new', 'original', 'for', 'with']:
-                brand = potential_brand
-                product_name = ' '.join(words[1:])
-    
-    product_name = re.sub(r'\s+', ' ', product_name).strip()
-    if len(product_name) > 60:
-        product_name = product_name[:60].rsplit(' ', 1)[0] + "..."
-    
-    return brand or "ماركة معروفة", product_name or title_clean[:50]
-
-# ===================================
-# 🔄 قاموس الترجمة
+# 🔄 قاموس ترجمة المنتجات للعربي
 # ===================================
 
 TRANSLATION_DICT = {
     "iphone": "آيفون",
     "samsung": "سامسونج",
-    "galaxy": "جالاكسي",
     "xiaomi": "شاومي",
     "huawei": "هواوي",
-    "apple": "آبل",
-    "sony": "سوني",
-    "lg": "إل جي",
-    "nike": "نايك",
-    "adidas": "أديداس",
-    "puma": "بوما",
-    "gucci": "غوتشي",
-    "chanel": "شانيل",
-    "dior": "ديور",
-    "hp": "إتش بي",
-    "dell": "ديل",
-    "lenovo": "لينوفو",
-    "asus": "أسوس",
-    "microsoft": "مايكروسوفت",
-    "canon": "كانون",
-    "nikon": "نيكون",
-    "bose": "بوز",
-    "jbl": "جي بي إل",
-    "anker": "أنكر",
-    "philips": "فيليبس",
-    "panasonic": "باناسونيك",
-    "toshiba": "توشيبا",
-    "hisense": "هايسنس",
-    "tcl": "تي سي إل",
-    "dyson": "دايسون",
-    "nespresso": "نسبريسو",
-    "ray-ban": "راي بان",
-    "oakley": "أوكلي",
-    "zara": "زارا",
-    "h&m": "إتش آند إم",
-    "uniqlo": "يونيكلو",
-    "levi's": "ليفايز",
-    "calvin klein": "كالفن كلاين",
-    "lacoste": "لاكوست",
-    "tommy hilfiger": "تومي هيلفيغر",
-    "ralph lauren": "رالف لورين",
-    "under armour": "أندر أرمور",
-    "reebok": "ريبوك",
-    "new balance": "نيو بالانس",
-    "asics": "أسيكس",
-    "converse": "كونفرس",
-    "vans": "فانس",
-    "the north face": "ذا نورث فيس",
-    "columbia": "كولومبيا",
-    "patagonia": "باتاغونيا",
-    "ikea": "إيكيا",
-    "sandisk": "سانديسك",
-    "seagate": "سيغيت",
-    "western digital": "ويسترن ديجيتال",
-    "logitech": "لوجيتك",
-    "razer": "ريزر",
-    "corsair": "كورسير",
-    "hyperx": "هايبر إكس",
-    "steelseries": "ستيل سيريز",
-    "benq": "بينكيو",
-    "aoc": "إي أو سي",
-    "msi": "إم إس آي",
-    "gigabyte": "جيجابايت",
-    "amd": "إيه إم دي",
-    "intel": "إنتل",
-    "nvidia": "إنفيديا",
-    "playstation": "بلاي ستيشن",
-    "xbox": "إكس بوكس",
-    "nintendo": "نينتندو",
-    "gopro": "غو برو",
-    "dji": "دي جي آي",
-    "fitbit": "فيتبيت",
-    "garmin": "جارمين",
     "airpods": "سماعات آيربودز",
+    "earbuds": "سماعات أذن",
+    "headphones": "سماعات رأس",
+    "laptop": "لابتوب",
     "macbook": "ماك بوك",
+    "tablet": "تابلت",
     "ipad": "آيباد",
-    "apple watch": "ساعة آبل",
-    "airpods pro": "آيربودز برو",
-    "airpods max": "آيربودز ماكس",
-    "sleep": "سليب",
-    "factory": "فاكتوري",
-    "luna": "لونا",
-    "maybelline": "ميبيلين",
-    "loreal": "لوريال",
-    "lc waikiki": "ال سي وايكيكي",
+    "watch": "ساعة ذكية",
+    "smartwatch": "ساعة ذكية",
+    "charger": "شاحن",
+    "cable": "كيبل",
+    "power bank": "باور بانك",
+    "battery": "بطارية",
+    "screen": "شاشة",
+    "monitor": "شاشة عرض",
+    "keyboard": "كيبورد",
+    "mouse": "ماوس",
+    "camera": "كاميرا",
+    "speaker": "سماعة",
+    "tv": "تلفزيون",
+    "television": "تلفزيون",
+    "router": "راوتر",
+    "modem": "مودم",
+    "shoes": "حذاء",
+    "shoe": "حذاء",
+    "sneakers": "حذاء رياضي",
+    "boots": "بوت",
+    "sandals": "صندل",
+    "slippers": "شبشب",
+    "t-shirt": "تيشيرت",
+    "shirt": "قميص",
+    "pants": "بنطلون",
+    "jeans": "جينز",
+    "jacket": "جاكيت",
+    "hoodie": "هودي",
+    "dress": "فستان",
+    "skirt": "تنورة",
+    "socks": "شرابات",
+    "cap": "كاب",
+    "hat": "قبعة",
+    "bag": "شنطة",
+    "backpack": "حقيبة ظهر",
+    "wallet": "محفظة",
+    "perfume": "عطر",
+    "fragrance": "عطر",
+    "oud": "عود",
+    "musk": "مسك",
+    "cream": "كريم",
+    "lotion": "لوشن",
+    "shampoo": "شامبو",
+    "conditioner": "بلسم",
+    "soap": "صابون",
+    "refrigerator": "ثلاجة",
+    "fridge": "ثلاجة",
+    "washing machine": "غسالة",
+    "vacuum cleaner": "مكنسة كهربائية",
+    "air conditioner": "مكيف",
+    "ac": "مكيف",
+    "heater": "دفاية",
+    "fan": "مروحة",
+    "blender": "خلاط",
+    "mixer": "عجانة",
+    "oven": "فرن",
+    "microwave": "مايكرويف",
+    "toaster": "محمصة",
+    "kettle": "غلاية",
+    "coffee maker": "ماكينة قهوة",
+    "iron": "مكواة",
+    "hair dryer": "سشوار",
+    "chair": "كرسي",
+    "table": "طاولة",
+    "desk": "مكتب",
+    "bed": "سرير",
+    "sofa": "كنبة",
+    "couch": "كنبة",
+    "lamp": "لمبة",
+    "light": "إضاءة",
+    "mirror": "مرآة",
+    "carpet": "سجادة",
+    "curtain": "ستارة",
+    "treadmill": "سير كهربائي",
+    "dumbbell": "دامبل",
+    "yoga mat": "حصيرة يوغا",
+    "bicycle": "دراجة",
+    "ball": "كرة",
+    "toys": "ألعاب",
+    "toy": "لعبة",
+    "baby": "أطفال",
+    "kids": "أطفال",
+    "stroller": "عربة أطفال",
+    "car seat": "كرسي سيارة للأطفال",
+    "car": "سيارة",
+    "tire": "إطار",
+    "oil": "زيت",
+    "cleaner": "منظف",
     "wireless": "لاسلكي",
     "bluetooth": "بلوتوث",
     "smart": "ذكي",
+    "digital": "رقمي",
+    "electric": "كهربائي",
+    "automatic": "أوتوماتيك",
+    "portable": "محمول",
+    "professional": "احترافي",
+    "original": "أصلي",
+    "new": "جديد",
     "pro": "برو",
     "max": "ماكس",
     "plus": "بلس",
     "ultra": "ألترا",
-    "original": "أصلي",
-    "new": "جديد",
-    "pillow": "مخدة",
-    "milk powder": "حليب مجفف",
+    "mini": "ميني",
+    "premium": "بريميوم",
+    "deluxe": "ديلوكس",
+    "unisex": "للجنسين",
+    "adult": "للبالغين",
+    "men": "رجالي",
+    "women": "نسائي",
     "black": "أسود",
     "white": "أبيض",
-    "red": "أحمر",
     "blue": "أزرق",
+    "red": "أحمر",
     "green": "أخضر",
-    "yellow": "أصفر",
-    "gray": "رمادي",
-    "grey": "رمادي",
-    "brown": "بني",
-    "pink": "وردي",
-    "purple": "بنفسجي",
-    "orange": "برتقالي",
-    "beige": "بيج",
-    "navy": "كحلي",
-    "gold": "ذهبي",
-    "silver": "فضي",
-    "small": "صغير",
-    "medium": "وسط",
-    "large": "كبير",
-    "xl": "XL",
-    "xxl": "XXL",
-    "xxxl": "XXXL",
-    "king": "كينج",
-    "queen": "كوين",
-    "single": "فردي",
-    "twin": "توين",
-    "full": "فول",
-    "double": "مزدوج",
 }
 
+
 def translate_to_arabic(text):
-    if not text:
-        return text
     text_lower = text.lower()
     words = text_lower.split()
     translated_words = []
@@ -296,6 +291,26 @@ def translate_to_arabic(text):
     result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
     return result
 
+
+def smart_arabic_title(full_title):
+    words = full_title.split()
+    if len(words) <= 10:
+        short_title = full_title
+    else:
+        short_words = words[:12]
+        short_title = " ".join(short_words)
+    
+    arabic_title = translate_to_arabic(short_title)
+    
+    if len(arabic_title) > 85:
+        cut_point = arabic_title.rfind(' ', 50, 85)
+        if cut_point == -1:
+            cut_point = 80
+        arabic_title = arabic_title[:cut_point] + "..."
+    
+    return arabic_title
+
+
 # ===================================
 # 🔧 دوال المساعدة
 # ===================================
@@ -310,8 +325,10 @@ def expand_url(url):
     except:
         return url
 
+
 def is_saudi_amazon(url):
     return "amazon.sa" in url.lower()
+
 
 def extract_asin(url):
     patterns = [
@@ -327,94 +344,139 @@ def extract_asin(url):
             return m.group(1)
     return None
 
+
+# ===================================
+# 💰 تنظيف السعر - بدون نقاط ولا هللات
+# ===================================
+
 def clean_price(price_text):
+    """
+    ينظف السعر ويحط رقم صحيح + ريال سعودي
+    مثال: 299.00 -> 299 ريال سعودي
+    """
     try:
-        nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
+        # نستخرج الرقم (مع الفاصلة أو النقطة)
+        nums = re.findall(r'[\d,]+(?:\.\d+)?', price_text)
         if nums:
+            # ناخذ أول رقم ونحوله لـ float ثم int (نشيل العلامة العشرية)
             num_str = nums[0].replace(",", "")
             num_float = float(num_str)
-            num_int = int(num_float)
-            return f"{num_int} ريال"
+            num_int = int(num_float)  # نشيل الهللات
+            
+            return f"{num_int} ريال سعودي"
     except:
         pass
     return price_text
 
-def get_high_quality_image(soup):
-    image = None
 
+# ===================================
+# 🖼️ استخراج صورة عالية الجودة
+# ===================================
+
+def get_high_quality_image(soup):
+    """
+    يستخرج رابط الصورة بأعلى جودة متاحة من Amazon
+    """
+    image = None
+    
+    # محاولات متعددة للحصول على أعلى جودة
+    # 1. البحث في landingImage (الصورة الرئيسية)
     img_elem = soup.select_one("#landingImage")
     if img_elem:
+        # محاولة 1: data-old-hires (أعلى جودة)
         image = img_elem.get("data-old-hires")
         
+        # محاولة 2: data-a-dynamic-image (JSON يحتوي على URLs متعددة)
         if not image:
             dynamic_data = img_elem.get("data-a-dynamic-image")
             if dynamic_data:
                 try:
                     img_dict = json.loads(dynamic_data)
+                    # نختار أكبر URL (عادة آخر واحد في القائمة)
                     if img_dict:
+                        # نرتب حسب الحجم ونختار الأكبر
                         sorted_urls = sorted(img_dict.keys(), key=lambda x: img_dict[x][0] * img_dict[x][1], reverse=True)
                         image = sorted_urls[0] if sorted_urls else None
                 except:
                     pass
         
+        # محاولة 3: src attribute (الجودة العادية)
         if not image:
             image = img_elem.get("src")
-
+    
+    # 2. البحث في صور Gallery (أحياناً تكون أحسن)
     if not image:
         gallery_img = soup.select_one("#imgTagWrapperId img")
         if gallery_img:
             image = gallery_img.get("data-old-hires") or gallery_img.get("src")
-
+    
+    # 3. البحث في meta tags (OG image - عادة جودة عالية)
     if not image:
         og_img = soup.select_one('meta[property="og:image"]')
         if og_img:
             image = og_img.get("content")
-
+    
+    # 4. تنظيف الرابط لإزالة أي parameters تقلل الجودة
     if image:
         image = clean_image_url(image)
-
+    
     return image
 
+
 def clean_image_url(url):
+    """
+    ينظف رابط الصورة ويحوله لأعلى جودة ممكنة
+    """
     if not url:
         return None
-
+    
+    # إزالة parameters الضغط والresize
+    # Amazon يستخدم _SXxxx_SYxxx_ للتحكم في الحجم
+    
+    # نحول أي صورة لـ SL1500 (أعلى جودة قياسية في Amazon)
+    # أو نستخدم SL1200 لو 1500 مش متاح
+    
     patterns_to_remove = [
-        r'_SX\d+_SY\d+_',
-        r'_SX\d+_',
-        r'_SY\d+_',
-        r'_CR\d+,\d+,\d+,\d+_',
-        r'_AC_SL\d+_',
-        r'_SCLZZZZZZZ_',
-        r'_FMwebp_',
-        r'_QL\d+_',
+        r'_SX\d+_SY\d+_',  # أبعاد محددة
+        r'_SX\d+_',        # عرض فقط
+        r'_SY\d+_',        # ارتفاع فقط
+        r'_CR\d+,\d+,\d+,\d+_',  # crop
+        r'_AC_SL\d+_',      # anti-aliasing + dimensions
+        r'_SCLZZZZZZZ_',    # zoom
+        r'_FMwebp_',         # webp format
+        r'_QL\d+_',          # quality level
     ]
-  
+    
     cleaned = url
     for pattern in patterns_to_remove:
         cleaned = re.sub(pattern, '_', cleaned)
-
+    
+    # نحول لـ SL1500 (أو SL1200) للحصول على أعلى جودة
+    # نبحث عن .jpg أو .png في الرابط
     if '_SL' not in cleaned and 'amazon' in cleaned:
+        # نضيف SL1500 قبل الامتداد
         cleaned = re.sub(r'(\.[a-zA-Z]+)(\?.*)?$', r'_SL1500\1', cleaned)
-
+    
+    # إزالة أي query parameters
     cleaned = cleaned.split('?')[0]
-
+    
     return cleaned
+
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
-
+    
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
     ]
-  
+    
     for attempt, ua in enumerate(user_agents):
         try:
             if attempt > 0:
                 time.sleep(2)
-          
+            
             headers = {
                 "User-Agent": ua,
                 "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
@@ -428,18 +490,19 @@ def get_product(asin):
             }
 
             r = requests.get(url, headers=headers, timeout=30)
-          
+            
             if r.status_code != 200 or len(r.text) < 5000:
                 continue
-          
+            
             soup = BeautifulSoup(r.text, "html.parser")
-          
+            
             title_elem = soup.select_one("#productTitle")
             if not title_elem:
                 continue
-          
+            
             full_title = title_elem.text.strip()
 
+            # السعر
             price = None
             price_selectors = [
                 ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
@@ -449,7 +512,7 @@ def get_product(asin):
                 "[data-a-color='price'] .a-offscreen",
                 ".a-price-whole"
             ]
-          
+            
             for selector in price_selectors:
                 elem = soup.select_one(selector)
                 if elem and elem.text:
@@ -457,13 +520,14 @@ def get_product(asin):
                     if any(c.isdigit() for c in price):
                         break
 
+            # السعر القديم
             old_price = None
             old_selectors = [
                 ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
                 ".a-price.a-text-price .a-offscreen",
                 ".basisPrice .a-offscreen",
             ]
-          
+            
             for selector in old_selectors:
                 elem = soup.select_one(selector)
                 if elem and elem.text:
@@ -472,8 +536,10 @@ def get_product(asin):
                         old_price = text
                         break
 
+            # ✅ الصورة عالية الجودة
             image = get_high_quality_image(soup)
 
+            # الخصم
             discount_percent = None
             try:
                 if old_price and price:
@@ -485,66 +551,44 @@ def get_product(asin):
                 pass
 
             if price:
-                return full_title, price, old_price, image, discount_percent
-                  
+                arabic_title = smart_arabic_title(full_title)
+                return arabic_title, price, old_price, image, discount_percent
+                
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
             continue
-  
+    
     return None
 
+
 # ===================================
-# ✨ توليد منشور اكس زون
+# ✨ التوليد النهائي - عشوائي تماماً
 # ===================================
 
-def generate_xzone_post(full_title, price, old_price, discount_percent, selected_size, selected_color, original_url):
-    brand, product_name = extract_brand_and_product(full_title)
-    brand_ar = translate_to_arabic(brand)
-    product_name_ar = translate_to_arabic(product_name)
+def generate_post(product_name, price, old_price, discount_percent, original_url):
+    # ✅ اختيار جملة عشوائية من القائمة الكبيرة
+    opening = random.choice(OPENING_SENTENCES)
     
-    # افتتاحية قوية
-    opening = random.choice(OPENING_HOOKS)
-    
-    # اسم المنتج
-    pattern = random.choice(PRODUCT_PATTERNS)
-    product_line = pattern.format(product=product_name_ar, brand=brand_ar)
-    
-    # بناء المنشور
-    lines = [f"{opening} {product_line}"]
-    lines.append("")  # سطر فارغ
-    
-    # إضافة المقاس المختار فقط
-    if selected_size:
-        size_ar = translate_to_arabic(selected_size)
-        lines.append(f"المقاس: {size_ar} 📏")
-        lines.append("")
-    
-    # إضافة اللون المختار فقط
-    if selected_color:
-        color_ar = translate_to_arabic(selected_color)
-        lines.append(f"اللون: {color_ar} 🎨")
-        lines.append("")
-    
-    # السعر بشكل مباشر
+    # ننظف الأسعار - بدون نقاط ولا هللات
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else None
     
+    lines = [opening]
+    lines.append("")
+    lines.append(f"🛒 {product_name}")
+    lines.append("")
+    
     if clean_old and discount_percent and discount_percent > 5:
-        lines.append(f"❌ في السوق: {clean_old}")
-        lines.append(f"✅ الآن: {clean_current} (وفر {discount_percent}%) 💥")
+        lines.append(f"❌ قبل: {clean_old}")
+        lines.append(f"✅ الحين: {clean_current} (وفر {discount_percent}%)")
     else:
         lines.append(f"💰 السعر: {clean_current}")
     
     lines.append("")
-    
-    # وصف سريع
-    desc = random.choice(QUICK_DESC)
-    lines.append(desc)
-    
-    lines.append("")
-    lines.append(f"🔗 الرابط: {original_url}")
+    lines.append(f"🔗 {original_url}")
     
     return "\n".join(lines)
+
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -552,17 +596,14 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ أرسل رابط المنتج من أمازون السعودية")
+        bot.reply_to(msg, "❌ أرسل رابط منتج")
         return
 
     for original_url in urls:
-        # استخراج المقاس واللون المختارين من الرابط الأصلي
-        selected_size, selected_color = extract_selected_size_color(original_url)
-        
         expanded = expand_url(original_url)
 
         if not is_saudi_amazon(expanded):
-            bot.reply_to(msg, "❌ الرابط يجب يكون من amazon.sa")
+            bot.reply_to(msg, "❌ الرابط لازم يكون من amazon.sa")
             continue
 
         asin = extract_asin(expanded)
@@ -575,25 +616,27 @@ def handler(msg):
         product = get_product(asin)
 
         if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ ما قدرت أقرأ المنتج", msg.chat.id, wait.message_id)
             continue
 
-        full_title, price, old_price, image, discount_percent = product
-        
+        product_name, price, old_price, image, discount_percent = product
+        post = generate_post(product_name, price, old_price, discount_percent, original_url)
+
         try:
-            post = generate_xzone_post(full_title, price, old_price, discount_percent, selected_size, selected_color, original_url)
-            
-            # إرسال الصورة مع المنشور
             if image:
                 bot.send_photo(msg.chat.id, image, caption=post)
             else:
                 bot.send_message(msg.chat.id, post)
-            
-            bot.delete_message(msg.chat.id, wait.message_id)
-            
-        except Exception as e:
-            print(f"Error: {e}")
-            bot.edit_message_text("❌ صار خطأ في الإرسال", msg.chat.id, wait.message_id)
 
-print("🤖 البوت شغال بأسلوب اكس زون...")
+            bot.delete_message(msg.chat.id, wait.message_id)
+        except Exception as e:
+            print(f"Error sending: {e}")
+            try:
+                bot.send_message(msg.chat.id, post)
+                bot.delete_message(msg.chat.id, wait.message_id)
+            except:
+                bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
+
+
+print("🤖 البوت يعمل...")
 bot.infinity_polling()
