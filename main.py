@@ -3,7 +3,6 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import random
-import time
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
@@ -42,23 +41,29 @@ def clean_title(text):
     return result
 
 
-# ================= ترجمة بسيطة =================
+# ================= ترجمة =================
 TRANSLATIONS = {
-    "shampoo": "شامبو",
-    "cream": "كريم",
     "phone": "جوال",
+    "mobile": "جوال",
     "watch": "ساعة",
     "headphones": "سماعات",
+    "earbuds": "سماعات",
     "shoes": "حذاء",
     "bag": "شنطة",
     "dress": "فستان",
     "laptop": "لابتوب",
+    "tablet": "تابلت",
     "hair": "شعر",
     "face": "وجه",
-    "skin": "بشرة"
+    "skin": "بشرة",
+    "cream": "كريم",
+    "shampoo": "شامبو",
 }
 
-def translate(text):
+def translate(text, brand=None):
+    if brand:
+        text = re.sub(brand, "", text, flags=re.IGNORECASE)
+
     words = text.split()
     result = []
 
@@ -69,20 +74,21 @@ def translate(text):
         else:
             result.append(w)
 
-    return " ".join(result)
+    return " ".join(result).strip()
 
 
-# ================= استخراج ASIN =================
-def extract_asin(url):
-    patterns = [
-        r"/dp/([A-Z0-9]{10})",
-        r"/gp/product/([A-Z0-9]{10})"
+# ================= استخراج البراند =================
+def get_brand(title):
+    brands = [
+        "Apple", "Samsung", "Sony", "Nike", "Adidas",
+        "Huawei", "Xiaomi", "Lenovo", "HP", "Dell",
+        "Chanel", "Dior", "Gucci", "Zara", "H&M",
+        "L'Oreal", "Nivea", "Dove", "Pampers", "Gillette"
     ]
 
-    for p in patterns:
-        m = re.search(p, url)
-        if m:
-            return m.group(1)
+    for brand in brands:
+        if brand.lower() in title.lower():
+            return brand
 
     return None
 
@@ -133,11 +139,15 @@ def get_product(url):
 
 # ================= توليد البوست =================
 def generate_post(title, price, url):
-    title_ar = translate(title)
+    brand = get_brand(title)
+
+    title_ar = translate(title, brand)
+
+    brand_text = f" ({brand})" if brand else ""
 
     post = f"""🔥 منتج يستحق التجربة
 
-🛒 {title_ar}
+🛒 {title_ar}{brand_text}
 
 💰 السعر: {price}
 
