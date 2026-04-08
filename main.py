@@ -15,6 +15,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
 ]
 
+# ===== قاموس ترجمة بسيط =====
 TRANSLATIONS = {
     "cabinet": "خزانة", "shelf": "رف", "organizer": "منظم", "metal": "معدني",
     "kitchen": "مطبخ", "white": "أبيض", "black": "أسود", "chair": "كرسي", "table": "طاولة",
@@ -23,6 +24,7 @@ TRANSLATIONS = {
     "oil": "زيت", "spray": "بخاخ",
 }
 
+# ===== Brands =====
 BRANDS = {
     "SONGMICS": ["songmics"], "Nike": ["nike"], "Adidas": ["adidas"], "Apple": ["iphone", "ipad", "macbook", "airpods"],
 }
@@ -31,6 +33,7 @@ OPENING_LINES = [
     "🔥 عرض مميز لا يفوت!", "✨ منتج مميز للجميع!", "💎 أفضل اختيار اليوم!", "🏆 منتج عالي الجودة بسعر ممتاز!",
 ]
 
+# ===== وظائف مساعدة =====
 def get_random_headers():
     return {"User-Agent": random.choice(USER_AGENTS)}
 
@@ -57,23 +60,15 @@ def get_high_quality_image(soup):
     try:
         img = soup.select_one("#landingImage")
         if img:
-            url = img.get("data-old-hires")
+            url = img.get("data-old-hires") or img.get("src")
             if url:
+                url = re.sub(r"\._.*_\.", ".", url)
+                url = re.sub(r"_SL\d+_", "_SL1500_", url)
                 return url
-            dyn = img.get("data-a-dynamic-image")
-            if dyn:
-                data = json.loads(dyn)
-                max_url = max(data.keys(), key=lambda x: data[x][0]*data[x][1])
-                return max_url
-            src = img.get("src")
-            if src:
-                src = re.sub(r"\._.*_\.", ".", src)
-                src = re.sub(r"_SL\d+_", "_SL1500_", src)
-                return src
         alt_images = soup.select("#altImages img")
         for alt_img in alt_images:
             src = alt_img.get("src")
-            if src and "images-na" in src:
+            if src:
                 src = src.replace("_SS40_", "_SL1500_")
                 return src
     except:
@@ -141,11 +136,28 @@ def get_product(asin, domain):
         time.sleep(0.5)
     return None
 
+# ===== الترجمة الذكية =====
+def translate_word(word):
+    w = word.lower()
+    if w in TRANSLATIONS:
+        return TRANSLATIONS[w]
+    # لو مش موجود في القاموس نعمل transliteration بسيطة
+    w_ar = ''
+    mapping = {
+        'a':'ا','b':'ب','c':'ك','d':'د','e':'ي','f':'ف','g':'ج','h':'ه','i':'ي','j':'ج',
+        'k':'ك','l':'ل','m':'م','n':'ن','o':'و','p':'ب','q':'ك','r':'ر','s':'س','t':'ت',
+        'u':'و','v':'ف','w':'و','x':'كس','y':'ي','z':'ز','0':'0','1':'1','2':'2','3':'3',
+        '4':'4','5':'5','6':'6','7':'7','8':'8','9':'9'
+    }
+    for c in word:
+        w_ar += mapping.get(c.lower(), c)
+    return w_ar
+
 def translate_product(title):
     words = title.split()
     translated = []
     for w in words:
-        translated.append(TRANSLATIONS.get(w.lower(), w))
+        translated.append(translate_word(w))
     return " ".join(translated)
 
 def get_brand(title):
