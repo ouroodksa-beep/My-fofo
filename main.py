@@ -3,640 +3,673 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import random
-import time
 import json
+import time
+import subprocess
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
-# ===================================
-# 🎯 جمل تسويقية سعودية عشوائية - موسعة جداً
-# ===================================
-
-OPENING_SENTENCES = [
-    # 🔥 صيدات والحقو
-    "والله صيدة صيدة 🎣🔥",
-    "صيدة العمر هذي 💯",
-    "صيدة ما تتعوض 🎯",
-    "الحقو الحقو قبل يروح 🏃‍♂️💨",
-    "الحقو يا جماعة الخير ⚡️",
-    "صيدة ذهبية 🏆",
-    "فرصة صيد نادرة 💎",
-    "الحقو الفرصة ذي 👊",
-    "صيدة السنة هذي 🌟",
-    "ما راح تلقى زيها أبداً 🚨",
-    "صيدة تاريخية 📉🔥",
-    "الحقو قبل الكل 🏃‍♂️🏃‍♀️",
-    "صيدة مجنونة 🤯",
-    "الحقو الحقو يا شباب 💪",
-    "صيدة العروض 💰",
-    "فرصة صيد ما تتكرر ⏰",
-    "الحقو يا ولد ⚠️",
-    "صيدة فخمة 👑",
-    "الحقو الكمية محدودة جداً 🔥",
-    "صيدة صيدة صيدة 🎣🎣🎣",
-    
-    # ⏰ عروض بتروح بسرعة
-    "ينتهي بأي لحظة ⏰⚡️",
-    "الوقت ينفد بسرعة ⏳🔥",
-    "لا تنام عليه 🚨🚨",
-    "ينتهي اليوم 🌙",
-    "العرض ينتهي بسرعة 💨",
-    "فرصة لحظية ⚡️",
-    "الحقو قبل ينتهي العرض ⏰",
-    "ينتهي خلال ساعات ⏳",
-    "الوقت ضيق جداً 🚨",
-    "العرض محدود الوقت ⏰💥",
-    "ينتهي بدون سابق إنذار ⚠️",
-    "الحقو الحين 🏃‍♂️",
-    "ما في وقت للتفكير 🤔❌",
-    "قرر الحين أو ندم بكرة 😢",
-    "العرض على وشك الانتهاء 🔥",
-    "الكمية قليلة والوقت ينفد ⚡️",
-    "الحقو الفرصة الأخيرة 🎯",
-    "ينتهي قبل ما تلحق 🚨",
-    "الوقت ما ينتظر أحد ⏳",
-    "العرض يروح بسرعة البرق ⚡️",
-    
-    # 💥 إثارة وحماس
-    "سعر خرافي صراحة 🔥🔥",
-    "ما شاء الله تبارك الله السعر حلو 💥",
-    "والله صفقة ما تتفوت 🎯",
-    "عرض ناري وما يتكرر 🔥🔥🔥",
-    "الحين أو لا 💪💪",
-    "ببلاش تقريباً 😍🎉",
-    "تخفيض مجنون 👌👌",
-    "صفقة العمر هذي 💯🏆",
-    "الكمية قليلة جداً ⚠️⚠️",
-    "خذه فوراً 💨💨",
-    "هاته الحين قبل يروح 🏃‍♂️💨",
-    "ما راح تلقى مثله 👀👀",
-    "سعر تاريخي 📉🔥",
-    "فرصة لا تعوض أبداً 💎💎",
-    "احجز قبل الكل 🏆🥇",
-    "المنتج مطلوب جداً 🔥🔥",
-    "سعر جنوني 🤯",
-    "صفقة مجنونة 💥💥",
-    "السعر كأنه غلطة 😂",
-    "هذا سعر ولا حلم؟ 💭",
-    
-    # 🎯 حماس سعودي أصيل
-    "يا أخي الحقو 🙏",
-    "والله العظيم صفقة 👌",
-    "ما راح تندم أبداً 💯",
-    "ثقة في الله واشتري 🤲",
-    "السعر يتكلم 🔊",
-    "جودة وسعر منافس 💪",
-    "تبي تنتظر زيادة السعر؟ 📈❌",
-    "الحقو يا أهل الرياض 🏙️",
-    "يا أهل جدة الحقو 🌊",
-    "يا أهل مكة الحقو 🕋",
-    "يا أهل الشرقية الحقو 🌅",
-    "الحقو يا أهل السعودية 🇸🇦",
-    "عرض للسعوديين الأوفياء 💚",
-    "بسعر الجملة تقريباً 💰",
-    "أرخص من السوق بكثير 📉",
-    "توفير خرافي 💸",
-    "وفر فلوسك 💵",
-    "استغل الفرصة يا بطل 🦸‍♂️",
-    "الحقو يا صياد 🎣",
-    "صيدة الصيادين المحترفين 🏆",
-    
-    # 😱 فOMO (Fear Of Missing Out)
-    "الكل يتكلم عنه 📢",
-    "المنتج رقم 1 مبيعاً 🥇",
-    "نفذ من المخزن مرتين 🔥",
-    "الطلبات جاية من كل مكان 📦",
-    "المنتج الأشهر الحين 🔝",
-    "ترند السعودية 🇸🇦🔥",
-    "الكل يبغاه 😍",
-    "الكمية نفذت مرة وردت بصعوبة ⚠️",
-    "المنتج اللي كله يدور عليه 👀",
-    "الحقو قبل ينفذ نهائياً 🚫",
-    "آخر فرصة للحصول عليه 🎯",
-    "المنتج نادر في المخزون 📉",
-    "نفذ سريع في المرات السابقة ⚡️",
-    "الطلب مرتفع جداً 📈",
-    "الحقو قبل ما ينتهي المخزون 🚨",
-    
-    # 💪 تحفيز وحماس
-    "قرر الآن ولا تتردد ✅",
-    "التردد خسارة 💸",
-    "الفرصة ما تنتظر 🏃‍♂️",
-    "الحقو ولا تفكر كثير 🤔❌",
-    "اشتري الحين وارتح بالباقي 😌",
-    "السعر ما راح ينزل أكثر 📉❌",
-    "هذا أقل سعر ممكن 💯",
-    "السعر الأخير 🔚",
-    "ما في أرخص من كذا 👌",
-    "العرض الأقوى 💪🔥",
-    "صفقة القرن 🌍",
-    "الحقو يا صاحبي 👊",
-    "يا ولد الحقو 🏃‍♂️💨",
-    "السعر يصرخ 📢🔥",
-    "فرصة العمر لا تفوتها 🎯",
-    "الحقو واستغل 🎣",
-    "السعر يناديك 📞💰",
-    "المنتج ينتظرك 🎁",
-    "الحقو قبل الغيرك 🏃‍♂️🏃‍♂️",
-    "السعر حقيقي ومو مزح 💯",
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
 ]
 
-# ===================================
-# 🔄 قاموس ترجمة المنتجات للعربي
-# ===================================
-
-TRANSLATION_DICT = {
-    "iphone": "آيفون",
-    "samsung": "سامسونج",
-    "xiaomi": "شاومي",
-    "huawei": "هواوي",
-    "airpods": "سماعات آيربودز",
-    "earbuds": "سماعات أذن",
-    "headphones": "سماعات رأس",
-    "laptop": "لابتوب",
-    "macbook": "ماك بوك",
-    "tablet": "تابلت",
-    "ipad": "آيباد",
-    "watch": "ساعة ذكية",
-    "smartwatch": "ساعة ذكية",
-    "charger": "شاحن",
-    "cable": "كيبل",
-    "power bank": "باور بانك",
-    "battery": "بطارية",
-    "screen": "شاشة",
-    "monitor": "شاشة عرض",
-    "keyboard": "كيبورد",
-    "mouse": "ماوس",
-    "camera": "كاميرا",
-    "speaker": "سماعة",
-    "tv": "تلفزيون",
-    "television": "تلفزيون",
-    "router": "راوتر",
-    "modem": "مودم",
-    "shoes": "حذاء",
-    "shoe": "حذاء",
-    "sneakers": "حذاء رياضي",
-    "boots": "بوت",
-    "sandals": "صندل",
-    "slippers": "شبشب",
-    "t-shirt": "تيشيرت",
-    "shirt": "قميص",
-    "pants": "بنطلون",
-    "jeans": "جينز",
-    "jacket": "جاكيت",
-    "hoodie": "هودي",
-    "dress": "فستان",
-    "skirt": "تنورة",
-    "socks": "شرابات",
-    "cap": "كاب",
-    "hat": "قبعة",
-    "bag": "شنطة",
-    "backpack": "حقيبة ظهر",
-    "wallet": "محفظة",
-    "perfume": "عطر",
-    "fragrance": "عطر",
-    "oud": "عود",
-    "musk": "مسك",
-    "cream": "كريم",
-    "lotion": "لوشن",
-    "shampoo": "شامبو",
-    "conditioner": "بلسم",
-    "soap": "صابون",
-    "refrigerator": "ثلاجة",
-    "fridge": "ثلاجة",
-    "washing machine": "غسالة",
-    "vacuum cleaner": "مكنسة كهربائية",
-    "air conditioner": "مكيف",
-    "ac": "مكيف",
-    "heater": "دفاية",
-    "fan": "مروحة",
-    "blender": "خلاط",
-    "mixer": "عجانة",
-    "oven": "فرن",
-    "microwave": "مايكرويف",
-    "toaster": "محمصة",
-    "kettle": "غلاية",
-    "coffee maker": "ماكينة قهوة",
-    "iron": "مكواة",
-    "hair dryer": "سشوار",
-    "chair": "كرسي",
-    "table": "طاولة",
-    "desk": "مكتب",
-    "bed": "سرير",
-    "sofa": "كنبة",
-    "couch": "كنبة",
-    "lamp": "لمبة",
-    "light": "إضاءة",
-    "mirror": "مرآة",
-    "carpet": "سجادة",
-    "curtain": "ستارة",
-    "treadmill": "سير كهربائي",
-    "dumbbell": "دامبل",
-    "yoga mat": "حصيرة يوغا",
-    "bicycle": "دراجة",
-    "ball": "كرة",
-    "toys": "ألعاب",
-    "toy": "لعبة",
-    "baby": "أطفال",
-    "kids": "أطفال",
-    "stroller": "عربة أطفال",
-    "car seat": "كرسي سيارة للأطفال",
-    "car": "سيارة",
-    "tire": "إطار",
-    "oil": "زيت",
-    "cleaner": "منظف",
-    "wireless": "لاسلكي",
-    "bluetooth": "بلوتوث",
-    "smart": "ذكي",
-    "digital": "رقمي",
-    "electric": "كهربائي",
-    "automatic": "أوتوماتيك",
-    "portable": "محمول",
-    "professional": "احترافي",
-    "original": "أصلي",
-    "new": "جديد",
-    "pro": "برو",
-    "max": "ماكس",
-    "plus": "بلس",
-    "ultra": "ألترا",
-    "mini": "ميني",
-    "premium": "بريميوم",
-    "deluxe": "ديلوكس",
-    "unisex": "للجنسين",
-    "adult": "للبالغين",
-    "men": "رجالي",
-    "women": "نسائي",
-    "black": "أسود",
-    "white": "أبيض",
-    "blue": "أزرق",
-    "red": "أحمر",
-    "green": "أخضر",
+# ===== قاموس ترجمة موسع =====
+TRANSLATIONS = {
+    # أجهزة منزلية
+    "vacuum": "مكنسة", "cleaner": "نظافة", "robot": "روبوت", "automatic": "أوتوماتيك",
+    "fan": "مروحة", "air": "هواء", "conditioner": "مكيف", "purifier": "منقي",
+    "heater": "دفاية", "cooler": "مبرد", "humidifier": "مرطب", "dehumidifier": "مزيل رطوبة",
+    "washer": "غسالة", "dryer": "نشافة", "dishwasher": "جلاية", "refrigerator": "ثلاجة",
+    "fridge": "ثلاجة", "freezer": "فريزر", "oven": "فرن", "microwave": "ميكروويف",
+    "blender": "خلاط", "mixer": "عجان", "toaster": "محمصة", "kettle": "غلاية",
+    "coffee": "قهوة", "maker": "صانع", "machine": "ماكينة", "espresso": "إسبريسو",
+    
+    # إلكترونيات
+    "phone": "موبايل", "smartphone": "جوال", "mobile": "موبايل", "cell": "جوال",
+    "laptop": "لابتوب", "computer": "كمبيوتر", "tablet": "تابلت", "ipad": "آيباد",
+    "headphones": "سماعات", "earbuds": "سماعات أذن", "speaker": "سماعة", "soundbar": "ساوند بار",
+    "charger": "شاحن", "cable": "كابل", "adapter": "محول", "battery": "بطارية",
+    "power": "طاقة", "bank": "بنك", "wireless": "لاسلكي", "bluetooth": "بلوتوث",
+    "watch": "ساعة", "smart": "ذكية", "band": "سوار", "tracker": "متعقب",
+    "camera": "كاميرا", "lens": "عدسة", "tripod": "ترايبود", "light": "إضاءة",
+    "tv": "تلفزيون", "television": "تلفزيون", "screen": "شاشة", "monitor": "شاشة",
+    "projector": "بروجكتور", "remote": "ريموت", "control": "تحكم",
+    
+    # أثاث وديكور
+    "furniture": "أثاث", "chair": "كرسي", "table": "طاولة", "desk": "مكتب",
+    "bed": "سرير", "sofa": "كنبة", "couch": "صوفا", "wardrobe": "دولاب",
+    "cabinet": "خزانة", "shelf": "رف", "mirror": "مراية", "lamp": "لمبة",
+    "lighting": "إضاءة", "carpet": "سجادة", "rug": "سجادة", "curtain": "ستارة",
+    "pillow": "مخدة", "mattress": "مرتبة", "blanket": "بطانية", "towel": "فوطة",
+    
+    # مطبخ وأدوات
+    "kitchen": "مطبخ", "cookware": "أدوات طبخ", "pot": "حلة", "pan": "مقلاة",
+    "knife": "سكينة", "cutlery": "أدوات مائدة", "plate": "طبق", "bowl": "بولة",
+    "cup": "كوب", "mug": "مج", "glass": "كاسة", "bottle": "زجاجة",
+    "container": "حافظة", "storage": "تخزين", "box": "صندوق", "organizer": "منظم",
+    
+    # عناية شخصية
+    "cream": "كريم", "lotion": "لوشن", "serum": "سيروم", "oil": "زيت",
+    "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون", "wash": "غسول",
+    "scrub": "مقشر", "mask": "ماسك", "sunscreen": "واقي شمس", "deodorant": "مزيل عرق",
+    "perfume": "عطر", "fragrance": " fragrance", "makeup": "ميك أب", "cosmetic": "مستحضر",
+    "lipstick": "أحمر شفاه", "mascara": "ماسكارا", "eyeliner": "آيلاينر",
+    "foundation": "فاونديشن", "concealer": "كونسيلر", "powder": "بودرة",
+    "brush": "فرشاة", "comb": "مشط", "razor": "موس حلاقة", "trimmer": "ماكينة حلاقة",
+    
+    # ملابس وأحذية
+    "shoes": "حذاء", "sneakers": "حذاء رياضي", "boots": "بوت", "sandals": "صندل",
+    "slippers": "شبشب", "heels": "كعب عالي", "dress": "فستان", "skirt": "تنورة",
+    "shirt": "قميص", "t-shirt": "تيشيرت", "pants": "بنطلون", "jeans": "جينز",
+    "jacket": "جاكيت", "coat": "معطف", "sweater": "كنزة", "hoodie": "هودي",
+    "shorts": "شورت", "socks": "جورب", "underwear": "ملابس داخلية", "pajamas": "بيجاما",
+    "suit": "بدلة", "uniform": "زي", "sportswear": "ملابس رياضية", "swimwear": "ملابس سباحة",
+    
+    # إكسسوارات
+    "bag": "شنطة", "handbag": "حقيبة يد", "backpack": "حقيبة ظهر", "wallet": "محفظة",
+    "belt": "حزام", "scarf": "وشاح", "hat": "قبعة", "cap": "كاب", "gloves": "قفازات",
+    "sunglasses": "نظارة شمسية", "glasses": "نظارة", "jewelry": "مجوهرات",
+    "necklace": "عقد", "earrings": "حلق", "bracelet": "سوار", "ring": "خاتم",
+    "watch": "ساعة", "clock": "ساعة حائط",
+    
+    # رياضة ولياقة
+    "fitness": "لياقة", "gym": "جيم", "yoga": "يوجا", "mat": "حصيرة", "ball": "كرة",
+    "dumbbell": "دامبل", "weight": "وزن", "rope": "حبل", "band": "شريط مقاومة",
+    "bicycle": "دراجة", "treadmill": "سير كهربائي", "equipment": "معدات",
+    
+    # ألعاب وهدايا
+    "toys": "ألعاب", "game": "لعبة", "puzzle": "لغز", "doll": "دمية", "car": "سيارة",
+    "gift": "هدية", "set": "طقم", "kit": "مجموعة", "box": "صندوق",
+    
+    # مستلزمات أطفال
+    "baby": "بيبي", "diaper": "حفاض", "stroller": "عربية أطفال", "crib": "سرير أطفال",
+    "bottle": "رضاعة", "pacifier": "مصاصة", "toys": "ألعاب",
+    
+    # صفات عامة
+    "new": "جديد", "original": "أصلي", "genuine": "أصلي", "official": "رسمي",
+    "premium": "بريميوم", "professional": "احترافي", "advanced": "متقدم",
+    "portable": "محمول", "compact": "مضغوط", "mini": "ميني", "small": "صغير",
+    "large": "كبير", "big": "كبير", "light": "خفيف", "heavy": "ثقيل",
+    "fast": "سريع", "quick": "سريع", "slow": "بطيء", "quiet": "هادئ", "silent": "صامت",
+    "powerful": "قوي", "strong": "قوي", "durable": "متين", "sturdy": "متين",
+    "waterproof": "مقاوم للماء", "resistant": "مقاوم", "protection": "حماية",
+    "adjustable": "قابل للتعديل", "foldable": "قابل للطي", "rechargeable": "قابل لإعادة الشحن",
+    "cordless": "لا سلكي", "wireless": "لاسلكي", "digital": "ديجيتال", "electric": "كهربائي",
+    "manual": "يدوي", "automatic": "أوتوماتيك", "smart": "ذكي", "intelligent": "ذكي",
+    
+    # ألوان
+    "black": "أسود", "white": "أبيض", "red": "أحمر", "blue": "أزرق", "green": "أخضر",
+    "yellow": "أصفر", "orange": "برتقالي", "pink": "وردي", "purple": "بنفسجي",
+    "brown": "بني", "gray": "رمادي", "grey": "رمادي", "gold": "ذهبي", "silver": "فضي",
+    "beige": "بيج", "navy": "كحلي", "turquoise": "فيروزي",
 }
 
+# ===== جمل افتتاحية سعودية =====
+OPENING_LINES_FEMALE = [
+    "الوقت ضيق جداً 🚨",
+    "لأنك تستحقين الأفضل دائماً 💎",
+    "سر جمالكِ في منتج واحد ✨",
+    "تجربة فاخرة بسعر ممتاز 🌸",
+    "منتج يستحق التجربة فعلاً 💕",
+    "للمحافظة على جمالكِ الطبيعي 🦋",
+    "اختياركِ الأمثل للعناية اليومية 🌺",
+    "جودة عالية بتكلفة معقولة 💫",
+    "بشرتكِ تستحق الأفضل دائماً ✨",
+    "لا يفوتكِ هذا العرض المميز 👑",
+]
 
-def translate_to_arabic(text):
-    text_lower = text.lower()
-    words = text_lower.split()
-    translated_words = []
+OPENING_LINES_MALE = [
+    "الوقت ضيق جداً 🚨",
+    "اختيارك الذكي للعناية الشخصية 🎯",
+    "جودة عالية بسعر ممتاز 💪",
+    "منتج يستحق التجربة فعلاً 🔥",
+    "للرجال اللي يقدرون الجودة ⚡",
+    "أداء احترافي بتكلفة معقولة 🏆",
+    "حل عملي لمظهر أكثر تميزاً 👔",
+    "تصميم عملي وأنيق في نفس الوقت 🎩",
+    "اختيارك الأمثل للاستخدام اليومي 🚀",
+    "قيمة ممتازة مقابل السعر 👌",
+]
+
+OPENING_LINES_GENERAL = [
+    "الوقت ضيق جداً 🚨",
+    "مناسب للاستخدام اليومي بدون تعقيد 🏡",
+    "جودة ممتازة بسعر unbeatable ✨",
+    "اختيارك الأمثل للعناية الشخصية 🎯",
+    "منتج يستحق التجربة فعلاً 💎",
+    "قيمة رائعة مقابل السعر 🔥",
+    "تصميم عملي وأنيق في نفس الوقت 🌟",
+    "لجميع أفراد العائلة 👨‍👩‍👧‍👦",
+    "حل مثالي للاستخدام اليومي 💫",
+    "جودة عالية بتكلفة معقولة 💪",
+    "اختيار ذكي لميزانية محدودة 🏆",
+]
+
+class SmartGenerator:
+    def __init__(self):
+        self.brands = {
+            "Apple": ["iphone", "ipad", "macbook", "airpods", "apple"],
+            "Samsung": ["samsung", "galaxy"],
+            "Sony": ["sony", "playstation", "wh-", "xm"],
+            "Nike": ["nike", "air max", "jordan"],
+            "Adidas": ["adidas", "ultraboost", "yeezy"],
+            "Chanel": ["chanel", "no.5", "coco"],
+            "Dior": ["dior", "sauvage", "jadore"],
+            "Gucci": ["gucci", "bloom"],
+            "Zara": ["zara"],
+            "H&M": ["h&m"],
+            "Shein": ["shein"],
+            "MAC": ["mac ", "lipstick"],
+            "L'Oreal": ["l'oreal", "loreal"],
+            "Maybelline": ["maybelline"],
+            "Estee Lauder": ["estee lauder"],
+            "Lancome": ["lancome"],
+            "The Ordinary": ["the ordinary"],
+            "CeraVe": ["cerave"],
+            "Neutrogena": ["neutrogena"],
+            "Olay": ["olay"],
+            "Nivea": ["nivea"],
+            "L'Oreal Paris": ["l'oreal paris"],
+            "Garnier": ["garnier"],
+            "Pond's": ["pond's", "ponds"],
+            "Vaseline": ["vaseline"],
+            "Dove": ["dove"],
+            "Lux": ["lux"],
+            "Pampers": ["pampers"],
+            "Huggies": ["huggies"],
+            "Johnsons": ["johnson's", "johnsons"],
+            "Philips": ["philips"],
+            "Braun": ["braun"],
+            "Oral-B": ["oral-b", "oralb"],
+            "Colgate": ["colgate"],
+            "Sensodyne": ["sensodyne"],
+            "Signal": ["signal"],
+            "Close Up": ["close up"],
+            "Axe": ["axe"],
+            "Old Spice": ["old spice"],
+            "Rexona": ["rexona"],
+            "Nivea Men": ["nivea men"],
+            "Gillette": ["gillette"],
+            "Schick": ["schick"],
+            "Veet": ["veet"],
+            "Xiaomi": ["xiaomi", "mi "],
+            "Huawei": ["huawei"],
+            "Anker": ["anker"],
+            "Logitech": ["logitech"],
+            "JBL": ["jbl"],
+            "Bose": ["bose"],
+            "Beats": ["beats"],
+            "X Zone": ["x zone", "اكس زون"],
+            "Timon": ["timon", "تمون"],
+            "Saudi": ["السعودي", "saudi"],
+            "iRobot": ["irobot", "roomba"],
+            "Dyson": ["dyson"],
+            "De'Longhi": ["delonghi", "de longhi"],
+            "Nespresso": ["nespresso"],
+            "Breville": ["breville"],
+            "KitchenAid": ["kitchenaid"],
+            "Tefal": ["tefal", "t-fal"],
+            "Kenwood": ["kenwood"],
+            "Bosch": ["bosch"],
+            "Siemens": ["siemens"],
+            "LG": ["lg "],
+            "Panasonic": ["panasonic"],
+            "Sharp": ["sharp"],
+            "Toshiba": ["toshiba"],
+            "Whirlpool": ["whirlpool"],
+            "Samsung": ["samsung"],
+            "Xiaomi": ["xiaomi"],
+            "Dreame": ["dreame"],
+            "Roborock": ["roborock"],
+            "Ecovacs": ["ecovacs"],
+            "Eufy": ["eufy"],
+        }
+        
+        self.female_keywords = [
+            "dress", "skirt", "blouse", "abaya", "kaftan", "robe", "lingerie",
+            "heels", "pumps", "handbag", "purse", "clutch", "jewelry", "earrings",
+            "necklace", "bracelet", "makeup", "lipstick", "mascara", "eyeliner",
+            "foundation", "concealer", "blush", "perfume", "fragrance", "skincare",
+            "cream", "serum", "moisturizer", "face mask", "hair care", "shampoo",
+            "conditioner", "nail polish", "maternity", "women", "woman", "lady",
+            "female", "girl", "for her", "hers", "she", "madam", "miss", "mrs",
+        ]
     
-    for word in words:
-        clean_word = re.sub(r'[^\w\s]', '', word)
-        if clean_word in TRANSLATION_DICT:
-            translated_words.append(TRANSLATION_DICT[clean_word])
+    def is_female(self, title):
+        t = title.lower()
+        score = sum(2 if w in t else 0 for w in self.female_keywords)
+        strong_female = ["dress", "skirt", "heels", "makeup", "lipstick", "perfume", "jewelry", "handbag", "lingerie"]
+        if any(w in t for w in strong_female):
+            return True
+        return score >= 2
+    
+    def get_brand(self, title):
+        t = title.lower()
+        for brand, keys in self.brands.items():
+            if any(k in t for k in keys):
+                return brand
+        return None
+    
+    def translate_product(self, title, brand):
+        """يترجم اسم المنتج للعربي بشكل ذكي"""
+        t = title.lower()
+        
+        # نشيل البراند
+        if brand:
+            t = re.sub(brand, "", t, flags=re.IGNORECASE)
+        
+        # نشيل الكلمات الزايدة والأرقام والوحدات
+        junk = ["with", "and", "the", "for", "new", "original", "genuine", "official",
+                "men", "women", "man", "woman", "male", "female", "unisex", "edition",
+                "version", "model", "series", "pack", "set", "kit", "bundle", 
+                "ml", "mm", "cm", "kg", "g", "l", "w", "v", "hz",
+                "all", "types", "skin", "hair", "suitable", "for", "universal",
+                "high", "low", "quality", "best", "top", "super", "ultra", "mega",
+                "in", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+                " rechargeable", " cordless", " wireless", " portable"]
+        
+        for j in junk:
+            t = re.sub(r"\b" + j + r"\b", "", t, flags=re.IGNORECASE)
+        
+        # نحذف الأرقام والرموز
+        t = re.sub(r'\d+', '', t)
+        t = re.sub(r'[^\w\s]', '', t)
+        
+        # نترجم الكلمات
+        words = t.split()
+        translated = []
+        
+        for word in words:
+            clean = word.lower().strip()
+            if not clean or len(clean) < 2:
+                continue
+            
+            if clean in TRANSLATIONS:
+                translated.append(TRANSLATIONS[clean])
+            elif clean.replace('s', '') in TRANSLATIONS:  # جمع مفرد
+                translated.append(TRANSLATIONS[clean.replace('s', '')])
+        
+        # لو مفيش ترجمة، نرجع كلمات مفيدة من العنوان الأصلي
+        if not translated:
+            original_words = title.split()
+            # ننظف الكلمات
+            clean_words = []
+            for w in original_words:
+                w_clean = re.sub(r'[^\w]', '', w)
+                if len(w_clean) > 3 and w_clean.lower() not in ['with', 'and', 'the', 'for', 'new']:
+                    if not brand or brand.lower() not in w.lower():
+                        clean_words.append(w_clean)
+            
+            # نترجم اللي نقدر عليه
+            for w in clean_words[:5]:
+                w_lower = w.lower()
+                if w_lower in TRANSLATIONS:
+                    clean_words[clean_words.index(w)] = TRANSLATIONS[w_lower]
+            
+            return " ".join(clean_words[:4]) if clean_words else "منتج مميز"
+        
+        return " ".join(translated[:5])
+    
+    def format_price(self, price, old_price):
+        """تنسيق السعر بالطريقة السعودية"""
+        # نستخرج الأرقام والعملة
+        def extract_price(text):
+            if not text:
+                return None, "ريال"
+            nums = re.findall(r"[\d,.]+", str(text))
+            currency = "ريال"
+            if "sar" in text.lower() or "ريال" in text or "saudi" in text.lower():
+                currency = "ريال سعودي"
+            elif "$" in text or "usd" in text.lower():
+                currency = "دولار"
+            
+            if nums:
+                try:
+                    # ننظف الرقم
+                    num_str = nums[0].replace(",", "")
+                    val = float(num_str)
+                    return int(val), currency
+                except:
+                    pass
+            return None, currency
+        
+        current_val, curr = extract_price(price)
+        old_val, _ = extract_price(old_price)
+        
+        print(f"Price parsing: current={current_val}, old={old_val}, curr={curr}")
+        
+        if old_val and current_val and old_val > current_val:
+            discount = int(((old_val - current_val) / old_val) * 100)
+            return f"❌ قبل: {old_val:,} {curr}\n✅ الآن: {current_val:,} {curr} (وفر {discount}%)"
+        
+        if current_val:
+            return f"💰 السعر: {current_val:,} {curr}"
+        
+        return f"💰 السعر: {price}"
+    
+    def generate(self, title, price, old_price, original_url):
+        print(f"Generating post for: {title}")
+        print(f"Price: {price}, Old: {old_price}")
+        
+        is_female = self.is_female(title)
+        brand = self.get_brand(title)
+        
+        # نختار الجملة الافتتاحية
+        if is_female:
+            opening = random.choice(OPENING_LINES_FEMALE)
         else:
-            translated_words.append(word)
-    
-    result = " ".join(translated_words)
-    result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
-    return result
+            opening = random.choice(OPENING_LINES_MALE)
+        
+        # نترجم اسم المنتج
+        product_ar = self.translate_product(title, brand)
+        print(f"Translated product: {product_ar}")
+        
+        # نبني السطر الأول (الجملة + المنتج)
+        brand_str = f" {brand}" if brand else ""
+        line1 = f"{opening}\n\n🛒 {product_ar}{brand_str}"
+        
+        # السطر الثاني (السعر)
+        line2 = self.format_price(price, old_price)
+        
+        # البوست النهائي
+        post = f"{line1}\n\n{line2}\n\n🔗 {original_url}"
+        
+        print(f"Final post:\n{post}")
+        return post
 
+def get_random_headers():
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9,ar-SA;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Cache-Control": "max-age=0",
+        "Referer": "https://www.google.com/",
+    }
 
-def smart_arabic_title(full_title):
-    words = full_title.split()
-    if len(words) <= 10:
-        short_title = full_title
-    else:
-        short_words = words[:12]
-        short_title = " ".join(short_words)
-    
-    arabic_title = translate_to_arabic(short_title)
-    
-    if len(arabic_title) > 85:
-        cut_point = arabic_title.rfind(' ', 50, 85)
-        if cut_point == -1:
-            cut_point = 80
-        arabic_title = arabic_title[:cut_point] + "..."
-    
-    return arabic_title
+def is_amazon_url(url):
+    return any(p in url.lower() for p in ["amazon.", "amzn.to", "amzn.com"])
 
-
-# ===================================
-# 🔧 دوال المساعدة
-# ===================================
-
-def expand_url(url):
+def expand_short_url(url):
     try:
-        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co']):
-            headers = {"User-Agent": "Mozilla/5.0"}
-            r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
-            return r.url
+        if "amzn.to" in url.lower():
+            session = requests.Session()
+            r = session.get(url, headers=get_random_headers(), allow_redirects=True, timeout=20)
+            if "amazon." in r.url:
+                return r.url
         return url
     except:
         return url
 
-
-def is_saudi_amazon(url):
-    return "amazon.sa" in url.lower()
-
-
 def extract_asin(url):
-    patterns = [
-        r'/dp/([A-Z0-9]{10})',
-        r'/gp/product/([A-Z0-9]{10})',
-        r'/product/([A-Z0-9]{10})',
-        r'([A-Z0-9]{10})/?$',
-        r'([A-Z0-9]{10})(?:[/?]|\b)'
-    ]
-    for p in patterns:
+    for p in [r"/dp/([A-Z0-9]{10})", r"/gp/product/([A-Z0-9]{10})", r"/([A-Z0-9]{10})(?:[/?]|$)"]:
         m = re.search(p, url)
         if m:
             return m.group(1)
     return None
 
-
-# ===================================
-# 💰 تنظيف السعر - بدون نقاط ولا هللات
-# ===================================
-
-def clean_price(price_text):
-    """
-    ينظف السعر ويحط رقم صحيح + ريال سعودي
-    مثال: 299.00 -> 299 ريال سعودي
-    """
-    try:
-        # نستخرج الرقم (مع الفاصلة أو النقطة)
-        nums = re.findall(r'[\d,]+(?:\.\d+)?', price_text)
-        if nums:
-            # ناخذ أول رقم ونحوله لـ float ثم int (نشيل العلامة العشرية)
-            num_str = nums[0].replace(",", "")
-            num_float = float(num_str)
-            num_int = int(num_float)  # نشيل الهللات
-            
-            return f"{num_int} ريال سعودي"
-    except:
-        pass
-    return price_text
-
-
-# ===================================
-# 🖼️ استخراج صورة عالية الجودة
-# ===================================
-
 def get_high_quality_image(soup):
-    """
-    يستخرج رابط الصورة بأعلى جودة متاحة من Amazon
-    """
-    image = None
-    
-    # محاولات متعددة للحصول على أعلى جودة
-    # 1. البحث في landingImage (الصورة الرئيسية)
-    img_elem = soup.select_one("#landingImage")
-    if img_elem:
-        # محاولة 1: data-old-hires (أعلى جودة)
-        image = img_elem.get("data-old-hires")
-        
-        # محاولة 2: data-a-dynamic-image (JSON يحتوي على URLs متعددة)
-        if not image:
-            dynamic_data = img_elem.get("data-a-dynamic-image")
-            if dynamic_data:
+    try:
+        img = soup.select_one("#landingImage")
+        if img:
+            url = img.get("data-old-hires")
+            if url:
+                return url
+            dyn = img.get("data-a-dynamic-image")
+            if dyn:
                 try:
-                    img_dict = json.loads(dynamic_data)
-                    # نختار أكبر URL (عادة آخر واحد في القائمة)
-                    if img_dict:
-                        # نرتب حسب الحجم ونختار الأكبر
-                        sorted_urls = sorted(img_dict.keys(), key=lambda x: img_dict[x][0] * img_dict[x][1], reverse=True)
-                        image = sorted_urls[0] if sorted_urls else None
+                    data = json.loads(dyn)
+                    max_url = max(data.keys(), key=lambda x: data[x][0] * data[x][1] if isinstance(data[x], list) and len(data[x]) >= 2 else 0)
+                    return max_url
                 except:
                     pass
+            url = img.get("src")
+            if url:
+                url = re.sub(r"\._.*_\.", ".", url)
+                url = re.sub(r"_SL\d+_", "_SL1500_", url)
+                return url
+        alt_images = soup.select("#altImages img")
+        for alt_img in alt_images:
+            url = alt_img.get("src")
+            if url and "images-na" in url:
+                url = url.replace("_SS40_", "_SL1500_")
+                return url
+    except:
+        pass
+    return None
+
+def get_from_google_cache(asin, domain):
+    try:
+        url = f"https://webcache.googleusercontent.com/search?q=cache:https://{domain}/dp/{asin}"
+        headers = get_random_headers()
+        r = requests.get(url, headers=headers, timeout=15)
         
-        # محاولة 3: src attribute (الجودة العادية)
-        if not image:
-            image = img_elem.get("src")
-    
-    # 2. البحث في صور Gallery (أحياناً تكون أحسن)
-    if not image:
-        gallery_img = soup.select_one("#imgTagWrapperId img")
-        if gallery_img:
-            image = gallery_img.get("data-old-hires") or gallery_img.get("src")
-    
-    # 3. البحث في meta tags (OG image - عادة جودة عالية)
-    if not image:
-        og_img = soup.select_one('meta[property="og:image"]')
-        if og_img:
-            image = og_img.get("content")
-    
-    # 4. تنظيف الرابط لإزالة أي parameters تقلل الجودة
-    if image:
-        image = clean_image_url(image)
-    
-    return image
-
-
-def clean_image_url(url):
-    """
-    ينظف رابط الصورة ويحوله لأعلى جودة ممكنة
-    """
-    if not url:
-        return None
-    
-    # إزالة parameters الضغط والresize
-    # Amazon يستخدم _SXxxx_SYxxx_ للتحكم في الحجم
-    
-    # نحول أي صورة لـ SL1500 (أعلى جودة قياسية في Amazon)
-    # أو نستخدم SL1200 لو 1500 مش متاح
-    
-    patterns_to_remove = [
-        r'_SX\d+_SY\d+_',  # أبعاد محددة
-        r'_SX\d+_',        # عرض فقط
-        r'_SY\d+_',        # ارتفاع فقط
-        r'_CR\d+,\d+,\d+,\d+_',  # crop
-        r'_AC_SL\d+_',      # anti-aliasing + dimensions
-        r'_SCLZZZZZZZ_',    # zoom
-        r'_FMwebp_',         # webp format
-        r'_QL\d+_',          # quality level
-    ]
-    
-    cleaned = url
-    for pattern in patterns_to_remove:
-        cleaned = re.sub(pattern, '_', cleaned)
-    
-    # نحول لـ SL1500 (أو SL1200) للحصول على أعلى جودة
-    # نبحث عن .jpg أو .png في الرابط
-    if '_SL' not in cleaned and 'amazon' in cleaned:
-        # نضيف SL1500 قبل الامتداد
-        cleaned = re.sub(r'(\.[a-zA-Z]+)(\?.*)?$', r'_SL1500\1', cleaned)
-    
-    # إزالة أي query parameters
-    cleaned = cleaned.split('?')[0]
-    
-    return cleaned
-
-
-def get_product(asin):
-    url = f"https://www.amazon.sa/dp/{asin}"
-    
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
-    ]
-    
-    for attempt, ua in enumerate(user_agents):
-        try:
-            if attempt > 0:
-                time.sleep(2)
-            
-            headers = {
-                "User-Agent": ua,
-                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Cache-Control": "max-age=0",
-                "Referer": "https://www.google.com/",
-            }
-
-            r = requests.get(url, headers=headers, timeout=30)
-            
-            if r.status_code != 200 or len(r.text) < 5000:
-                continue
-            
+        if r.status_code == 200 and "amazon" in r.text.lower():
             soup = BeautifulSoup(r.text, "html.parser")
+            title = soup.select_one("#productTitle")
+            price = soup.select_one(".a-price .a-offscreen")
+            old = soup.select_one(".a-text-price .a-offscreen")
             
-            title_elem = soup.select_one("#productTitle")
-            if not title_elem:
-                continue
-            
-            full_title = title_elem.text.strip()
+            if title:
+                return {
+                    "title": title.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
+                    "old_price": old.text.strip() if old else None,
+                    "image": get_high_quality_image(soup)
+                }
+    except Exception as e:
+        print(f"Google cache error: {e}")
+    return None
 
-            # السعر
-            price = None
-            price_selectors = [
-                ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
-                ".a-price.a-text-price.apexPriceToPay .a-offscreen",
-                ".a-price.aok-align-center .a-offscreen",
-                ".a-price .a-offscreen",
-                "[data-a-color='price'] .a-offscreen",
-                ".a-price-whole"
-            ]
-            
-            for selector in price_selectors:
-                elem = soup.select_one(selector)
-                if elem and elem.text:
-                    price = elem.text.strip()
-                    if any(c.isdigit() for c in price):
-                        break
-
-            # السعر القديم
-            old_price = None
-            old_selectors = [
-                ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
-                ".a-price.a-text-price .a-offscreen",
-                ".basisPrice .a-offscreen",
-            ]
-            
-            for selector in old_selectors:
-                elem = soup.select_one(selector)
-                if elem and elem.text:
-                    text = elem.text.strip()
-                    if text != price and any(c.isdigit() for c in text):
-                        old_price = text
-                        break
-
-            # ✅ الصورة عالية الجودة
-            image = get_high_quality_image(soup)
-
-            # الخصم
-            discount_percent = None
-            try:
-                if old_price and price:
-                    old_num = float(re.findall(r'[\d,.]+', old_price)[0].replace(",", ""))
-                    new_num = float(re.findall(r'[\d,.]+', price)[0].replace(",", ""))
-                    if old_num > new_num:
-                        discount_percent = int(((old_num - new_num) / old_num) * 100)
-            except:
-                pass
-
-            if price:
-                arabic_title = smart_arabic_title(full_title)
-                return arabic_title, price, old_price, image, discount_percent
+def get_from_textise(asin, domain):
+    try:
+        url = f"https://r.jina.ai/http://{domain}/dp/{asin}"
+        headers = get_random_headers()
+        r = requests.get(url, headers=headers, timeout=15)
+        
+        if r.status_code == 200:
+            text = r.text
+            lines = [l.strip() for l in text.split('\n') if l.strip()]
+            if len(lines) >= 2:
+                title = lines[0][:200]
+                # البحث عن سعرين (قديم وجديد)
+                prices = re.findall(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:SAR|USD|\$|ريال)', text)
+                current_price = prices[0] + " ريال" if prices else "غير متوفر"
+                old_price = prices[1] + " ريال" if len(prices) > 1 else None
                 
+                return {
+                    "title": title,
+                    "price": current_price,
+                    "old_price": old_price,
+                    "image": None
+                }
+    except Exception as e:
+        print(f"Textise error: {e}")
+    return None
+
+def get_with_curl(asin, domain):
+    try:
+        url = f"https://{domain}/dp/{asin}"
+        cmd = [
+            "curl", "--silent", "--location",
+            "--header", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "--header", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "--header", "Accept-Language: en-US,en;q=0.5",
+            "--header", "Accept-Encoding: gzip, deflate, br",
+            "--header", "DNT: 1",
+            "--header", "Connection: keep-alive",
+            "--header", "Upgrade-Insecure-Requests: 1",
+            "--compressed",
+            "--max-time", "20",
+            url
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0 and "productTitle" in result.stdout:
+            soup = BeautifulSoup(result.stdout, "html.parser")
+            title = soup.select_one("#productTitle")
+            price = soup.select_one(".a-price .a-offscreen")
+            old = soup.select_one(".a-text-price .a-offscreen")
+            
+            if title:
+                return {
+                    "title": title.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
+                    "old_price": old.text.strip() if old else None,
+                    "image": get_high_quality_image(soup)
+                }
+    except Exception as e:
+        print(f"Curl error: {e}")
+    return None
+
+def get_from_smile(asin, domain):
+    try:
+        smile_domain = "smile.amazon.com" if "amazon.com" in domain else "smile.amazon.sa"
+        url = f"https://{smile_domain}/dp/{asin}"
+        headers = get_random_headers()
+        
+        r = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+        
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, "html.parser")
+            title = soup.select_one("#productTitle")
+            price = soup.select_one(".a-price .a-offscreen")
+            old = soup.select_one(".a-text-price .a-offscreen")
+            
+            if title:
+                return {
+                    "title": title.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
+                    "old_price": old.text.strip() if old else None,
+                    "image": get_high_quality_image(soup)
+                }
+    except Exception as e:
+        print(f"Smile error: {e}")
+    return None
+
+def get_direct(asin, domain):
+    try:
+        url = f"https://{domain}/dp/{asin}"
+        headers = get_random_headers()
+        
+        session = requests.Session()
+        r = session.get(url, headers=headers, timeout=15)
+        
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, "html.parser")
+            title = soup.select_one("#productTitle")
+            price = soup.select_one(".a-price .a-offscreen")
+            old = soup.select_one(".a-text-price .a-offscreen")
+            
+            if title:
+                return {
+                    "title": title.text.strip(),
+                    "price": price.text.strip() if price else "غير متوفر",
+                    "old_price": old.text.strip() if old else None,
+                    "image": get_high_quality_image(soup)
+                }
+    except Exception as e:
+        print(f"Direct error: {e}")
+    return None
+
+def get_product(asin, domain):
+    methods = [
+        ("Google Cache", get_from_google_cache),
+        ("Textise", get_from_textise),
+        ("Curl", get_with_curl),
+        ("Amazon Smile", get_from_smile),
+        ("Direct", get_direct),
+    ]
+    
+    for name, method in methods:
+        print(f"Trying {name}...")
+        try:
+            result = method(asin, domain)
+            if result and result.get("title"):
+                print(f"✅ {name} worked!")
+                print(f"Title: {result['title'][:50]}...")
+                print(f"Price: {result.get('price')}")
+                print(f"Old Price: {result.get('old_price')}")
+                return result
         except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            continue
+            print(f"❌ {name} failed: {e}")
+        time.sleep(0.5)
     
     return None
 
-
-# ===================================
-# ✨ التوليد النهائي - عشوائي تماماً
-# ===================================
-
-def generate_post(product_name, price, old_price, discount_percent, original_url):
-    # ✅ اختيار جملة عشوائية من القائمة الكبيرة
-    opening = random.choice(OPENING_SENTENCES)
-    
-    # ننظف الأسعار - بدون نقاط ولا هللات
-    clean_current = clean_price(price)
-    clean_old = clean_price(old_price) if old_price else None
-    
-    lines = [opening]
-    lines.append("")
-    lines.append(f"🛒 {product_name}")
-    lines.append("")
-    
-    if clean_old and discount_percent and discount_percent > 5:
-        lines.append(f"❌ قبل: {clean_old}")
-        lines.append(f"✅ الحين: {clean_current} (وفر {discount_percent}%)")
-    else:
-        lines.append(f"💰 السعر: {clean_current}")
-    
-    lines.append("")
-    lines.append(f"🔗 {original_url}")
-    
-    return "\n".join(lines)
-
+gen = SmartGenerator()
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
-    text = msg.text.strip()
-    urls = re.findall(r'https?://\S+', text)
-
+    urls = re.findall(r"https?://\S+", msg.text)
+    
     if not urls:
-        bot.reply_to(msg, "❌ أرسل رابط منتج")
+        bot.reply_to(msg, "❌ ارسل رابط أمازون")
         return
-
-    for original_url in urls:
-        expanded = expand_url(original_url)
-
-        if not is_saudi_amazon(expanded):
-            bot.reply_to(msg, "❌ الرابط لازم يكون من amazon.sa")
+    
+    for url in urls:
+        if not is_amazon_url(url):
             continue
-
-        asin = extract_asin(expanded)
+        
+        wait = bot.reply_to(msg, "⏳ جاري جلب المنتج...")
+        
+        original_url = url
+        expanded_url = expand_short_url(url)
+        
+        print(f"Original: {url}")
+        print(f"Expanded: {expanded_url}")
+        
+        if expanded_url == url and "amzn.to" in url.lower():
+            bot.edit_message_text("❌ فشل في توسيع الرابط المختصر.", msg.chat.id, wait.message_id)
+            continue
+        
+        if "amazon." not in expanded_url:
+            bot.edit_message_text("❌ رابط غير صالح", msg.chat.id, wait.message_id)
+            continue
+        
+        asin = extract_asin(expanded_url)
         if not asin:
-            bot.reply_to(msg, "❌ ما قدرت أستخرج رقم المنتج")
+            bot.edit_message_text("❌ لم يتم العثور على ASIN", msg.chat.id, wait.message_id)
             continue
-
-        wait = bot.reply_to(msg, "⏳ جاري التحليل...")
-
-        product = get_product(asin)
-
-        if not product:
-            bot.edit_message_text("❌ ما قدرت أقرأ المنتج", msg.chat.id, wait.message_id)
+        
+        print(f"ASIN: {asin}")
+        
+        domain = "amazon.com" if "amazon.com" in expanded_url else "amazon.sa"
+        
+        prod = get_product(asin, domain)
+        
+        if not prod:
+            bot.edit_message_text(
+                "❌ فشل في جلب المنتج.\n\n"
+                "جرب تبعت الرابط من أمازون مباشرة", 
+                msg.chat.id, wait.message_id
+            )
             continue
-
-        product_name, price, old_price, image, discount_percent = product
-        post = generate_post(product_name, price, old_price, discount_percent, original_url)
-
+        
+        post = gen.generate(prod["title"], prod["price"], prod["old_price"], original_url)
+        
         try:
-            if image:
-                bot.send_photo(msg.chat.id, image, caption=post)
+            if prod["image"]:
+                bot.send_photo(msg.chat.id, prod["image"], caption=post, parse_mode="Markdown")
             else:
-                bot.send_message(msg.chat.id, post)
-
+                bot.send_message(msg.chat.id, post, parse_mode="Markdown", disable_web_page_preview=False)
             bot.delete_message(msg.chat.id, wait.message_id)
         except Exception as e:
             print(f"Error sending: {e}")
+            bot.send_message(msg.chat.id, post, parse_mode="Markdown", disable_web_page_preview=False)
             try:
-                bot.send_message(msg.chat.id, post)
                 bot.delete_message(msg.chat.id, wait.message_id)
             except:
-                bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
+                pass
 
-
-print("🤖 البوت يعمل...")
+print("🔥 البوت شغال!")
 bot.infinity_polling()
