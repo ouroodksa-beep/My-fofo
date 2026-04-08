@@ -5,6 +5,7 @@ import re
 import random
 import json
 import time
+import subprocess
 
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
@@ -15,10 +16,11 @@ USER_AGENTS = [
 ]
 
 TRANSLATIONS = {
-    "cabinet": "خزانة", "shelf": "رف", "organizer": "منظم", "metal": "معدني", "kitchen": "مطبخ",
-    "white": "أبيض", "black": "أسود", "chair": "كرسي", "table": "طاولة", "set": "طقم",
-    "bag": "شنطة", "shoes": "حذاء", "dress": "فستان", "skirt": "تنورة", "cream": "كريم",
-    "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون", "oil": "زيت", "spray": "بخاخ",
+    "cabinet": "خزانة", "shelf": "رف", "organizer": "منظم", "metal": "معدني",
+    "kitchen": "مطبخ", "white": "أبيض", "black": "أسود", "chair": "كرسي", "table": "طاولة",
+    "set": "طقم", "bag": "شنطة", "shoes": "حذاء", "dress": "فستان", "skirt": "تنورة",
+    "cream": "كريم", "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون",
+    "oil": "زيت", "spray": "بخاخ",
 }
 
 BRANDS = {
@@ -78,22 +80,65 @@ def get_high_quality_image(soup):
         pass
     return None
 
-def get_product_from_amazon(asin, domain):
-    url = f"https://{domain}/dp/{asin}"
-    headers = get_random_headers()
+# ===== طرق استخراج المنتج =====
+def get_from_google_cache(asin, domain):
     try:
-        r = requests.get(url, headers=headers, timeout=15)
+        url = f"https://webcache.googleusercontent.com/search?q=cache:https://{domain}/dp/{asin}"
+        r = requests.get(url, headers=get_random_headers(), timeout=15)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, "html.parser")
             title_tag = soup.select_one("#productTitle")
             price_tag = soup.select_one(".a-price .a-offscreen")
             if title_tag:
-                title = title_tag.text.strip()
-                price = price_tag.text.strip() if price_tag else "غير متوفر"
-                image = get_high_quality_image(soup)
-                return {"title": title, "price": price, "image": image}
-    except Exception as e:
-        print(f"Error fetching product: {e}")
+                return {
+                    "title": title_tag.text.strip(),
+                    "price": price_tag.text.strip() if price_tag else "غير متوفر",
+                    "image": get_high_quality_image(soup)
+                }
+    except:
+        pass
+    return None
+
+def get_from_textise(asin, domain):
+    try:
+        url = f"https://r.jina.ai/http://{domain}/dp/{asin}"
+        r = requests.get(url, headers=get_random_headers(), timeout=15)
+        if r.status_code == 200:
+            lines = [l.strip() for l in r.text.split('\n') if l.strip()]
+            title = lines[0][:200] if lines else "منتج"
+            prices = re.findall(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:SAR|USD|\$|ريال)', r.text)
+            current_price = prices[0] + " ريال" if prices else "غير متوفر"
+            return {"title": title, "price": current_price, "image": None}
+    except:
+        pass
+    return None
+
+def get_with_curl(asin, domain):
+    try:
+        url = f"https://{domain}/dp/{asin}"
+        cmd = ["curl", "--silent", "--location", "--header", "User-Agent: Mozilla/5.0", url]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0 and "productTitle" in result.stdout:
+            soup = BeautifulSoup(result.stdout, "html.parser")
+            title_tag = soup.select_one("#productTitle")
+            price_tag = soup.select_one(".a-price .a-offscreen")
+            if title_tag:
+                return {
+                    "title": title_tag.text.strip(),
+                    "price": price_tag.text.strip() if price_tag else "غير متوفر",
+                    "image": get_high_quality_image(soup)
+                }
+    except:
+        pass
+    return None
+
+def get_product(asin, domain):
+    methods = [get_from_google_cache, get_from_textise, get_with_curl]
+    for method in methods:
+        prod = method(asin, domain)
+        if prod and prod.get("title"):
+            return prod
+        time.sleep(0.5)
     return None
 
 def translate_product(title):
@@ -131,39 +176,29 @@ def handler(msg):
     if not urls:
         bot.reply_to(msg, "❌ ارسل رابط أمازون")
         return
-    
     for url in urls:
         if not is_amazon_url(url):
             continue
         wait = bot.reply_to(msg, "⏳ جاري جلب المنتج...")
-        
         original_url = url
         expanded_url = expand_short_url(url)
-        if "amazon." not in expanded_url:
-            bot.edit_message_text("❌ رابط غير صالح", msg.chat.id, wait.message_id)
-            continue
-        
         asin = extract_asin(expanded_url)
         if not asin:
             bot.edit_message_text("❌ لم يتم العثور على ASIN", msg.chat.id, wait.message_id)
             continue
-        
         domain = "amazon.com" if "amazon.com" in expanded_url else "amazon.sa"
-        prod = get_product_from_amazon(asin, domain)
+        prod = get_product(asin, domain)
         if not prod:
             bot.edit_message_text("❌ فشل في جلب المنتج", msg.chat.id, wait.message_id)
             continue
-        
         post = generate_post(prod, original_url)
-        
         try:
             if prod.get("image"):
                 bot.send_photo(msg.chat.id, prod["image"], caption=post)
             else:
                 bot.send_message(msg.chat.id, post)
             bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception as e:
-            print(f"Error sending: {e}")
+        except:
             bot.send_message(msg.chat.id, post)
 
 print("🔥 البوت شغال!")
