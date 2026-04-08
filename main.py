@@ -15,100 +15,85 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
 ]
 
-# ===== قاموس ترجمة موسع =====
+# ===== قاموس ترجمة بسيط وعملي =====
 TRANSLATIONS = {
-    # أجهزة منزلية
-    "vacuum": "مكنسة", "cleaner": "نظافة", "robot": "روبوت", "automatic": "أوتوماتيك",
-    "fan": "مروحة", "air": "هواء", "conditioner": "مكيف", "purifier": "منقي",
-    "heater": "دفاية", "cooler": "مبرد", "humidifier": "مرطب", "dehumidifier": "مزيل رطوبة",
-    "washer": "غسالة", "dryer": "نشافة", "dishwasher": "جلاية", "refrigerator": "ثلاجة",
-    "fridge": "ثلاجة", "freezer": "فريزر", "oven": "فرن", "microwave": "ميكروويف",
-    "blender": "خلاط", "mixer": "عجان", "toaster": "محمصة", "kettle": "غلاية",
-    "coffee": "قهوة", "maker": "صانع", "machine": "ماكينة", "espresso": "إسبريسو",
+    # عناية شخصية
+    "shampoo": "شامبو", "conditioner": "بلسم", "serum": "سيروم", "cream": "كريم",
+    "lotion": "لوشن", "oil": "زيت", "gel": "جل", "spray": "بخاخ", "wash": "غسول",
+    "soap": "صابون", "scrub": "مقشر", "mask": "ماسك", "perfume": "عطر", "deo": "مزيل عرق",
+    "toothpaste": "معجون أسنان", "brush": "فرشاة", "floss": "خيط أسنان",
+    "razor": "موس حلاقة", "trimmer": "ماكينة حلاقة", "blade": "شفرة",
+    
+    # شعر
+    "hair": "شعر", "shampoo": "شامبو", "conditioner": "بلسم", "dye": "صبغة",
+    "color": "صبغة", "styling": "تصفيف", "gel": "جل", "wax": "شمع", "mousse": "موس",
+    
+    # بشرة
+    "face": "وجه", "skin": "بشرة", "moisturizer": "مرطب", "cleanser": "منظف",
+    "toner": "تونر", "sunscreen": "واقي شمس", "lip": "شفاه", "balm": "مرطب",
+    "eye": "عين", "cream": "كريم", "anti-aging": "مكافح شيخوخة", "wrinkle": "تجاعيد",
+    "acne": "حب شباب", "pimple": "بثرة", "spot": "بقعة", "dark": "داكن",
+    "circle": "هالات", "under-eye": "تحت العين",
+    
+    # ميك أب
+    "makeup": "ميك أب", "foundation": "فاونديشن", "concealer": "كونسيلر",
+    "powder": "بودرة", "blush": "بلاشر", "bronzer": "برونزر", "highlighter": "هايلايتر",
+    "lipstick": "أحمر شفاه", "gloss": "لمعة", "mascara": "ماسكارا", "liner": "آيلاينر",
+    "shadow": "ظلال", "palette": "باليت", "makeup": "ميك أب", "remover": "مزيل",
+    
+    # أظافر
+    "nail": "أظافر", "polish": "مناكير", "varnish": "مناكير", "remover": "مزيل",
+    "file": "مبرد", "clipper": "قصاصة", "cutter": "قاطع",
     
     # إلكترونيات
-    "phone": "موبايل", "smartphone": "جوال", "mobile": "موبايل", "cell": "جوال",
-    "laptop": "لابتوب", "computer": "كمبيوتر", "tablet": "تابلت", "ipad": "آيباد",
-    "headphones": "سماعات", "earbuds": "سماعات أذن", "speaker": "سماعة", "soundbar": "ساوند بار",
-    "charger": "شاحن", "cable": "كابل", "adapter": "محول", "battery": "بطارية",
-    "power": "طاقة", "bank": "بنك", "wireless": "لاسلكي", "bluetooth": "بلوتوث",
+    "phone": "موبايل", "mobile": "جوال", "smartphone": "سنارت فون", "charger": "شاحن",
+    "cable": "كابل", "headphones": "سماعات", "earbuds": "سماعات أذن", "speaker": "سماعة",
+    "power": "باور", "bank": "بنك", "adapter": "محول", "case": "جراب", "cover": "غطاء",
+    "screen": "شاشة", "protector": "حماية", "lens": "عدسة", "camera": "كاميرا",
     "watch": "ساعة", "smart": "ذكية", "band": "سوار", "tracker": "متعقب",
-    "camera": "كاميرا", "lens": "عدسة", "tripod": "ترايبود", "light": "إضاءة",
-    "tv": "تلفزيون", "television": "تلفزيون", "screen": "شاشة", "monitor": "شاشة",
-    "projector": "بروجكتور", "remote": "ريموت", "control": "تحكم",
+    "keyboard": "كيبورد", "mouse": "ماوس", "laptop": "لابتوب", "tablet": "تابلت",
     
-    # أثاث وديكور
-    "furniture": "أثاث", "chair": "كرسي", "table": "طاولة", "desk": "مكتب",
-    "bed": "سرير", "sofa": "كنبة", "couch": "صوفا", "wardrobe": "دولاب",
-    "cabinet": "خزانة", "shelf": "رف", "mirror": "مراية", "lamp": "لمبة",
-    "lighting": "إضاءة", "carpet": "سجادة", "rug": "سجادة", "curtain": "ستارة",
-    "pillow": "مخدة", "mattress": "مرتبة", "blanket": "بطانية", "towel": "فوطة",
+    # منزل
+    "vacuum": "مكنسة", "cleaner": "نظافة", "robot": "روبوت", "fan": "مروحة",
+    "purifier": "منقي", "humidifier": "مرطب", "heater": "دفاية", "light": "لمبة",
+    "lamp": "إضاءة", "bulb": "لمبة", "battery": "بطارية",
     
-    # مطبخ وأدوات
-    "kitchen": "مطبخ", "cookware": "أدوات طبخ", "pot": "حلة", "pan": "مقلاة",
-    "knife": "سكينة", "cutlery": "أدوات مائدة", "plate": "طبق", "bowl": "بولة",
-    "cup": "كوب", "mug": "مج", "glass": "كاسة", "bottle": "زجاجة",
-    "container": "حافظة", "storage": "تخزين", "box": "صندوق", "organizer": "منظم",
+    # مطبخ
+    "blender": "خلاط", "mixer": "عجان", "toaster": "محمصة", "kettle": "غلاية",
+    "coffee": "قهوة", "maker": "ماكينة", "pot": "حلة", "pan": "مقلاة", "knife": "سكينة",
+    "plate": "طبق", "cup": "كوب", "mug": "مج", "glass": "كاسة", "bottle": "زجاجة",
     
-    # عناية شخصية
-    "cream": "كريم", "lotion": "لوشن", "serum": "سيروم", "oil": "زيت",
-    "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون", "wash": "غسول",
-    "scrub": "مقشر", "mask": "ماسك", "sunscreen": "واقي شمس", "deodorant": "مزيل عرق",
-    "perfume": "عطر", "fragrance": " fragrance", "makeup": "ميك أب", "cosmetic": "مستحضر",
-    "lipstick": "أحمر شفاه", "mascara": "ماسكارا", "eyeliner": "آيلاينر",
-    "foundation": "فاونديشن", "concealer": "كونسيلر", "powder": "بودرة",
-    "brush": "فرشاة", "comb": "مشط", "razor": "موس حلاقة", "trimmer": "ماكينة حلاقة",
-    
-    # ملابس وأحذية
-    "shoes": "حذاء", "sneakers": "حذاء رياضي", "boots": "بوت", "sandals": "صندل",
-    "slippers": "شبشب", "heels": "كعب عالي", "dress": "فستان", "skirt": "تنورة",
+    # ملابس
     "shirt": "قميص", "t-shirt": "تيشيرت", "pants": "بنطلون", "jeans": "جينز",
-    "jacket": "جاكيت", "coat": "معطف", "sweater": "كنزة", "hoodie": "هودي",
-    "shorts": "شورت", "socks": "جورب", "underwear": "ملابس داخلية", "pajamas": "بيجاما",
-    "suit": "بدلة", "uniform": "زي", "sportswear": "ملابس رياضية", "swimwear": "ملابس سباحة",
+    "dress": "فستان", "skirt": "تنورة", "jacket": "جاكيت", "coat": "معطف",
+    "shoes": "حذاء", "sneakers": "حذاء رياضي", "boots": "بوت", "sandals": "صندل",
+    "slippers": "شبشب", "socks": "جورب", "underwear": "ملابس داخلية", "belt": "حزام",
+    "hat": "قبعة", "cap": "كاب", "scarf": "وشاح", "gloves": "قفازات", "bag": "شنطة",
     
-    # إكسسوارات
-    "bag": "شنطة", "handbag": "حقيبة يد", "backpack": "حقيبة ظهر", "wallet": "محفظة",
-    "belt": "حزام", "scarf": "وشاح", "hat": "قبعة", "cap": "كاب", "gloves": "قفازات",
-    "sunglasses": "نظارة شمسية", "glasses": "نظارة", "jewelry": "مجوهرات",
-    "necklace": "عقد", "earrings": "حلق", "bracelet": "سوار", "ring": "خاتم",
-    "watch": "ساعة", "clock": "ساعة حائط",
-    
-    # رياضة ولياقة
-    "fitness": "لياقة", "gym": "جيم", "yoga": "يوجا", "mat": "حصيرة", "ball": "كرة",
-    "dumbbell": "دامبل", "weight": "وزن", "rope": "حبل", "band": "شريط مقاومة",
-    "bicycle": "دراجة", "treadmill": "سير كهربائي", "equipment": "معدات",
-    
-    # ألعاب وهدايا
-    "toys": "ألعاب", "game": "لعبة", "puzzle": "لغز", "doll": "دمية", "car": "سيارة",
-    "gift": "هدية", "set": "طقم", "kit": "مجموعة", "box": "صندوق",
-    
-    # مستلزمات أطفال
-    "baby": "بيبي", "diaper": "حفاض", "stroller": "عربية أطفال", "crib": "سرير أطفال",
+    # أطفال
+    "baby": "بيبي", "diaper": "حفاض", "wipes": "مناديل", "stroller": "عربية",
     "bottle": "رضاعة", "pacifier": "مصاصة", "toys": "ألعاب",
     
-    # صفات عامة
-    "new": "جديد", "original": "أصلي", "genuine": "أصلي", "official": "رسمي",
-    "premium": "بريميوم", "professional": "احترافي", "advanced": "متقدم",
-    "portable": "محمول", "compact": "مضغوط", "mini": "ميني", "small": "صغير",
-    "large": "كبير", "big": "كبير", "light": "خفيف", "heavy": "ثقيل",
-    "fast": "سريع", "quick": "سريع", "slow": "بطيء", "quiet": "هادئ", "silent": "صامت",
-    "powerful": "قوي", "strong": "قوي", "durable": "متين", "sturdy": "متين",
-    "waterproof": "مقاوم للماء", "resistant": "مقاوم", "protection": "حماية",
-    "adjustable": "قابل للتعديل", "foldable": "قابل للطي", "rechargeable": "قابل لإعادة الشحن",
-    "cordless": "لا سلكي", "wireless": "لاسلكي", "digital": "ديجيتال", "electric": "كهربائي",
-    "manual": "يدوي", "automatic": "أوتوماتيك", "smart": "ذكي", "intelligent": "ذكي",
+    # رياضة
+    "fitness": "لياقة", "gym": "جيم", "yoga": "يوجا", "mat": "حصيرة", "ball": "كرة",
+    "dumbbell": "دامبل", "rope": "حبل", "bicycle": "دراجة",
+    
+    # صفات
+    "digital": "رقمي", "electric": "كهربائي", "automatic": "أوتوماتيك", "manual": "يدوي",
+    "wireless": "لاسلكي", "portable": "محمول", "rechargeable": "قابل للشحن",
+    "waterproof": "مقاوم للماء", "professional": "احترافي", "original": "أصلي",
+    "new": "جديد", "quick": "سريع", "fast": "سريع", "easy": "سهل", "simple": "بسيط",
+    "soft": "ناعم", "smooth": "ملس", "fresh": "منعش", "clean": "نظيف", "clear": "واضح",
     
     # ألوان
     "black": "أسود", "white": "أبيض", "red": "أحمر", "blue": "أزرق", "green": "أخضر",
-    "yellow": "أصفر", "orange": "برتقالي", "pink": "وردي", "purple": "بنفسجي",
-    "brown": "بني", "gray": "رمادي", "grey": "رمادي", "gold": "ذهبي", "silver": "فضي",
-    "beige": "بيج", "navy": "كحلي", "turquoise": "فيروزي",
+    "yellow": "أصفر", "pink": "وردي", "purple": "بنفسجي", "brown": "بني", "gray": "رمادي",
+    "gold": "ذهبي", "silver": "فضي",
 }
 
-# ===== جمل افتتاحية سعودية =====
+# ===== جمل افتتاحية =====
 OPENING_LINES_FEMALE = [
-    "الوقت ضيق جداً 🚨",
+    "اختيارك الذكي للعناية الشخصية 🎯",
     "لأنك تستحقين الأفضل دائماً 💎",
     "سر جمالكِ في منتج واحد ✨",
     "تجربة فاخرة بسعر ممتاز 🌸",
@@ -121,7 +106,6 @@ OPENING_LINES_FEMALE = [
 ]
 
 OPENING_LINES_MALE = [
-    "الوقت ضيق جداً 🚨",
     "اختيارك الذكي للعناية الشخصية 🎯",
     "جودة عالية بسعر ممتاز 💪",
     "منتج يستحق التجربة فعلاً 🔥",
@@ -131,20 +115,20 @@ OPENING_LINES_MALE = [
     "تصميم عملي وأنيق في نفس الوقت 🎩",
     "اختيارك الأمثل للاستخدام اليومي 🚀",
     "قيمة ممتازة مقابل السعر 👌",
+    "منتج احترافي لرجل متميز 💼",
 ]
 
 OPENING_LINES_GENERAL = [
-    "الوقت ضيق جداً 🚨",
+    "اختيارك الذكي للعناية الشخصية 🎯",
     "مناسب للاستخدام اليومي بدون تعقيد 🏡",
     "جودة ممتازة بسعر unbeatable ✨",
-    "اختيارك الأمثل للعناية الشخصية 🎯",
-    "منتج يستحق التجربة فعلاً 💎",
-    "قيمة رائعة مقابل السعر 🔥",
-    "تصميم عملي وأنيق في نفس الوقت 🌟",
+    "اختيارك الأمثل للعناية الشخصية 💎",
+    "منتج يستحق التجربة فعلاً 🔥",
+    "قيمة رائعة مقابل السعر 🌟",
+    "تصميم عملي وأنيق في نفس الوقت 💫",
     "لجميع أفراد العائلة 👨‍👩‍👧‍👦",
-    "حل مثالي للاستخدام اليومي 💫",
-    "جودة عالية بتكلفة معقولة 💪",
-    "اختيار ذكي لميزانية محدودة 🏆",
+    "حل مثالي للاستخدام اليومي 💪",
+    "جودة عالية بتكلفة معقولة 🏆",
 ]
 
 class SmartGenerator:
@@ -162,7 +146,7 @@ class SmartGenerator:
             "H&M": ["h&m"],
             "Shein": ["shein"],
             "MAC": ["mac ", "lipstick"],
-            "L'Oreal": ["l'oreal", "loreal"],
+            "L'Oreal": ["l'oreal", "loreal", "l'oréal"],
             "Maybelline": ["maybelline"],
             "Estee Lauder": ["estee lauder"],
             "Lancome": ["lancome"],
@@ -170,12 +154,11 @@ class SmartGenerator:
             "CeraVe": ["cerave"],
             "Neutrogena": ["neutrogena"],
             "Olay": ["olay"],
-            "Nivea": ["nivea"],
-            "L'Oreal Paris": ["l'oreal paris"],
+            "Nivea": ["nivea", "nivea men"],
             "Garnier": ["garnier"],
             "Pond's": ["pond's", "ponds"],
             "Vaseline": ["vaseline"],
-            "Dove": ["dove"],
+            "Dove": ["dove", "dove men"],
             "Lux": ["lux"],
             "Pampers": ["pampers"],
             "Huggies": ["huggies"],
@@ -190,20 +173,18 @@ class SmartGenerator:
             "Axe": ["axe"],
             "Old Spice": ["old spice"],
             "Rexona": ["rexona"],
-            "Nivea Men": ["nivea men"],
             "Gillette": ["gillette"],
             "Schick": ["schick"],
             "Veet": ["veet"],
-            "Xiaomi": ["xiaomi", "mi "],
-            "Huawei": ["huawei"],
-            "Anker": ["anker"],
+            "Xiaomi": ["xiaomi", "mi ", "redmi", "poco"],
+            "Huawei": ["huawei", "honor"],
+            "Anker": ["anker", "soundcore", "eufy"],
             "Logitech": ["logitech"],
             "JBL": ["jbl"],
             "Bose": ["bose"],
             "Beats": ["beats"],
             "X Zone": ["x zone", "اكس زون"],
             "Timon": ["timon", "تمون"],
-            "Saudi": ["السعودي", "saudi"],
             "iRobot": ["irobot", "roomba"],
             "Dyson": ["dyson"],
             "De'Longhi": ["delonghi", "de longhi"],
@@ -219,12 +200,18 @@ class SmartGenerator:
             "Sharp": ["sharp"],
             "Toshiba": ["toshiba"],
             "Whirlpool": ["whirlpool"],
-            "Samsung": ["samsung"],
-            "Xiaomi": ["xiaomi"],
             "Dreame": ["dreame"],
             "Roborock": ["roborock"],
             "Ecovacs": ["ecovacs"],
             "Eufy": ["eufy"],
+            "Amazon Basics": ["amazon basics", "amazonbasics"],
+            "Sol de Janeiro": ["sol de janeiro"],
+            "Cetaphil": ["cetaphil"],
+            "La Roche-Posay": ["la roche-posay", "la roche posay"],
+            "Vichy": ["vichy"],
+            "Avene": ["avene"],
+            "Bioderma": ["bioderma"],
+            "Eucerin": ["eucerin"],
         }
         
         self.female_keywords = [
@@ -252,105 +239,114 @@ class SmartGenerator:
                 return brand
         return None
     
-    def translate_product(self, title, brand):
-        """يترجم اسم المنتج للعربي بشكل ذكي"""
-        t = title.lower()
-        
+    def simplify_product_name(self, title, brand):
+        """تبسيط اسم المنتج - نرجع أول 4-5 كلمات مفيدة"""
         # نشيل البراند
         if brand:
-            t = re.sub(brand, "", t, flags=re.IGNORECASE)
+            title = re.sub(brand, "", title, flags=re.IGNORECASE)
         
-        # نشيل الكلمات الزايدة والأرقام والوحدات
-        junk = ["with", "and", "the", "for", "new", "original", "genuine", "official",
-                "men", "women", "man", "woman", "male", "female", "unisex", "edition",
-                "version", "model", "series", "pack", "set", "kit", "bundle", 
-                "ml", "mm", "cm", "kg", "g", "l", "w", "v", "hz",
-                "all", "types", "skin", "hair", "suitable", "for", "universal",
-                "high", "low", "quality", "best", "top", "super", "ultra", "mega",
-                "in", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
-                " rechargeable", " cordless", " wireless", " portable"]
+        # نشيل الكلمات والرموز الزايدة
+        junk_patterns = [
+            r'\([^)]*\)',  # حذف ما بين قوسين
+            r'\[[^\]]*\]',  # حذف ما بين أقواس مربعة
+            r'\d+\s*(ml|g|kg|mm|cm|oz|lb|pcs|pieces|pack|set)',  # الأحجام والكميات
+            r'\d+',  # الأرقام
+            r'[^\w\s]',  # الرموز الخاصة
+        ]
         
-        for j in junk:
-            t = re.sub(r"\b" + j + r"\b", "", t, flags=re.IGNORECASE)
+        clean_title = title
+        for pattern in junk_patterns:
+            clean_title = re.sub(pattern, '', clean_title, flags=re.IGNORECASE)
         
-        # نحذف الأرقام والرموز
-        t = re.sub(r'\d+', '', t)
-        t = re.sub(r'[^\w\s]', '', t)
+        # نشيل الكلمات المشتركة
+        stop_words = ['with', 'and', 'the', 'for', 'new', 'original', 'genuine', 'official',
+                      'men', 'women', 'man', 'woman', 'male', 'female', 'unisex',
+                      'edition', 'version', 'model', 'series', 'type', 'style',
+                      'high', 'quality', 'best', 'top', 'super', 'ultra', 'premium',
+                      'suitable', 'all', 'skin', 'types', 'hair', 'body', 'face']
         
-        # نترجم الكلمات
-        words = t.split()
-        translated = []
+        words = clean_title.split()
+        filtered_words = []
         
         for word in words:
-            clean = word.lower().strip()
-            if not clean or len(clean) < 2:
-                continue
-            
-            if clean in TRANSLATIONS:
-                translated.append(TRANSLATIONS[clean])
-            elif clean.replace('s', '') in TRANSLATIONS:  # جمع مفرد
-                translated.append(TRANSLATIONS[clean.replace('s', '')])
+            w_lower = word.lower()
+            if len(word) > 2 and w_lower not in stop_words:
+                filtered_words.append(word)
         
-        # لو مفيش ترجمة، نرجع كلمات مفيدة من العنوان الأصلي
-        if not translated:
-            original_words = title.split()
-            # ننظف الكلمات
-            clean_words = []
-            for w in original_words:
-                w_clean = re.sub(r'[^\w]', '', w)
-                if len(w_clean) > 3 and w_clean.lower() not in ['with', 'and', 'the', 'for', 'new']:
-                    if not brand or brand.lower() not in w.lower():
-                        clean_words.append(w_clean)
-            
-            # نترجم اللي نقدر عليه
-            for w in clean_words[:5]:
-                w_lower = w.lower()
-                if w_lower in TRANSLATIONS:
-                    clean_words[clean_words.index(w)] = TRANSLATIONS[w_lower]
-            
-            return " ".join(clean_words[:4]) if clean_words else "منتج مميز"
+        # نرجع أول 4 كلمات
+        result = ' '.join(filtered_words[:4]).strip()
         
-        return " ".join(translated[:5])
+        # لو فاضي، نرجع العنوان الأصلي المختصر
+        if not result:
+            original = title.split()[:5]
+            result = ' '.join(original)
+        
+        return result
+    
+    def translate_product(self, title, brand):
+        """ترجمة ذكية - لو مفيش ترجمة نرجع الإنجليزي المبسط"""
+        simplified = self.simplify_product_name(title, brand)
+        
+        # نحاول نترجم كل كلمة
+        words = simplified.split()
+        translated_words = []
+        
+        for word in words:
+            w_clean = word.lower().strip()
+            # ندور على الترجمة
+            if w_clean in TRANSLATIONS:
+                translated_words.append(TRANSLATIONS[w_clean])
+            else:
+                # نشوف لو فيه جزء من الكلمة يتطابق
+                found = False
+                for key, value in TRANSLATIONS.items():
+                    if key in w_clean or w_clean in key:
+                        translated_words.append(value)
+                        found = True
+                        break
+                if not found:
+                    # نحتفظ بالكلمة الإنجليزية
+                    translated_words.append(word)
+        
+        # نرجع النتيجة
+        if translated_words:
+            result = ' '.join(translated_words)
+            # لو الترجمة ناقصة، نضيف الكلمات الإنجليزية الأصلية
+            if len([w for w in translated_words if any('\u0600' <= c <= '\u06FF' for c in w)]) < 2:
+                # أقل من كلمتين عربي، نرجع مكس
+                return f"{simplified}"
+            return result
+        
+        return simplified
     
     def format_price(self, price, old_price):
-        """تنسيق السعر بالطريقة السعودية"""
-        # نستخرج الأرقام والعملة
-        def extract_price(text):
+        """تنسيق السعر"""
+        def extract_number(text):
             if not text:
-                return None, "ريال"
+                return None
             nums = re.findall(r"[\d,.]+", str(text))
-            currency = "ريال"
-            if "sar" in text.lower() or "ريال" in text or "saudi" in text.lower():
-                currency = "ريال سعودي"
-            elif "$" in text or "usd" in text.lower():
-                currency = "دولار"
-            
             if nums:
                 try:
-                    # ننظف الرقم
-                    num_str = nums[0].replace(",", "")
-                    val = float(num_str)
-                    return int(val), currency
+                    return int(float(nums[0].replace(",", "")))
                 except:
                     pass
-            return None, currency
+            return None
         
-        current_val, curr = extract_price(price)
-        old_val, _ = extract_price(old_price)
+        current = extract_number(price)
+        old = extract_number(old_price)
         
-        print(f"Price parsing: current={current_val}, old={old_val}, curr={curr}")
+        if old and current and old > current:
+            discount = int(((old - current) / old) * 100)
+            return f"❌ قبل: {old:,} ريال سعودي\n✅ الآن: {current:,} ريال سعودي (وفر {discount}%)"
         
-        if old_val and current_val and old_val > current_val:
-            discount = int(((old_val - current_val) / old_val) * 100)
-            return f"❌ قبل: {old_val:,} {curr}\n✅ الآن: {current_val:,} {curr} (وفر {discount}%)"
-        
-        if current_val:
-            return f"💰 السعر: {current_val:,} {curr}"
+        if current:
+            return f"💰 السعر: {current:,} ريال سعودي"
         
         return f"💰 السعر: {price}"
     
     def generate(self, title, price, old_price, original_url):
-        print(f"Generating post for: {title}")
+        print(f"\n=== Generating Post ===")
+        print(f"Original title: {title}")
         print(f"Price: {price}, Old: {old_price}")
         
         is_female = self.is_female(title)
@@ -362,21 +358,20 @@ class SmartGenerator:
         else:
             opening = random.choice(OPENING_LINES_MALE)
         
-        # نترجم اسم المنتج
-        product_ar = self.translate_product(title, brand)
-        print(f"Translated product: {product_ar}")
+        # نجهز اسم المنتج
+        product_name = self.translate_product(title, brand)
+        print(f"Product name: {product_name}")
         
-        # نبني السطر الأول (الجملة + المنتج)
-        brand_str = f" {brand}" if brand else ""
-        line1 = f"{opening}\n\n🛒 {product_ar}{brand_str}"
+        # نجهز البراند
+        brand_str = f" ({brand})" if brand else ""
         
-        # السطر الثاني (السعر)
+        # نبني البوست
+        line1 = f"{opening}\n\n🛒 {product_name}{brand_str}"
         line2 = self.format_price(price, old_price)
         
-        # البوست النهائي
         post = f"{line1}\n\n{line2}\n\n🔗 {original_url}"
         
-        print(f"Final post:\n{post}")
+        print(f"Final post:\n{post}\n")
         return post
 
 def get_random_headers():
@@ -480,7 +475,6 @@ def get_from_textise(asin, domain):
             lines = [l.strip() for l in text.split('\n') if l.strip()]
             if len(lines) >= 2:
                 title = lines[0][:200]
-                # البحث عن سعرين (قديم وجديد)
                 prices = re.findall(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:SAR|USD|\$|ريال)', text)
                 current_price = prices[0] + " ريال" if prices else "غير متوفر"
                 old_price = prices[1] + " ريال" if len(prices) > 1 else None
@@ -596,9 +590,6 @@ def get_product(asin, domain):
             result = method(asin, domain)
             if result and result.get("title"):
                 print(f"✅ {name} worked!")
-                print(f"Title: {result['title'][:50]}...")
-                print(f"Price: {result.get('price')}")
-                print(f"Old Price: {result.get('old_price')}")
                 return result
         except Exception as e:
             print(f"❌ {name} failed: {e}")
