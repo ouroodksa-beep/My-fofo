@@ -3,9 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import random
+import json
 import time
 
-# ===== توكن البوت =====
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
@@ -21,13 +21,13 @@ TRANSLATIONS = {
     "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون", "oil": "زيت", "spray": "بخاخ",
 }
 
-OPENING_LINES = [
-    "🔥 عرض مميز لا يفوت!", "✨ منتج مميز للجميع!", "💎 أفضل اختيار اليوم!", "🏆 منتج عالي الجودة بسعر ممتاز!",
-]
-
 BRANDS = {
     "SONGMICS": ["songmics"], "Nike": ["nike"], "Adidas": ["adidas"], "Apple": ["iphone", "ipad", "macbook", "airpods"],
 }
+
+OPENING_LINES = [
+    "🔥 عرض مميز لا يفوت!", "✨ منتج مميز للجميع!", "💎 أفضل اختيار اليوم!", "🏆 منتج عالي الجودة بسعر ممتاز!",
+]
 
 def get_random_headers():
     return {"User-Agent": random.choice(USER_AGENTS)}
@@ -60,12 +60,9 @@ def get_high_quality_image(soup):
                 return url
             dyn = img.get("data-a-dynamic-image")
             if dyn:
-                try:
-                    data = json.loads(dyn)
-                    max_url = max(data.keys(), key=lambda x: data[x][0]*data[x][1])
-                    return max_url
-                except:
-                    pass
+                data = json.loads(dyn)
+                max_url = max(data.keys(), key=lambda x: data[x][0]*data[x][1])
+                return max_url
             src = img.get("src")
             if src:
                 src = re.sub(r"\._.*_\.", ".", src)
