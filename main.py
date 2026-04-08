@@ -7,7 +7,7 @@ import random
 TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
 bot = telebot.TeleBot(TOKEN)
 
-# ================= User Agents =================
+# ================= Headers =================
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
@@ -16,66 +16,38 @@ USER_AGENTS = [
 def get_headers():
     return {
         "User-Agent": random.choice(USER_AGENTS),
-        "Accept-Language": "en-US,en;q=0.9"
+        "Accept-Language": "ar-SA,ar;q=0.9,en;q=0.8"
     }
+
+# ================= فك الرابط المختصر =================
+def expand_url(url):
+    try:
+        r = requests.get(url, headers=get_headers(), allow_redirects=True, timeout=10)
+        return r.url
+    except:
+        return url
+
+# ================= استخراج ASIN =================
+def extract_asin(url):
+    patterns = [
+        r"/dp/([A-Z0-9]{10})",
+        r"/gp/product/([A-Z0-9]{10})"
+    ]
+
+    for p in patterns:
+        m = re.search(p, url)
+        if m:
+            return m.group(1)
+
+    return None
 
 # ================= تنظيف العنوان =================
 def clean_title(text):
     if not text:
         return ""
 
-    text = re.sub(r'[^\w\s\-]', ' ', text)
-
-    words = text.split()
-    clean_words = []
-
-    for w in words:
-        if len(w) > 2 and not re.match(r'^[A-Z]{3,}$', w):
-            clean_words.append(w)
-
-    result = " ".join(clean_words)
-
-    if len(result) < 5:
-        return text[:80]
-
-    return result
-
-
-# ================= ترجمة =================
-TRANSLATIONS = {
-    "phone": "جوال",
-    "mobile": "جوال",
-    "watch": "ساعة",
-    "headphones": "سماعات",
-    "earbuds": "سماعات",
-    "shoes": "حذاء",
-    "bag": "شنطة",
-    "dress": "فستان",
-    "laptop": "لابتوب",
-    "tablet": "تابلت",
-    "hair": "شعر",
-    "face": "وجه",
-    "skin": "بشرة",
-    "cream": "كريم",
-    "shampoo": "شامبو",
-}
-
-def translate(text, brand=None):
-    if brand:
-        text = re.sub(brand, "", text, flags=re.IGNORECASE)
-
-    words = text.split()
-    result = []
-
-    for w in words:
-        lw = w.lower()
-        if lw in TRANSLATIONS:
-            result.append(TRANSLATIONS[lw])
-        else:
-            result.append(w)
-
-    return " ".join(result).strip()
-
+    text = re.sub(r'[^\w\s\u0600-\u06FF\-]', ' ', text)
+    return " ".join(text.split())
 
 # ================= استخراج البراند =================
 def get_brand(title):
@@ -92,10 +64,15 @@ def get_brand(title):
 
     return None
 
-
 # ================= جلب المنتج =================
 def get_product(url):
     headers = get_headers()
+
+    # إجبار اللغة العربية
+    if "?" in url:
+        url += "&language=ar_AE"
+    else:
+        url += "?language=ar_AE"
 
     try:
         r = requests.get(url, headers=headers, timeout=15)
@@ -103,19 +80,20 @@ def get_product(url):
 
         # ===== العنوان =====
         title_tag = soup.select_one("#productTitle")
+        title = None
 
-        if not title_tag:
+        if title_tag:
+            title = title_tag.text.strip()
+
+        # fallback
+        if not title:
             meta = soup.select_one("meta[property='og:title']")
             if meta:
                 title = meta.get("content")
-            else:
-                title = None
-        else:
-            title = title_tag.text.strip()
 
         title = clean_title(title)
 
-        if not title or len(title) < 10:
+        if not title or len(title) < 5:
             return None
 
         # ===== السعر =====
@@ -136,26 +114,20 @@ def get_product(url):
         print(e)
         return None
 
-
 # ================= توليد البوست =================
-def generate_post(title, price, url):
+def generate_post(title, price, original_url):
     brand = get_brand(title)
-
-    title_ar = translate(title, brand)
-
     brand_text = f" ({brand})" if brand else ""
 
     post = f"""🔥 منتج يستحق التجربة
 
-🛒 {title_ar}{brand_text}
+🛒 {title}{brand_text}
 
 💰 السعر: {price}
 
-🔗 {url}
+🔗 {original_url}
 """
-
     return post
-
 
 # ================= البوت =================
 @bot.message_handler(func=lambda m: True)
@@ -169,17 +141,26 @@ def handler(msg):
     for url in urls:
         wait = bot.reply_to(msg, "⏳ جاري التحميل...")
 
-        product = get_product(url)
+        original_url = url
+
+        # فك الرابط المختصر
+        expanded_url = expand_url(url)
+
+        if "amazon." not in expanded_url:
+            bot.edit_message_text("❌ رابط غير صالح", msg.chat.id, wait.message_id)
+            continue
+
+        product = get_product(expanded_url)
 
         if not product:
             bot.edit_message_text(
-                "❌ فشل في جلب المنتج\nجرب رابط تاني",
+                "❌ فشل في جلب المنتج",
                 msg.chat.id,
                 wait.message_id
             )
             continue
 
-        post = generate_post(product["title"], product["price"], url)
+        post = generate_post(product["title"], product["price"], original_url)
 
         try:
             if product["image"]:
