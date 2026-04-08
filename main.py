@@ -34,20 +34,40 @@ def clean_title(text):
     text = re.sub(r'[^\w\s\u0600-\u06FF\-]', ' ', text)
     return " ".join(text.split())
 
+# ================= ترجمة ذكية =================
+def smart_translate(text):
+    TRANSLATIONS = {
+        "cabinet": "خزانة",
+        "shelf": "رف",
+        "organizer": "منظم",
+        "kitchen": "مطبخ",
+        "metal": "معدني",
+        "set": "طقم",
+        "white": "أبيض",
+        "black": "أسود",
+        "table": "طاولة",
+        "chair": "كرسي"
+    }
+
+    words = text.split()
+    result = []
+
+    for w in words:
+        lw = w.lower()
+        if lw in TRANSLATIONS:
+            result.append(TRANSLATIONS[lw])
+        else:
+            result.append(w)
+
+    return " ".join(result)
+
 # ================= استخراج السعر =================
 def extract_price(text):
     prices = re.findall(r'(\d{1,3}(?:,\d{3})*)\s*(?:ريال|SAR)', text)
     if not prices:
-        return "غير متوفر", None
+        return "غير متوفر"
 
-    current = int(prices[0].replace(",", ""))
-    old = int(prices[1].replace(",", "")) if len(prices) > 1 else None
-
-    if old and old > current:
-        discount = int((old - current) / old * 100)
-        return f"{current} ريال (خصم {discount}%)", current
-
-    return f"{current} ريال", current
+    return prices[0] + " ريال"
 
 # ================= استخراج البراند =================
 def get_brand(title):
@@ -55,11 +75,14 @@ def get_brand(title):
         "Apple", "Samsung", "Sony", "Nike", "Adidas",
         "Huawei", "Xiaomi", "Lenovo", "HP", "Dell",
         "Chanel", "Dior", "Gucci", "Zara", "H&M",
-        "L'Oreal", "Nivea", "Dove", "Pampers", "Gillette"
+        "L'Oreal", "Nivea", "Dove", "Pampers", "Gillette",
+        "SONGMICS"
     ]
+
     for b in brands:
         if b.lower() in title.lower():
             return b
+
     return None
 
 # ================= طريقة jina =================
@@ -70,27 +93,40 @@ def get_with_jina(url):
         text = r.text
 
         lines = [l.strip() for l in text.split("\n") if l.strip()]
-        title = lines[0] if lines else None
+
+        # اختيار عنوان مناسب
+        title = None
+        for line in lines:
+            if len(line) > 20 and not line.lower().startswith("title"):
+                title = line
+                break
 
         title = clean_title(title)
-        price, _ = extract_price(text)
 
-        img_match = re.search(r'https://[^ ]+\.jpg', text)
-        image = img_match.group(0) if img_match else None
+        if not title or len(title) < 5:
+            return None
 
-        if title and len(title) > 5:
-            return {
-                "title": title,
-                "price": price,
-                "image": image
-            }
+        price = extract_price(text)
+
+        # صورة نظيفة
+        images = re.findall(r'https://[^ ]+\.jpg', text)
+        image = None
+        for img in images:
+            if "images-na.ssl-images-amazon" in img:
+                image = img
+                break
+
+        return {
+            "title": title,
+            "price": price,
+            "image": image
+        }
 
     except Exception as e:
         print("Jina error:", e)
+        return None
 
-    return None
-
-# ================= طريقة direct =================
+# ================= fallback direct =================
 def get_direct(url):
     try:
         if "?" in url:
@@ -141,15 +177,18 @@ def get_product(url):
 # ================= توليد البوست =================
 def generate_post(title, price, original_url):
     brand = get_brand(title)
+
+    # ترجمة لو مفيش عربي
+    if not re.search(r'[\u0600-\u06FF]', title):
+        title = smart_translate(title)
+
     brand_text = f" ({brand})" if brand else ""
 
-    post = f"""🔥 عرض جامد لا يفوت!
+    post = f"""🔥 عرض مميز لفترة محدودة!
 
 🛒 {title}{brand_text}
 
 💰 السعر: {price}
-
-🚚 اطلب الآن قبل انتهاء العرض
 
 🔗 {original_url}
 """
