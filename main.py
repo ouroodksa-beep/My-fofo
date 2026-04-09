@@ -479,7 +479,6 @@ TRANSLATION_DICT = {
     
     # تجميل وعناية
     "l'oreal": "L'Oreal",
-   ناية
     "l'oreal": "L'Oreal",
     "loreal": "L'Oreal",
     "maybelline": "Maybelline",
