@@ -6,7 +6,7 @@ import random
 import time
 import json
 
-TOKEN = "7956075348:AAEwHrxqtlHzew69Mu2UlxVd_1hEBq9mDeA"
+TOKEN = "7956075348:AAFVmKy956NrjQrYR5-zBMz5l4jV85Q5K8s"
 bot = telebot.TeleBot(TOKEN)
 
 # ===================================
