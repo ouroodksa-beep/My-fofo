@@ -17,32 +17,36 @@ GROQ_API_KEY = "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"
 
 def generate_ai_sentence(product_name, category, price, old_price, discount_percent, gender="men"):
     """
-    توليد جملة تسويقية ذكية باستخدام Groq AI
+    توليد جملة تسويقية ذكية باستخدام Groq AI - بنفس طريقة القنوات الكبيرة
     """
     
-    # بناء برومبت ذكي حسب البيانات
     discount_info = ""
     if discount_percent and discount_percent > 5:
-        discount_info = f"\n- خصم: {discount_percent}%"
+        discount_info = f"\n- نسبة الخصم: {discount_percent}%"
     
-    prompt = f"""أنت كاتب محتوى سعودي محترف في التسويق بالعمولة لمنتجات أمازون السعودية.
-اكتب جملة تسويقية قصيرة (سطر واحد فقط) باللهجة السعودية الخفيفة والعامية.
+    prompt = f"""أنت كاتب محتوى سعودي محترف في قنوات تليجرام للتسويق بالعمولة (زي قناة "نص السعر").
+اكتب جملة تسويقية قصيرة جداً ومختصرة (سطر واحد فقط) باللهجة السعودية الخفيفة.
 
 🔹 قواعد مهمة:
-- الجملة لازم تكون قصيرة (12-20 كلمة كحد أقصى)
-- استخدم إيموجي واحد فقط في النهاية
-- لا تذكر السعر في الجملة (السعر مكتوب تحت)
-- اكتب بلهجة سعودية خفيفة (مثل: "مره", "شيء", "من الأخير", "يستاهل")
-- خلي الجملة حماسية وتخلي المتابع يحب يشتري
-- لا تستخدم نقاط أو قائمة، جملة واحدة متصلة فقط
-- لا تكرر كلمة "منتج" أو "هذا"
+- الجملة لازم تكون مختصرة جداً (5-12 كلمة كحد أقصى)
+- استخدم إيموجي كثير (2-4 إيموجي) في الجملة نفسها
+- خلي الجملة حماسية ومثيرة جداً (زي: "🔥 لا يفوتكم يا جماعة! 🚨")
+- لا تذكر السعر أو اسم المنتج بالتفصيل في الجملة
+- اكتب بلهجة سعودية خفيفة (مثل: "مره", "ياجمااعة", "يستاهل", "صيدة", "ووووو")
+- الجملة تكون زي الصيحة اللي بتلفت الانتباه مش وصف
+
+🔹 أمثلة للمطلوب:
+"🔥 لا يفوتكم يا جماعة! 🚨"
+"💥 ووووووو 🔥"
+"🎉 صيدة من يوما 🔥"
+"🤩 خصم مجنون عليه! ⚡️"
+"🔥 العرض داااااحش! 💰"
+"🚨 فرصة ذهبية! ⏰"
 
 🔹 بيانات المنتج:
-- اسم المنتج: {product_name}
-- الفئة: {category}
-- الجنس المستهدف: {"نسائي" if gender == "women" else "رجالي" if gender == "men" else "عام"}{discount_info}
+- الفئة: {category}{discount_info}
 
-اكتب الجملة فقط بدون أي مقدمة أو شرح:"""
+اكتب جملة واحدة فقط بدون أي مقدمة:"""
 
     try:
         headers = {
@@ -52,11 +56,11 @@ def generate_ai_sentence(product_name, category, price, old_price, discount_perc
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي محترف في التسويق بالعمولة. تكتب بلهجة سعودية خفيفة وجذابة."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب جمل حماسية مختصرة جداً بإيموجي كثير."},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.9,
-            "max_tokens": 60
+            "temperature": 0.95,
+            "max_tokens": 50
         }
         
         r = requests.post(
@@ -69,113 +73,48 @@ def generate_ai_sentence(product_name, category, price, old_price, discount_perc
         if r.status_code == 200:
             result = r.json()
             sentence = result["choices"][0]["message"]["content"].strip()
-            
-            # تنظيف الجملة
             sentence = sentence.replace('"', '').replace("'", "").strip()
-            # إزالة ترقيم في النهاية لو فيه
-            sentence = re.sub(r'[.!?]+$', '', sentence).strip()
-            
-            # التأكد من وجود إيموجي
-            emojis = ["🔥", "👌", "💎", "✨", "🚀", "💪", "👍", "🎯", "⚡️", "🏆", "🌟", "😎", "💯", "✅", "👀", "🎩", "👑", "🎽", "🌹", "🏠", "🛋️", "🧴", "👗", "👕", "⌚️", "📱", "💻", "🎁", "⭐"]
-            has_emoji = any(emoji in sentence for emoji in emojis)
-            if not has_emoji:
-                sentence += " 🔥"
-            
+            sentence = re.sub(r'^[ـ\s]+', '', sentence)
             return sentence
                 
     except Exception as e:
         print(f"Groq error: {e}")
     
-    # fallback لو فشل الـ API
-    return generate_smart_fallback_sentence(product_name, category, discount_percent, gender)
+    # fallback
+    return generate_smart_fallback_sentence(product_name, category, discount_percent)
 
 
-def generate_smart_fallback_sentence(product_name, category, discount_percent, gender):
-    """
-    توليد جملة ذكية محلياً بدون API
-    """
+def generate_smart_fallback_sentence(product_name, category, discount_percent):
+    """توليد جملة حماسية مختصرة بدون API"""
     
-    # قوالب حسب الفئة
-    templates = {
-        "electronics": [
-            "جهاز {product} يغير طريقة استخدامك للتقنية 🔥",
-            "{product} مواصفاته خرافية وما يخيب ظنك 👌",
-            "تقنية مره حلوة بسعر ينافس، {product} يستاهل التجربة 💎",
-            "من الأخير: {product} أداء قوي وثابت ما يتهز ⚡️",
-            "ترقية ذكية لأدواتك مع {product} 🚀",
-            "{product} شيء يفوق التوقع بمراحل ✨"
-        ],
-        "fashion": [
-            "إطلالة تلفت الأنظار مع {product} 👀",
-            "{product} لبس مره يليق فيك وفي ذوقك 🎩",
-            "قطعة أساسية لازم تكون بخزانتك: {product} 👕",
-            "أناقة بسيطة وشيء فيك الخالق مع {product} ✨",
-            "{product} شياكة وراحة بوقت واحد 😎",
-            "تحدث بصمت.. {product} أناقة وذوق 🎭"
-        ],
-        "beauty": [
-            "عطر {product} يخلي حضورك له وزن 🌹",
-            "{product} ريحة تثبت أنك تفهم بالجودة 👃",
-            "منتج {product} يعطي نتيجة واضحة من أول استخدام ✨",
-            "{product} شيء يزيد ثقتك بنفسك أضعاف 💪",
-            "عطرك عنوانك.. {product} اختر الأفضل 🏆",
-            "{product} نظافة وانتعاش ما له مثيل 🌊"
-        ],
-        "home": [
-            "راحة البيت تبدأ من {product} 🏠",
-            "{product} شيء يسهل عليك حياتك اليومية 🛋️",
-            "جودة تدوم مع {product} وما تخذلك مع الوقت 🛡️",
-            "بيتك يستاهل {product} 👌",
-            "{product} حل ممتاز لمشاكل البيت اليومية ✅",
-            "استثمار في راحتك اليومية مع {product} 📈"
-        ],
-        "sports": [
-            "{product} ترفع مستواك الرياضي 📈",
-            "جهاز {product} يساعدك توصل لهدفك أسرع 🏃‍♂️",
-            "معدات احترافية للي جاد بالرياضة: {product} 💪",
-            "{product} شيء يحمسك تبدأ اليوم مش بكرا 🔥",
-            "جودة تتحمل أقوى التمارين مع {product} 🏋️‍♂️",
-            "تمرن بذكاء مع {product} 🧠"
-        ],
-        "general": [
-            "عرض ما يتفوت على {product} 🔥",
-            "{product} جودة تتكلم عن نفسها 💎",
-            "من الأخير: {product} شيء يستاهل الشراء ✅",
-            "فرصة لا تعوض على {product} استغلها الحين ⏰",
-            "{product} قيمة عالية بسعر ينافس 💰",
-            "ما راح تلقى مثل {product} بسعر أحسن 🥇"
+    hype_templates = [
+        "🔥 لا يفوتكم يا جماعة! 🚨",
+        "💥 ووووووو 🔥",
+        "🎉 صيدة من يوما 🔥",
+        "🤩 خصم مجنون عليه! ⚡️",
+        "🔥 العرض داااااحش! 💰",
+        "🚨 فرصة ذهبية! ⏰",
+        "⚡️ لا يفوتك! 🔥",
+        "💰 سعر مره حلو! 🤩",
+        "🔥 يستاهل التجربة! 👌",
+        "🎯 من الأخير: لا يتفوت! 🔥",
+        "💎 جودة بسعر خيالي! 🔥",
+        "🚀 عرض صاروخي! ⚡️",
+        "🔥 يا سلااام على السعر! 🤩",
+        "⏰ العرض محدود! 🔥",
+        "💥 خصم يجنن! 🚨",
+    ]
+    
+    if discount_percent and discount_percent > 30:
+        discount_templates = [
+            f"🔥 خصم {discount_percent}% يا جماعة! 🚨",
+            f"🤩 وفر {discount_percent}% الحين! ⚡️",
+            f"💥 خصم {discount_percent}% مجنون! 🔥",
+            f"🎯 خصم {discount_percent}% لا يتفوت! ⏰",
         ]
-    }
+        return random.choice(discount_templates)
     
-    category_templates = templates.get(category, templates["general"])
-    
-    # تعديل حسب الجنس
-    if gender == "women":
-        category_templates = [
-            t.replace("يليق فيك", "يليق فيكِ")
-             .replace("تفهم", "تفهمين")
-             .replace("ثقتك", "ثقتكِ")
-             .replace("حياتك", "حياتكِ")
-             .replace("بنفسك", "بنفسكِ")
-             .replace("يساعدك", "يساعدكِ")
-             .replace("توصل", "توصلين")
-             .replace("تبدأ", "تبدأين")
-             .replace("تمرن", "تمرنين")
-             .replace("تحدث", "تحدثين")
-            for t in category_templates
-        ]
-    
-    template = random.choice(category_templates)
-    
-    # إضافة الخصم
-    if discount_percent and discount_percent > 10:
-        discount_phrases = [" وخصم {discount}% يجنن!", " ووفر {discount}% الحين!", " بخصم {discount}% لا يفوت!"]
-        template = template.replace(" 🔥", random.choice(discount_phrases) + " 🔥")
-        template = template.replace(" 👌", random.choice(discount_phrases) + " 👌")
-        template = template.replace(" 💎", random.choice(discount_phrases) + " 💎")
-    
-    sentence = template.format(product=product_name, discount=discount_percent if discount_percent else 0)
-    return sentence
+    return random.choice(hype_templates)
 
 
 # ===================================
@@ -184,13 +123,9 @@ def generate_smart_fallback_sentence(product_name, category, discount_percent, g
 
 CATEGORY_KEYWORDS = {
     "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني"],
-    
     "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء"],
-    
     "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "foundation", "mascara", "eyeliner", "brush", "cosmetic", "skincare", "haircare", "عطر", "عود", "مسك", "كريم", "شامبو", "بلسم", "صابون", "مكياج", "أحمر شفاه", "عناية", "جمال", "تجميل"],
-    
     "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "ac", "heater", "fan", "blender", "mixer", "oven", "microwave", "toaster", "kettle", "coffee maker", "iron", "hair dryer", "chair", "table", "desk", "bed", "sofa", "couch", "lamp", "light", "mirror", "carpet", "curtain", "furniture", "kitchen", "home", "house", "ثلاجة", "غسالة", "مكنسة", "مكيف", "دفاية", "مروحة", "خلاط", "فرن", "مايكرويف", "غلاية", "كرسي", "طاولة", "سرير", "كنبة", "لمبة", "سجادة", "أثاث", "مطبخ", "منزل"],
-    
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "exercise", "workout", "sport", "running", "walking", "training", "sneakers", "shoes", "رياضة", "جيم", "لياقة", "تمارين", "سير", "دامبل", "يوغا", "دراجة", "كرة", "جري", "مشي", "تدريب"]
 }
 
@@ -204,21 +139,14 @@ def detect_product_category(product_name):
 
 def detect_product_gender(product_name):
     name_lower = product_name.lower()
-    
     women_indicators = ['women', 'woman', 'ladies', 'lady', 'female', 'feminine', 'نسائي', 'نساء', 'نسا', 'سيدات', 'سيدة', 'انثى', 'انثوي', 'dress', 'skirt', 'فستان', 'تنورة', 'بلايز', 'فساتين', 'makeup', 'lipstick']
     men_indicators = ['men', 'man', 'male', 'masculine', 'gents', 'gentlemen', 'رجالي', 'رجال', 'رجل', 'ذكر', 'ذكوري', 'رجولة']
-    unisex_indicators = ['unisex', 'adult', 'للجنسين', 'للبالغين', 'محايد']
-    
     for indicator in women_indicators:
         if indicator in name_lower:
             return 'women'
     for indicator in men_indicators:
         if indicator in name_lower:
             return 'men'
-    for indicator in unisex_indicators:
-        if indicator in name_lower:
-            return 'neutral'
-    
     return 'neutral'
 
 # ===================================
@@ -227,99 +155,32 @@ def detect_product_gender(product_name):
 
 TRANSLATION_DICT = {
     "adidas": "Adidas", "nike": "Nike", "puma": "Puma", "reebok": "Reebok",
-    "under armour": "Under Armour", "new balance": "New Balance", "asics": "ASICS",
-    "vans": "Vans", "converse": "Converse", "fila": "Fila", "skechers": "Skechers",
-    "crocs": "Crocs", "timberland": "Timberland",
-    
-    "zara": "Zara", "h&m": "H&M", "gap": "Gap", "mango": "Mango",
-    "bershka": "Bershka", "pull&bear": "Pull&Bear", "shein": "SHEIN",
-    
-    "gucci": "Gucci", "prada": "Prada", "versace": "Versace",
-    "burberry": "Burberry", "chanel": "Chanel", "dior": "Dior",
-    "lv": "Louis Vuitton", "louis vuitton": "Louis Vuitton",
-    "ysl": "YSL", "balenciaga": "Balenciaga", "fendi": "Fendi",
-    
-    "levi's": "Levi's", "wrangler": "Wrangler", "diesel": "Diesel",
-    "guess": "GUESS", "tommy hilfiger": "Tommy Hilfiger",
-    "calvin klein": "Calvin Klein", "ck": "CK",
-    "ralph lauren": "Ralph Lauren", "lacoste": "Lacoste",
-    
-    "michael kors": "Michael Kors", "coach": "Coach", "fossil": "Fossil",
-    "armani": "Armani", "emporio armani": "Emporio Armani",
-    "hugo boss": "HUGO BOSS", "boss": "BOSS",
-    
-    "ray-ban": "Ray-Ban", "rayban": "Ray-Ban", "oakley": "Oakley",
-    
-    "casio": "Casio", "g-shock": "G-Shock", "gshock": "G-Shock",
-    "seiko": "Seiko", "citizen": "Citizen", "tissot": "Tissot",
-    
-    "carolina herrera": "Carolina Herrera", "paco rabanne": "Paco Rabanne",
-    "jean paul gaultier": "Jean Paul Gaultier", "montblanc": "Montblanc",
-    "davidoff": "Davidoff",
-    
-    "l'oreal": "L'Oreal", "loreal": "L'Oreal", "maybelline": "Maybelline",
-    "mac": "MAC", "clinique": "Clinique", "nivea": "Nivea",
-    "the ordinary": "The Ordinary", "huda beauty": "Huda Beauty",
-    "philips": "Philips", "braun": "Braun", "dyson": "Dyson",
-    
-    "apple": "Apple", "samsung": "Samsung", "huawei": "Huawei",
-    "xiaomi": "Xiaomi", "oppo": "OPPO", "vivo": "vivo",
-    "realme": "realme", "oneplus": "OnePlus", "nokia": "Nokia",
-    "sony": "Sony", "lg": "LG", "lenovo": "Lenovo", "hp": "HP",
-    "dell": "Dell", "asus": "ASUS", "acer": "Acer", "msi": "MSI",
-    "razer": "Razer", "microsoft": "Microsoft", "surface": "Surface",
-    "beats": "Beats", "jbl": "JBL", "bose": "Bose",
-    "anker": "Anker", "logitech": "Logitech", "corsair": "Corsair",
-    "tp-link": "TP-Link", "tplink": "TP-Link",
-    "canon": "Canon", "nikon": "Nikon", "gopro": "GoPro",
-    "playstation": "PlayStation", "ps5": "PS5", "ps4": "PS4",
-    "xbox": "Xbox", "nintendo": "Nintendo", "switch": "Switch",
-    
-    "tefal": "Tefal", "moulinex": "Moulinex", "kenwood": "Kenwood",
-    "bosch": "Bosch", "siemens": "Siemens", "panasonic": "Panasonic",
-    "sharp": "Sharp", "toshiba": "Toshiba", "delonghi": "DeLonghi",
-    "nespresso": "Nespresso", "kitchenaid": "KitchenAid",
-    
-    "ikea": "IKEA", "muji": "MUJI",
-    
-    "the north face": "The North Face", "north face": "The North Face",
-    "columbia": "Columbia", "patagonia": "Patagonia",
-    "salomon": "Salomon", "wilson": "Wilson",
-    
-    "lego": "LEGO", "barbie": "Barbie", "hasbro": "Hasbro",
-    "mattel": "Mattel", "disney": "Disney", "marvel": "Marvel",
-    
+    "apple": "Apple", "samsung": "Samsung", "huawei": "Huawei", "xiaomi": "Xiaomi",
+    "iphone": "iPhone", "ipad": "iPad", "macbook": "MacBook", "airpods": "AirPods",
     "laptop": "لابتوب", "tablet": "تابلت", "keyboard": "كيبورد", "mouse": "ماوس",
     "charger": "شاحن", "cable": "كيبل", "power bank": "باور بانك", "battery": "بطارية",
     "screen": "شاشة", "monitor": "شاشة عرض", "camera": "كاميرا", "speaker": "سماعة",
     "watch": "ساعة", "smartwatch": "ساعة ذكية", "headphones": "سماعات رأس",
-    "earbuds": "سماعات أذن", "router": "راوتر", "modem": "مودم",
-    "tv": "تلفزيون", "television": "تلفزيون",
-    
+    "router": "راوتر", "modem": "مودم", "tv": "تلفزيون", "television": "تلفزيون",
     "shoes": "حذاء", "shoe": "حذاء", "sneakers": "حذاء رياضي", "boots": "بوت",
     "sandals": "صندل", "slippers": "شبشب", "t-shirt": "تيشيرت", "shirt": "قميص",
     "pants": "بنطلون", "jeans": "جينز", "jacket": "جاكيت", "hoodie": "هودي",
     "dress": "فستان", "skirt": "تنورة", "socks": "شرابات", "cap": "كاب",
     "hat": "قبعة", "bag": "شنطة", "backpack": "حقيبة ظهر", "wallet": "محفظة",
     "belt": "حزام", "scarf": "وشاح", "gloves": "قفازات",
-    
     "perfume": "عطر", "fragrance": "عطر", "oud": "عود", "musk": "مسك",
     "cream": "كريم", "lotion": "لوشن", "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون",
-    
     "refrigerator": "ثلاجة", "fridge": "ثلاجة", "washing machine": "غسالة",
     "vacuum cleaner": "مكنسة كهربائية", "air conditioner": "مكيف", "ac": "مكيف",
     "heater": "دفاية", "fan": "مروحة", "blender": "خلاط", "mixer": "عجانة",
     "oven": "فرن", "microwave": "مايكرويف", "toaster": "محمصة", "kettle": "غلاية",
     "coffee maker": "ماكينة قهوة", "iron": "مكواة", "hair dryer": "سشوار",
-    
     "chair": "كرسي", "table": "طاولة", "desk": "مكتب", "bed": "سرير",
     "sofa": "كنبة", "couch": "كنبة", "lamp": "لمبة", "light": "إضاءة",
     "mirror": "مرآة", "carpet": "سجادة", "curtain": "ستارة",
-    
     "treadmill": "سير كهربائي", "dumbbell": "دامبل", "yoga mat": "حصيرة يوغا",
     "bicycle": "دراجة", "ball": "كرة", "toys": "ألعاب", "toy": "لعبة",
     "baby": "أطفال", "kids": "أطفال",
-    
     "wireless": "لاسلكي", "bluetooth": "بلوتوث", "smart": "ذكي", "digital": "رقمي",
     "electric": "كهربائي", "automatic": "أوتوماتيك", "portable": "محمول",
     "professional": "احترافي", "original": "أصلي", "new": "جديد",
@@ -346,25 +207,24 @@ def translate_to_arabic(text):
 def smart_arabic_title(full_title):
     arabic_title = translate_to_arabic(full_title)
     words = arabic_title.split()
-    seen = set()
     unique_words = []
     for word in words:
         if not unique_words or word.lower() != unique_words[-1].lower():
             unique_words.append(word)
     result = " ".join(unique_words)
-    if len(result) > 100:
+    if len(result) > 80:
         for sep in ['،', ',', '-', '|', '/']:
-            if sep in result[:100]:
-                idx = result.rfind(sep, 50, 100)
+            if sep in result[:80]:
+                idx = result.rfind(sep, 40, 80)
                 if idx > 0:
                     result = result[:idx]
                     break
         else:
-            idx = result.rfind(' ', 80, 100)
+            idx = result.rfind(' ', 60, 80)
             if idx > 0:
                 result = result[:idx]
             else:
-                result = result[:100]
+                result = result[:80]
     return result.strip()
 
 # ===================================
@@ -373,7 +233,7 @@ def smart_arabic_title(full_title):
 
 def expand_url(url):
     try:
-        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co']):
+        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl']):
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
             return r.url
@@ -405,7 +265,7 @@ def clean_price(price_text):
             num_str = nums[0].replace(",", "")
             num_float = float(num_str)
             num_int = int(num_float)
-            return f"{num_int} ريال سعودي"
+            return f"{num_int} ريال"
     except:
         pass
     return price_text
@@ -536,32 +396,37 @@ def get_product(asin):
     return None
 
 # ===================================
-# ✨ التوليد النهائي
+# ✨ التوليد النهائي - بنفس طريقة القنوات الكبيرة
 # ===================================
 
 def generate_post(product_name, price, old_price, discount_percent, original_url):
     category = detect_product_category(product_name)
     gender = detect_product_gender(product_name)
-    if gender == 'neutral':
-        gender = 'men'
     
-    # 🧠 توليد الجملة الذكية باستخدام AI
+    # 🧠 توليد الجملة الحماسية المختصرة
     opening = generate_ai_sentence(product_name, category, price, old_price, discount_percent, gender)
 
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else None
 
-    lines = [opening]
+    lines = []
+    
+    # السطر الأول: الجملة الحماسية
+    lines.append(opening)
     lines.append("")
-    lines.append(f"🛒 {product_name}")
+    
+    # السطر الثاني: اسم المنتج المختصر
+    lines.append(f"📦 {product_name}")
     lines.append("")
-
+    
+    # السطر الثالث: السعر بشكل مثير
     if clean_old and discount_percent and discount_percent > 5:
-        lines.append(f"❌ قبل: {clean_old}")
-        lines.append(f"✅ الآن: {clean_current} (وفر {discount_percent}%)")
+        lines.append(f"❌ كان بـ {clean_old}")
+        lines.append(f"🔥 الحين بـ {clean_current} فقط!")
+        lines.append(f"💰 وفر {discount_percent}%")
     else:
         lines.append(f"💰 السعر: {clean_current}")
-
+    
     lines.append("")
     lines.append(f"🔗 {original_url}")
 
@@ -588,7 +453,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري التحليل والتوليد الذكي...")
+        wait = bot.reply_to(msg, "⏳ جاري التحليل...")
 
         product = get_product(asin)
 
@@ -613,5 +478,5 @@ def handler(msg):
             except:
                 bot.edit_message_text("❌ حدث خطأ في الإرسال", msg.chat.id, wait.message_id)
 
-print("🤖 البوت يعمل بالذكاء الاصطناعي...")
+print("🤖 البوت يعمل...")
 bot.infinity_polling()
