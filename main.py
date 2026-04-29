@@ -199,7 +199,7 @@ def generate_smart_fallback_post(product_info):
         # نمط 4: وفر + صيحة
         lambda: f"""💥🎉🔥
 {name}
-😱 وفر {int((float(str(old_price).replace(',', '')) - float(str(price).replace(',', ''))) if old_price else 0} ريال!
+😱 وفر {int((float(str(old_price).replace(',', '')) - float(str(price).replace(',', '')) if old_price else 0} ريال!
 💰 الحين بـ {price} ريال بس
 ⏰ العرض محدود!
 🔗 {product_info['url']}""",
