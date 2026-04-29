@@ -21,7 +21,6 @@ def safe_float(value):
         return 0.0
     if isinstance(value, (int, float)):
         return float(value)
-    # تنظيف النص من أي حروف أو رموز
     cleaned = re.sub(r'[^\d.]', '', str(value))
     try:
         return float(cleaned) if cleaned else 0.0
@@ -36,108 +35,88 @@ def calculate_savings(old_price, new_price):
         return int(old_val - new_val)
     return 0
 
+
 def generate_ai_post(product_info):
     """
     توليد بوست كامل بشكل عشوائي ومبدع باستخدام AI
+    البوست يكون مختصر (4-6 أسطر)، راقي، سعودي، منسق بإيموجي
     """
     
-    # نختار معلومة عشوائية "اللي تشد" نركز عليها
-    highlight_options = []
+    # نجمع كل البيانات المتاحة
+    data_points = []
     
     if product_info.get('brand') and product_info['brand'] != 'غير معروف':
-        highlight_options.append(f"براند {product_info['brand']}")
+        data_points.append(f"البراند: {product_info['brand']}")
     if product_info.get('rating') and product_info['rating'] != 'غير معروف':
-        highlight_options.append(f"تقييم {product_info['rating']}")
+        data_points.append(f"التقييم: {product_info['rating']}/5")
     if product_info.get('reviews_count') and product_info['reviews_count'] != 'غير معروف':
-        highlight_options.append(f"{product_info['reviews_count']} تقييم")
-    if product_info.get('discount_percent') and product_info['discount_percent'] > 20:
-        highlight_options.append(f"خصم {product_info['discount_percent']}%")
+        data_points.append(f"عدد التقييمات: {product_info['reviews_count']}")
+    if product_info.get('discount_percent') and product_info['discount_percent'] > 0:
+        data_points.append(f"الخصم: {product_info['discount_percent']}%")
     if product_info.get('is_best_seller'):
-        highlight_options.append("الأكثر مبيعاً")
+        data_points.append("الأكثر مبيعاً ⭐")
     if product_info.get('is_amazon_choice'):
-        highlight_options.append("Amazon's Choice")
+        data_points.append("Amazon's Choice ✅")
     if product_info.get('prime'):
-        highlight_options.append("توصيل Prime سريع")
+        data_points.append("توصيل Prime سريع 🚚")
     
-    if not highlight_options:
-        highlight_options = ["سعر ممتاز", "جودة عالية", "عرض محدود"]
-    
-    highlight = random.choice(highlight_options)
-    
-    price_style = random.choice([
-        "before_after",
-        "discount_focus",
-        "savings",
-        "urgency",
-        "comparison",
-    ])
-    
-    hype_style = random.choice([
-        "shock",
-        "urgency",
-        "excitement",
-        "cool",
-        "wow",
-        "deal",
-    ])
-    
-    # حساب المبلغ المُوفر
     savings = calculate_savings(product_info.get('old_price'), product_info['price'])
+    if savings > 0:
+        data_points.append(f"التوفير: {savings} ريال")
     
-    prompt = f"""أنت كاتب محتوى سعودي محترف في قنوات تليجرام للتسويق بالعمولة.
-اكتب بوست تسويقي قصير ومختصر للمنتج التالي.
+    # نختار 1-2 معلومات "تشد" عشوائياً
+    selected_highlights = random.sample(data_points, min(2, len(data_points))) if data_points else ["سعر ممتاز"]
+    highlight_text = " | ".join(selected_highlights)
+    
+    prompt = f"""أنت كاتب محتوى سعودي محترف في قنوات تليجرام للتسويق بالعمولة (زي قناة "نص السعر" و"أكسب زون").
+اكتب بوست تسويقي قصير جداً وراقي للمنتج التالي.
 
-🔹 قواعد مهمة:
-- البوست يكون 4-6 أسطر كحد أقصى
-- استخدم إيموجي بكثرة (3-5 إيموجي في كل سطر)
-- خلي الأسلوب حماسي ومثير جداً
-- لا تستخدم قوائم أو نقاط
-- اكتب بلهجة سعودية خفيفة (مره، ياجمااعة، يستاهل، صيدة، ووووو)
-- لا تكرر نفس النمط، خلي كل بوست مختلف
+🔹 قواعد مهمة جداً:
+- البوست يكون 4-6 أسطر كحد أقصى (مختصر جداً)
+- استخدم إيموجي بكثرة وبوزن متناسق (3-5 إيموجي في السطر)
+- الأسلوب راقي، سعودي خالص، قريب من الناس، فانسي
+- لا تستخدم قوائم أو نقاط أو أرقام ترتيبية
+- الجمل تكون متصلة ومنسقة، مش متناثرة
+- لا تذكر كلمة "منتج" أو "هذا" كثير
+- خلي البوست يبدأ بصيحة أو جملة جذابة
+- السعر يُعرض بشكل مباشر وجذاب
+- الرابط يُذكر في النهاية بس
 
 🔹 بيانات المنتج:
 - الاسم: {product_info['name']}
-- البراند: {product_info.get('brand', 'غير معروف')}
 - السعر الحالي: {product_info['price']} ريال
 - السعر القديم: {product_info.get('old_price', 'غير متوفر')} ريال
-- نسبة الخصم: {product_info.get('discount_percent', 0)}%
-- المبلغ المُوفر: {savings} ريال
-- التقييم: {product_info.get('rating', 'غير معروف')}
-- عدد التقييمات: {product_info.get('reviews_count', 'غير معروف')}
-- المعلومة اللي تشد: {highlight}
-- طريقة عرض السعر: {price_style}
-- نمط الصيحة: {hype_style}
+- المعلومات المتاحة: {highlight_text}
 
-🔹 أمثلة للمطلوب:
+🔹 أمثلة للأسلوب المطلوب:
 
-مثال 1 (shock + before_after):
-🤯😱🔥
+مثال 1:
+🔥 لا يفوتكم يا جماعة! 🚨
 Puma حذاء رياضي 👟
 ❌ كان بـ 388 ريال
 ✅ الحين بـ 190 ريال بس!
-🔗 الرابط
+🔗 https://ty.gl/xxx
 
-مثال 2 (urgency + discount_focus):
-🚨⏰🔥
-خصم 50% مجنون على زيت زيتون 🫒
-🔥 من 130 لـ 64 ريال بس!
-💰 وفر 50% الحين
-🔗 الرابط
+مثال 2:
+💥 ووووووو 🔥
+مقاس 38.5 لا يفوتك 👟
+❌ كان 388 ريال
+✅ وصار 190 ريال (خصم 51%) 🤑
+🔗 https://ty.gl/xxx
 
-مثال 3 (excitement + savings):
-💥🎉🔥
-Skechers باوندر 👟
-❌ كانت بـ 373 ريال
-😱 الحين بـ 126 ريال فقط!
-💵 وفر 247 ريال
-🔗 الرابط
+مثال 3:
+🎉 صيدة من يوما 🔥
+زيت زيتون السوسن 2 لتر 🫒
+😱 خصم 50%
+استخدمته قبل فترة واشوفه ممتاز جداً 👌
+🔗 https://amzn.to/xxx
 
-مثال 4 (cool + comparison):
+مثال 4:
 😎👌💎
 Pierre Cardin حقيبة نسائية 🇫🇷
 🤩 من 261 ريال لـ 112 ريال فقط!
 ✨ جودة فرنسية بسعر خيالي
-🔗 الرابط
+🔗 https://ty.gl/xxx
 
 اكتب البوست مباشرة بدون أي مقدمة أو شرح:"""
 
@@ -149,11 +128,11 @@ Pierre Cardin حقيبة نسائية 🇫🇷
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب بوستات مختصرة حماسية بإيموجي كثير. كل بوست يكون مختلف عن اللي قبله."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي محترف في قنوات تسويق بالعمولة. تكتب بوستات مختصرة، راقية، سعودية، منسقة بإيموجي. كل بوست يكون مختلف عن اللي قبله."},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.95,
-            "max_tokens": 200
+            "temperature": 0.9,
+            "max_tokens": 250
         }
         
         r = requests.post(
@@ -168,22 +147,22 @@ Pierre Cardin حقيبة نسائية 🇫🇷
             post = result["choices"][0]["message"]["content"].strip()
             post = post.replace('"', '').replace("'", "").strip()
             
-            # نضيف الرابط لو مش موجود
-            if '🔗' not in post and 'http' not in post:
-                post += f"\n\n🔗 {product_info['url']}"
-            elif 'http' in post and '🔗' not in post:
-                post = post.replace(product_info['url'], f"🔗 {product_info['url']}")
+            # نضمن إن الرابط موجود
+            original_url = product_info.get('url', '')
+            if original_url and original_url not in post:
+                post += f"\n🔗 {original_url}"
             
             return post
                 
     except Exception as e:
         print(f"Groq error: {e}")
     
+    # fallback ذكي
     return generate_smart_fallback_post(product_info)
 
 
 def generate_smart_fallback_post(product_info):
-    """توليد بوست عشوائي المظهر بدون API"""
+    """توليد بوست عشوائي المظهر بدون API - بنفس الأسلوب الراقي"""
     
     name = product_info['name']
     price = product_info['price']
@@ -192,53 +171,68 @@ def generate_smart_fallback_post(product_info):
     brand = product_info.get('brand', '')
     rating = product_info.get('rating', '')
     savings = calculate_savings(old_price, price)
+    url = product_info.get('url', '')
     
-    # أنماط عشوائية للبوست
+    # أنماط عشوائية للبوست - كلها راقية وسعودية
     styles = [
-        # نمط 1: صيحة + سعر
-        lambda: f"""🤯😱🔥
+        # نمط 1: صيحة + سعر مباشر
+        lambda: f"""🔥😱 لا يفوتكم يا جماعة! 🚨
 {name}
 ❌ كان بـ {old_price or '---'} ريال
 ✅ الحين بـ {price} ريال بس!
-🔗 {product_info['url']}""",
+🔗 {url}""",
         
-        # نمط 2: خصم + براند
-        lambda: f"""🔥🚨💥
-{f"براند {brand} " if brand and brand != 'غير معروف' else ''}{name}
-💰 خصم {discount}% مجنون!
+        # نمط 2: واو + خصم
+        lambda: f"""💥🔥 ووووووو
+{name}
+😱 خصم {discount}% مجنون!
 ⚡️ من {old_price or '---'} لـ {price} ريال
-🔗 {product_info['url']}""",
+🔗 {url}""",
         
-        # نمط 3: تقييم + سعر
+        # نمط 3: صيدة + توفير
+        lambda: f"""🎉✨ صيدة من يوما 🔥
+{name}
+💰 وفر {savings} ريال!
+❌ {old_price or '---'} ريال
+✅ {price} ريال فقط
+🔗 {url}""",
+        
+        # نمط 4: براند + جودة
+        lambda: f"""😎👌💎
+{f"{brand} " if brand and brand != 'غير معروف' else ''}{name}
+🤩 من {old_price or '---'} لـ {price} ريال!
+✨ جودة عالية بسعر خيالي
+🔗 {url}""",
+        
+        # نمط 5: تقييم + ثقة
         lambda: f"""⭐✨🔥
 {name}
-{f"⭐ تقييم {rating} " if rating and rating != 'غير معروف' else ''}💎 جودة ممتازة
+{f"⭐ تقييم {rating} " if rating and rating != 'غير معروف' else ''}💎 ثقة تستاهل
 ❌ {old_price or '---'} ريال
-✅ {price} ريال فقط!
-🔗 {product_info['url']}""",
+✅ {price} ريال بس!
+🔗 {url}""",
         
-        # نمط 4: وفر + صيحة (معدل بأمان)
-        lambda: f"""💥🎉🔥
-{name}
-😱 وفر {savings} ريال!
-💰 الحين بـ {price} ريال بس
-⏰ العرض محدود!
-🔗 {product_info['url']}""",
-        
-        # نمط 5: مختصر جداً
-        lambda: f"""🔥💎✨
-{name}
-🤩 من {old_price or '---'} لـ {price} ريال!
-💰 سعر مره حلو 👌
-🔗 {product_info['url']}""",
-        
-        # نمط 6: حماسي
+        # نمط 6: استعجال + حماس
         lambda: f"""🚨⏰🔥
 لا يفوتك يا جماعة!
 {name}
 ❌ قبل: {old_price or '---'} ريال
 ✅ الحين: {price} ريال فقط!
-🔗 {product_info['url']}""",
+🔗 {url}""",
+        
+        # نمط 7: مختصر وراقي
+        lambda: f"""🔥💎✨
+{name}
+🤩 من {old_price or '---'} لـ {price} ريال!
+💰 سعر مره حلو 👌
+🔗 {url}""",
+        
+        # نمط 8: تجربة شخصية
+        lambda: f"""👀🔥 شفت هذا العرض!
+{name}
+😱 من {old_price or '---'} لـ {price} ريال
+✨ يستاهل التجربة بصراحة
+🔗 {url}""",
     ]
     
     return random.choice(styles)()
