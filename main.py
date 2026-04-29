@@ -38,7 +38,7 @@ def calculate_savings(old_price, new_price):
 
 def generate_ai_post(product_info):
     """
-    توليد بوست كامل - السعر الحالي هو البطل
+    توليد بوست كامل - السعر القديم والجديد ورا بعض من غير سطر فاضي
     """
     
     # نختار معلومة واحدة "تشد" بس
@@ -53,10 +53,8 @@ def generate_ai_post(product_info):
     if product_info.get('is_amazon_choice'):
         highlight_options.append("Amazon's Choice ✅")
     
-    # نختار واحدة بس عشوائية
     highlight = random.choice(highlight_options) if highlight_options else ""
     
-    # نحسب الخصم لو فيه
     discount = product_info.get('discount_percent', 0) or 0
     old_price = product_info.get('old_price')
     
@@ -64,13 +62,10 @@ def generate_ai_post(product_info):
 اكتب بوست تسويقي قصير وراقي للمنتج التالي.
 
 🔹 قواعد مهمة جداً:
-- البوست يكون 4-5 أسطر كحد أقصى (مختصر جداً)
+- البوست يكون 5-7 أسطر كحد أقصى
 - سطر فاضي بين كل جملة والتانية
-- السعر الحالي هو النجم - يكون في سطر لوحده وبولد
-- لا تذكر السعر القديم إلا لو لازم (مش كل مرة)
-- لا تذكر نسبة الخصم إلا لو كبيرة (أكثر من 30%)
-- لا تذكر عدد التقييمات (مش مهم)
-- التقييم يُذكر بس بالنجمة ⭐ (مش بالأرقام)
+- السعر القديم والجديد يكونوا ورا بعض في سطرين متواليين من غير سطر فاضي بينهم
+- الجمل تكون: صيحة → اسم المنتج → الأسعار (ورا بعض) → (اختياري: جملة توضيح) → الرابط
 - الأسلوب راقي، سعودي خالص، قريب من الناس
 - خلي البوست يبدأ بصيحة أو جملة جذابة
 - الرابط الأصلي في النهاية
@@ -90,7 +85,8 @@ def generate_ai_post(product_info):
 
 Puma حذاء رياضي 👟
 
-💰 السعر: 190 ريال
+❌ كان بـ 388 ريال
+✅ الحين بـ 190 ريال بس!
 
 🔗 https://ty.gl/xxx
 
@@ -99,7 +95,8 @@ Puma حذاء رياضي 👟
 
 مقاس 38.5 لا يفوتك 👟
 
-💰 بـ 190 ريال بس!
+❌ كان 388 ريال
+✅ وصار 190 ريال (خصم 51%) 🤑
 
 🔗 https://ty.gl/xxx
 
@@ -108,7 +105,8 @@ Puma حذاء رياضي 👟
 
 زيت زيتون السوسن 2 لتر 🫒
 
-💰 64 ريال
+❌ 130 ريال
+✅ 64 ريال بس!
 
 🔗 https://amzn.to/xxx
 
@@ -117,19 +115,10 @@ Puma حذاء رياضي 👟
 
 Pierre Cardin حقيبة نسائية 🇫🇷
 
-💰 112 ريال فقط!
+❌ 261 ريال
+✅ 112 ريال فقط! ✨ جودة فرنسية بسعر خيالي
 
 🔗 https://ty.gl/xxx
-
-مثال 5 (لو فيه خصم كبير):
-🔥🔥🔥
-
-Skechers باوندر 👟
-
-❌ كان 373 ريال
-💰 الحين 126 ريال بس!
-
-🔗 https://amzn.to/xxx
 
 اكتب البوست مباشرة بدون أي مقدمة:"""
 
@@ -141,7 +130,7 @@ Skechers باوندر 👟
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب بوستات مختصرة وراقية. السعر الحالي هو النجم."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب بوستات مختصرة وراقية. السعر القديم والجديد ورا بعض."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.9,
@@ -170,12 +159,11 @@ Skechers باوندر 👟
     except Exception as e:
         print(f"Groq error: {e}")
     
-    # fallback
     return generate_smart_fallback_post(product_info)
 
 
 def generate_smart_fallback_post(product_info):
-    """توليد بوست بسيط - السعر الحالي هو البطل"""
+    """توليد بوست - السعر القديم والجديد ورا بعض"""
     
     name = product_info['name']
     price = product_info['price']
@@ -185,15 +173,16 @@ def generate_smart_fallback_post(product_info):
     rating = product_info.get('rating', '')
     url = product_info.get('url', '')
     
-    # أنماط بسيطة - السعر الحالي نجم
+    # أنماط عشوائية - السعر القديم والجديد ورا بعض
     styles = []
     
-    # النمط الأساسي: السعر لوحده
+    # النمط الأساسي
     styles.append(lambda: f"""🔥😱 لا يفوتكم يا جماعة! 🚨
 
 {name}
 
-💰 {price} ريال
+❌ كان بـ {old_price or '---'} ريال
+✅ الحين بـ {price} ريال بس!
 
 🔗 {url}""")
     
@@ -203,7 +192,8 @@ def generate_smart_fallback_post(product_info):
 
 {brand} {name}
 
-💰 {price} ريال بس!
+❌ {old_price or '---'} ريال
+✅ {price} ريال بس!
 
 🔗 {url}""")
     
@@ -213,13 +203,12 @@ def generate_smart_fallback_post(product_info):
 
 {name}
 
-⭐ تقييم ممتاز
-
-💰 {price} ريال
+❌ {old_price or '---'} ريال
+✅ {price} ريال فقط!
 
 🔗 {url}""")
     
-    # نمط الخصم الكبير بس
+    # نمط الخصم الكبير
     if discount > 30 and old_price:
         styles.append(lambda: f"""🚨🔥🔥
 
@@ -230,12 +219,13 @@ def generate_smart_fallback_post(product_info):
 
 🔗 {url}""")
     
-    # نمط مختصر جداً
+    # نمط مختصر
     styles.append(lambda: f"""💥🎉 صيدة!
 
 {name}
 
-💰 {price} ريال
+❌ {old_price or '---'} ريال
+✅ {price} ريال
 
 🔗 {url}""")
     
@@ -244,7 +234,8 @@ def generate_smart_fallback_post(product_info):
 
 {name}
 
-💰 {price} ريال فقط!
+❌ قبل: {old_price or '---'} ريال
+✅ الحين: {price} ريال فقط!
 
 🔗 {url}""")
     
