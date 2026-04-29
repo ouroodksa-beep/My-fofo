@@ -38,55 +38,50 @@ def calculate_savings(old_price, new_price):
 
 def generate_ai_post(product_info):
     """
-    توليد بوست كامل بشكل عشوائي ومبدع باستخدام AI
-    سطر فاضي بين كل جملة، السعر القديم والجديد ورا بعض
+    توليد بوست كامل - السعر الحالي هو البطل
     """
     
-    # نجمع كل البيانات المتاحة
-    data_points = []
+    # نختار معلومة واحدة "تشد" بس
+    highlight_options = []
     
     if product_info.get('brand') and product_info['brand'] != 'غير معروف':
-        data_points.append(f"البراند: {product_info['brand']}")
+        highlight_options.append(f"براند {product_info['brand']}")
     if product_info.get('rating') and product_info['rating'] != 'غير معروف':
-        data_points.append(f"التقييم: {product_info['rating']}/5")
-    if product_info.get('reviews_count') and product_info['reviews_count'] != 'غير معروف':
-        data_points.append(f"عدد التقييمات: {product_info['reviews_count']}")
-    if product_info.get('discount_percent') and product_info['discount_percent'] > 0:
-        data_points.append(f"الخصم: {product_info['discount_percent']}%")
+        highlight_options.append(f"⭐ {product_info['rating']}")
     if product_info.get('is_best_seller'):
-        data_points.append("الأكثر مبيعاً ⭐")
+        highlight_options.append("الأكثر مبيعاً 🔥")
     if product_info.get('is_amazon_choice'):
-        data_points.append("Amazon's Choice ✅")
-    if product_info.get('prime'):
-        data_points.append("توصيل Prime سريع 🚚")
+        highlight_options.append("Amazon's Choice ✅")
     
-    savings = calculate_savings(product_info.get('old_price'), product_info['price'])
-    if savings > 0:
-        data_points.append(f"التوفير: {savings} ريال")
+    # نختار واحدة بس عشوائية
+    highlight = random.choice(highlight_options) if highlight_options else ""
     
-    # نختار 1-2 معلومات "تشد" عشوائياً
-    selected_highlights = random.sample(data_points, min(2, len(data_points))) if data_points else ["سعر ممتاز"]
-    highlight_text = " | ".join(selected_highlights)
+    # نحسب الخصم لو فيه
+    discount = product_info.get('discount_percent', 0) or 0
+    old_price = product_info.get('old_price')
     
     prompt = f"""أنت كاتب محتوى سعودي محترف في قنوات تليجرام للتسويق بالعمولة.
 اكتب بوست تسويقي قصير وراقي للمنتج التالي.
 
 🔹 قواعد مهمة جداً:
-- البوست يكون 5-7 أسطر كحد أقصى
+- البوست يكون 4-5 أسطر كحد أقصى (مختصر جداً)
 - سطر فاضي بين كل جملة والتانية
-- السعر القديم والجديد يكونوا ورا بعض في نفس السطر (أو سطرين متواليين من غير سطر فاضي)
-- استخدم إيموجي بكثرة وبوزن متناسق
+- السعر الحالي هو النجم - يكون في سطر لوحده وبولد
+- لا تذكر السعر القديم إلا لو لازم (مش كل مرة)
+- لا تذكر نسبة الخصم إلا لو كبيرة (أكثر من 30%)
+- لا تذكر عدد التقييمات (مش مهم)
+- التقييم يُذكر بس بالنجمة ⭐ (مش بالأرقام)
 - الأسلوب راقي، سعودي خالص، قريب من الناس
-- لا تستخدم قوائم أو نقاط
 - خلي البوست يبدأ بصيحة أو جملة جذابة
-- الرابط يُذكر في النهاية بس
+- الرابط الأصلي في النهاية
 
 🔹 بيانات المنتج:
 - الاسم: {product_info['name']}
 - السعر الحالي: {product_info['price']} ريال
-- السعر القديم: {product_info.get('old_price', 'غير متوفر')} ريال
-- المعلومات المتاحة: {highlight_text}
-- الرابط الأصلي: {product_info.get('url', '')}
+- السعر القديم: {old_price or 'غير متوفر'} ريال
+- الخصم: {discount}%
+- المعلومة اللي تشد: {highlight}
+- الرابط: {product_info.get('url', '')}
 
 🔹 أمثلة للأسلوب المطلوب:
 
@@ -95,7 +90,7 @@ def generate_ai_post(product_info):
 
 Puma حذاء رياضي 👟
 
-❌ كان بـ 388 ريال ✅ الحين بـ 190 ريال بس!
+💰 السعر: 190 ريال
 
 🔗 https://ty.gl/xxx
 
@@ -104,7 +99,7 @@ Puma حذاء رياضي 👟
 
 مقاس 38.5 لا يفوتك 👟
 
-❌ كان 388 ريال ✅ وصار 190 ريال (خصم 51%) 🤑
+💰 بـ 190 ريال بس!
 
 🔗 https://ty.gl/xxx
 
@@ -113,7 +108,7 @@ Puma حذاء رياضي 👟
 
 زيت زيتون السوسن 2 لتر 🫒
 
-😱 خصم 50% استخدمته قبل فترة واشوفه ممتاز جداً 👌
+💰 64 ريال
 
 🔗 https://amzn.to/xxx
 
@@ -122,11 +117,21 @@ Puma حذاء رياضي 👟
 
 Pierre Cardin حقيبة نسائية 🇫🇷
 
-🤩 من 261 ريال لـ 112 ريال فقط! ✨ جودة فرنسية بسعر خيالي
+💰 112 ريال فقط!
 
 🔗 https://ty.gl/xxx
 
-اكتب البوست مباشرة بدون أي مقدمة أو شرح:"""
+مثال 5 (لو فيه خصم كبير):
+🔥🔥🔥
+
+Skechers باوندر 👟
+
+❌ كان 373 ريال
+💰 الحين 126 ريال بس!
+
+🔗 https://amzn.to/xxx
+
+اكتب البوست مباشرة بدون أي مقدمة:"""
 
     try:
         headers = {
@@ -136,11 +141,11 @@ Pierre Cardin حقيبة نسائية 🇫🇷
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي محترف في قنوات تسويق بالعمولة. تكتب بوستات مختصرة، راقية، سعودية، منسقة بإيموجي. سطر فاضي بين كل جملة."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب بوستات مختصرة وراقية. السعر الحالي هو النجم."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.9,
-            "max_tokens": 250
+            "max_tokens": 200
         }
         
         r = requests.post(
@@ -165,98 +170,83 @@ Pierre Cardin حقيبة نسائية 🇫🇷
     except Exception as e:
         print(f"Groq error: {e}")
     
-    # fallback ذكي
+    # fallback
     return generate_smart_fallback_post(product_info)
 
 
 def generate_smart_fallback_post(product_info):
-    """توليد بوست عشوائي المظهر بدون API - بنفس التنسيق"""
+    """توليد بوست بسيط - السعر الحالي هو البطل"""
     
     name = product_info['name']
     price = product_info['price']
     old_price = product_info.get('old_price')
-    discount = product_info.get('discount_percent', 0)
+    discount = product_info.get('discount_percent', 0) or 0
     brand = product_info.get('brand', '')
     rating = product_info.get('rating', '')
-    savings = calculate_savings(old_price, price)
     url = product_info.get('url', '')
     
-    # أنماط عشوائية - كلها راقية وسعودية مع سطر فاضي بين الجمل
-    styles = [
-        # نمط 1: صيحة + سعر مباشر
-        lambda: f"""🔥😱 لا يفوتكم يا جماعة! 🚨
+    # أنماط بسيطة - السعر الحالي نجم
+    styles = []
+    
+    # النمط الأساسي: السعر لوحده
+    styles.append(lambda: f"""🔥😱 لا يفوتكم يا جماعة! 🚨
 
 {name}
 
-❌ كان بـ {old_price or '---'} ريال ✅ الحين بـ {price} ريال بس!
+💰 {price} ريال
 
-🔗 {url}""",
-        
-        # نمط 2: واو + خصم
-        lambda: f"""💥🔥 ووووووو
+🔗 {url}""")
+    
+    # نمط مع البراند
+    if brand and brand != 'غير معروف':
+        styles.append(lambda: f"""😎👌💎
 
-{name}
+{brand} {name}
 
-😱 خصم {discount}% مجنون! ⚡️ من {old_price or '---'} لـ {price} ريال
+💰 {price} ريال بس!
 
-🔗 {url}""",
-        
-        # نمط 3: صيدة + توفير
-        lambda: f"""🎉✨ صيدة من يوما 🔥
-
-{name}
-
-💰 وفر {savings} ريال! ❌ {old_price or '---'} ريال ✅ {price} ريال فقط
-
-🔗 {url}""",
-        
-        # نمط 4: براند + جودة
-        lambda: f"""😎👌💎
-
-{f"{brand} " if brand and brand != 'غير معروف' else ''}{name}
-
-🤩 من {old_price or '---'} لـ {price} ريال! ✨ جودة عالية بسعر خيالي
-
-🔗 {url}""",
-        
-        # نمط 5: تقييم + ثقة
-        lambda: f"""⭐✨🔥
+🔗 {url}""")
+    
+    # نمط مع التقييم
+    if rating and rating != 'غير معروف':
+        styles.append(lambda: f"""⭐✨🔥
 
 {name}
 
-{f"⭐ تقييم {rating} " if rating and rating != 'غير معروف' else ''}💎 ثقة تستاهل ❌ {old_price or '---'} ريال ✅ {price} ريال بس!
+⭐ تقييم ممتاز
 
-🔗 {url}""",
-        
-        # نمط 6: استعجال + حماس
-        lambda: f"""🚨⏰🔥
+💰 {price} ريال
 
-لا يفوتك يا جماعة!
-
-{name}
-
-❌ قبل: {old_price or '---'} ريال ✅ الحين: {price} ريال فقط!
-
-🔗 {url}""",
-        
-        # نمط 7: مختصر وراقي
-        lambda: f"""🔥💎✨
+🔗 {url}""")
+    
+    # نمط الخصم الكبير بس
+    if discount > 30 and old_price:
+        styles.append(lambda: f"""🚨🔥🔥
 
 {name}
 
-🤩 من {old_price or '---'} لـ {price} ريال! 💰 سعر مره حلو 👌
+❌ كان {old_price} ريال
+💰 الحين {price} ريال بس!
 
-🔗 {url}""",
-        
-        # نمط 8: تجربة شخصية
-        lambda: f"""👀🔥 شفت هذا العرض!
+🔗 {url}""")
+    
+    # نمط مختصر جداً
+    styles.append(lambda: f"""💥🎉 صيدة!
 
 {name}
 
-😱 من {old_price or '---'} لـ {price} ريال ✨ يستاهل التجربة بصراحة
+💰 {price} ريال
 
-🔗 {url}""",
-    ]
+🔗 {url}""")
+    
+    # نمط حماسي
+    styles.append(lambda: f"""👀 شفت هذا العرض!
+
+{name}
+
+💰 {price} ريال فقط!
+
+🔗 {url}""")
     
     return random.choice(styles)()
 
@@ -523,7 +513,6 @@ def get_product(asin):
                 continue
             full_title = title_elem.text.strip()
             
-            # استخراج البراند
             brand = detect_brand(full_title)
             brand_elem = soup.select_one("#bylineInfo") or soup.select_one(".po-brand .po-break-word")
             if brand_elem:
@@ -531,7 +520,6 @@ def get_product(asin):
                 if brand_text and brand == 'غير معروف':
                     brand = brand_text
             
-            # استخراج التقييم
             rating = None
             rating_elem = soup.select_one("[data-hook='average-star-rating'] .a-icon-alt") or soup.select_one(".a-icon-alt")
             if rating_elem:
@@ -540,7 +528,6 @@ def get_product(asin):
                 if rating_match:
                     rating = rating_match.group(1)
             
-            # استخراج عدد التقييمات
             reviews_count = None
             reviews_elem = soup.select_one("[data-hook='total-review-count']") or soup.select_one("a[href*='reviews'] span")
             if reviews_elem:
@@ -549,7 +536,6 @@ def get_product(asin):
                 if reviews_match:
                     reviews_count = reviews_match.group(1)
             
-            # استخراج السعر
             price = None
             price_selectors = [
                 ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
@@ -566,7 +552,6 @@ def get_product(asin):
                     if any(c.isdigit() for c in price):
                         break
             
-            # استخراج السعر القديم
             old_price = None
             old_selectors = [
                 ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
@@ -581,10 +566,8 @@ def get_product(asin):
                         old_price = text
                         break
             
-            # استخراج الصورة
             image = get_high_quality_image(soup)
             
-            # حساب الخصم
             discount_percent = None
             try:
                 if old_price and price:
@@ -595,13 +578,8 @@ def get_product(asin):
             except:
                 pass
             
-            # التحقق من Best Seller
             is_best_seller = bool(soup.select_one("[data-hook='best-seller-badge']") or soup.select_one(".badge-best-seller"))
-            
-            # التحقق من Amazon's Choice
             is_amazon_choice = bool(soup.select_one(".ac-badge") or soup.select_one("[data-hook='amazon-choice-badge']"))
-            
-            # التحقق من Prime
             prime = bool(soup.select_one("[aria-label='Prime']") or soup.select_one(".a-icon-prime"))
             
             if price:
@@ -665,10 +643,8 @@ def handler(msg):
             bot.edit_message_text("❌ تعذر قراءة بيانات المنتج", msg.chat.id, wait.message_id)
             continue
 
-        # إضافة الرابط الأصلي للبيانات
         product['url'] = original_url
         
-        # توليد البوست بشكل عشوائي ومبدع
         post = generate_ai_post(product)
 
         try:
