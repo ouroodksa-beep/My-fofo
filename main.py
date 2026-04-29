@@ -15,10 +15,30 @@ bot = telebot.TeleBot(TOKEN)
 
 GROQ_API_KEY = "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"
 
+def safe_float(value):
+    """تحويل قيمة لرقم بأمان"""
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    # تنظيف النص من أي حروف أو رموز
+    cleaned = re.sub(r'[^\d.]', '', str(value))
+    try:
+        return float(cleaned) if cleaned else 0.0
+    except:
+        return 0.0
+
+def calculate_savings(old_price, new_price):
+    """حساب المبلغ المُوفر بأمان"""
+    old_val = safe_float(old_price)
+    new_val = safe_float(new_price)
+    if old_val > new_val:
+        return int(old_val - new_val)
+    return 0
+
 def generate_ai_post(product_info):
     """
     توليد بوست كامل بشكل عشوائي ومبدع باستخدام AI
-    product_info: dict فيه كل بيانات المنتج
     """
     
     # نختار معلومة عشوائية "اللي تشد" نركز عليها
@@ -39,30 +59,30 @@ def generate_ai_post(product_info):
     if product_info.get('prime'):
         highlight_options.append("توصيل Prime سريع")
     
-    # لو مفيش حاجة تشد، نضيف خيارات عامة
     if not highlight_options:
         highlight_options = ["سعر ممتاز", "جودة عالية", "عرض محدود"]
     
     highlight = random.choice(highlight_options)
     
-    # نختار طريقة عرض السعر عشوائياً
     price_style = random.choice([
-        "before_after",      # ❌ قبل / ✅ الحين
-        "discount_focus",    # 🔥 خصم X% / 💰 السعر الجديد
-        "savings",           # 💵 وفرت كذا ريال
-        "urgency",           # ⏰ العرض لمدة محدودة
-        "comparison",        # 🤯 من كذا لكذا بس!
+        "before_after",
+        "discount_focus",
+        "savings",
+        "urgency",
+        "comparison",
     ])
     
-    # نختار "الصيحة" العشوائية
     hype_style = random.choice([
-        "shock",        # 🤯😱🔥
-        "urgency",      # 🚨⏰🔥
-        "excitement",   # 💥🎉🔥
-        "cool",         # 😎👌💎
-        "wow",          # 🤩✨🔥
-        "deal",         # 💰🔥🎯
+        "shock",
+        "urgency",
+        "excitement",
+        "cool",
+        "wow",
+        "deal",
     ])
+    
+    # حساب المبلغ المُوفر
+    savings = calculate_savings(product_info.get('old_price'), product_info['price'])
     
     prompt = f"""أنت كاتب محتوى سعودي محترف في قنوات تليجرام للتسويق بالعمولة.
 اكتب بوست تسويقي قصير ومختصر للمنتج التالي.
@@ -81,6 +101,7 @@ def generate_ai_post(product_info):
 - السعر الحالي: {product_info['price']} ريال
 - السعر القديم: {product_info.get('old_price', 'غير متوفر')} ريال
 - نسبة الخصم: {product_info.get('discount_percent', 0)}%
+- المبلغ المُوفر: {savings} ريال
 - التقييم: {product_info.get('rating', 'غير معروف')}
 - عدد التقييمات: {product_info.get('reviews_count', 'غير معروف')}
 - المعلومة اللي تشد: {highlight}
@@ -158,7 +179,6 @@ Pierre Cardin حقيبة نسائية 🇫🇷
     except Exception as e:
         print(f"Groq error: {e}")
     
-    # fallback ذكي
     return generate_smart_fallback_post(product_info)
 
 
@@ -171,6 +191,7 @@ def generate_smart_fallback_post(product_info):
     discount = product_info.get('discount_percent', 0)
     brand = product_info.get('brand', '')
     rating = product_info.get('rating', '')
+    savings = calculate_savings(old_price, price)
     
     # أنماط عشوائية للبوست
     styles = [
@@ -196,10 +217,10 @@ def generate_smart_fallback_post(product_info):
 ✅ {price} ريال فقط!
 🔗 {product_info['url']}""",
         
-        # نمط 4: وفر + صيحة
+        # نمط 4: وفر + صيحة (معدل بأمان)
         lambda: f"""💥🎉🔥
 {name}
-😱 وفر {int((float(str(old_price).replace(',', '')) - float(str(price).replace(',', '')) if old_price else 0} ريال!
+😱 وفر {savings} ريال!
 💰 الحين بـ {price} ريال بس
 ⏰ العرض محدود!
 🔗 {product_info['url']}""",
