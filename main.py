@@ -15,38 +15,110 @@ bot = telebot.TeleBot(TOKEN)
 
 GROQ_API_KEY = "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"
 
-def generate_ai_sentence(product_name, category, price, old_price, discount_percent, gender="men"):
+def generate_ai_post(product_info):
     """
-    توليد جملة تسويقية ذكية باستخدام Groq AI - بنفس طريقة القنوات الكبيرة
+    توليد بوست كامل بشكل عشوائي ومبدع باستخدام AI
+    product_info: dict فيه كل بيانات المنتج
     """
     
-    discount_info = ""
-    if discount_percent and discount_percent > 5:
-        discount_info = f"\n- نسبة الخصم: {discount_percent}%"
+    # نختار معلومة عشوائية "اللي تشد" نركز عليها
+    highlight_options = []
     
-    prompt = f"""أنت كاتب محتوى سعودي محترف في قنوات تليجرام للتسويق بالعمولة (زي قناة "نص السعر").
-اكتب جملة تسويقية قصيرة جداً ومختصرة (سطر واحد فقط) باللهجة السعودية الخفيفة.
+    if product_info.get('brand') and product_info['brand'] != 'غير معروف':
+        highlight_options.append(f"براند {product_info['brand']}")
+    if product_info.get('rating') and product_info['rating'] != 'غير معروف':
+        highlight_options.append(f"تقييم {product_info['rating']}")
+    if product_info.get('reviews_count') and product_info['reviews_count'] != 'غير معروف':
+        highlight_options.append(f"{product_info['reviews_count']} تقييم")
+    if product_info.get('discount_percent') and product_info['discount_percent'] > 20:
+        highlight_options.append(f"خصم {product_info['discount_percent']}%")
+    if product_info.get('is_best_seller'):
+        highlight_options.append("الأكثر مبيعاً")
+    if product_info.get('is_amazon_choice'):
+        highlight_options.append("Amazon's Choice")
+    if product_info.get('prime'):
+        highlight_options.append("توصيل Prime سريع")
+    
+    # لو مفيش حاجة تشد، نضيف خيارات عامة
+    if not highlight_options:
+        highlight_options = ["سعر ممتاز", "جودة عالية", "عرض محدود"]
+    
+    highlight = random.choice(highlight_options)
+    
+    # نختار طريقة عرض السعر عشوائياً
+    price_style = random.choice([
+        "before_after",      # ❌ قبل / ✅ الحين
+        "discount_focus",    # 🔥 خصم X% / 💰 السعر الجديد
+        "savings",           # 💵 وفرت كذا ريال
+        "urgency",           # ⏰ العرض لمدة محدودة
+        "comparison",        # 🤯 من كذا لكذا بس!
+    ])
+    
+    # نختار "الصيحة" العشوائية
+    hype_style = random.choice([
+        "shock",        # 🤯😱🔥
+        "urgency",      # 🚨⏰🔥
+        "excitement",   # 💥🎉🔥
+        "cool",         # 😎👌💎
+        "wow",          # 🤩✨🔥
+        "deal",         # 💰🔥🎯
+    ])
+    
+    prompt = f"""أنت كاتب محتوى سعودي محترف في قنوات تليجرام للتسويق بالعمولة.
+اكتب بوست تسويقي قصير ومختصر للمنتج التالي.
 
 🔹 قواعد مهمة:
-- الجملة لازم تكون مختصرة جداً (5-12 كلمة كحد أقصى)
-- استخدم إيموجي كثير (2-4 إيموجي) في الجملة نفسها
-- خلي الجملة حماسية ومثيرة جداً (زي: "🔥 لا يفوتكم يا جماعة! 🚨")
-- لا تذكر السعر أو اسم المنتج بالتفصيل في الجملة
-- اكتب بلهجة سعودية خفيفة (مثل: "مره", "ياجمااعة", "يستاهل", "صيدة", "ووووو")
-- الجملة تكون زي الصيحة اللي بتلفت الانتباه مش وصف
-
-🔹 أمثلة للمطلوب:
-"🔥 لا يفوتكم يا جماعة! 🚨"
-"💥 ووووووو 🔥"
-"🎉 صيدة من يوما 🔥"
-"🤩 خصم مجنون عليه! ⚡️"
-"🔥 العرض داااااحش! 💰"
-"🚨 فرصة ذهبية! ⏰"
+- البوست يكون 4-6 أسطر كحد أقصى
+- استخدم إيموجي بكثرة (3-5 إيموجي في كل سطر)
+- خلي الأسلوب حماسي ومثير جداً
+- لا تستخدم قوائم أو نقاط
+- اكتب بلهجة سعودية خفيفة (مره، ياجمااعة، يستاهل، صيدة، ووووو)
+- لا تكرر نفس النمط، خلي كل بوست مختلف
 
 🔹 بيانات المنتج:
-- الفئة: {category}{discount_info}
+- الاسم: {product_info['name']}
+- البراند: {product_info.get('brand', 'غير معروف')}
+- السعر الحالي: {product_info['price']} ريال
+- السعر القديم: {product_info.get('old_price', 'غير متوفر')} ريال
+- نسبة الخصم: {product_info.get('discount_percent', 0)}%
+- التقييم: {product_info.get('rating', 'غير معروف')}
+- عدد التقييمات: {product_info.get('reviews_count', 'غير معروف')}
+- المعلومة اللي تشد: {highlight}
+- طريقة عرض السعر: {price_style}
+- نمط الصيحة: {hype_style}
 
-اكتب جملة واحدة فقط بدون أي مقدمة:"""
+🔹 أمثلة للمطلوب:
+
+مثال 1 (shock + before_after):
+🤯😱🔥
+Puma حذاء رياضي 👟
+❌ كان بـ 388 ريال
+✅ الحين بـ 190 ريال بس!
+🔗 الرابط
+
+مثال 2 (urgency + discount_focus):
+🚨⏰🔥
+خصم 50% مجنون على زيت زيتون 🫒
+🔥 من 130 لـ 64 ريال بس!
+💰 وفر 50% الحين
+🔗 الرابط
+
+مثال 3 (excitement + savings):
+💥🎉🔥
+Skechers باوندر 👟
+❌ كانت بـ 373 ريال
+😱 الحين بـ 126 ريال فقط!
+💵 وفر 247 ريال
+🔗 الرابط
+
+مثال 4 (cool + comparison):
+😎👌💎
+Pierre Cardin حقيبة نسائية 🇫🇷
+🤩 من 261 ريال لـ 112 ريال فقط!
+✨ جودة فرنسية بسعر خيالي
+🔗 الرابط
+
+اكتب البوست مباشرة بدون أي مقدمة أو شرح:"""
 
     try:
         headers = {
@@ -56,11 +128,11 @@ def generate_ai_sentence(product_name, category, price, old_price, discount_perc
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب جمل حماسية مختصرة جداً بإيموجي كثير."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب بوستات مختصرة حماسية بإيموجي كثير. كل بوست يكون مختلف عن اللي قبله."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.95,
-            "max_tokens": 50
+            "max_tokens": 200
         }
         
         r = requests.post(
@@ -72,49 +144,83 @@ def generate_ai_sentence(product_name, category, price, old_price, discount_perc
         
         if r.status_code == 200:
             result = r.json()
-            sentence = result["choices"][0]["message"]["content"].strip()
-            sentence = sentence.replace('"', '').replace("'", "").strip()
-            sentence = re.sub(r'^[ـ\s]+', '', sentence)
-            return sentence
+            post = result["choices"][0]["message"]["content"].strip()
+            post = post.replace('"', '').replace("'", "").strip()
+            
+            # نضيف الرابط لو مش موجود
+            if '🔗' not in post and 'http' not in post:
+                post += f"\n\n🔗 {product_info['url']}"
+            elif 'http' in post and '🔗' not in post:
+                post = post.replace(product_info['url'], f"🔗 {product_info['url']}")
+            
+            return post
                 
     except Exception as e:
         print(f"Groq error: {e}")
     
-    # fallback
-    return generate_smart_fallback_sentence(product_name, category, discount_percent)
+    # fallback ذكي
+    return generate_smart_fallback_post(product_info)
 
 
-def generate_smart_fallback_sentence(product_name, category, discount_percent):
-    """توليد جملة حماسية مختصرة بدون API"""
+def generate_smart_fallback_post(product_info):
+    """توليد بوست عشوائي المظهر بدون API"""
     
-    hype_templates = [
-        "🔥 لا يفوتكم يا جماعة! 🚨",
-        "💥 ووووووو 🔥",
-        "🎉 صيدة من يوما 🔥",
-        "🤩 خصم مجنون عليه! ⚡️",
-        "🔥 العرض داااااحش! 💰",
-        "🚨 فرصة ذهبية! ⏰",
-        "⚡️ لا يفوتك! 🔥",
-        "💰 سعر مره حلو! 🤩",
-        "🔥 يستاهل التجربة! 👌",
-        "🎯 من الأخير: لا يتفوت! 🔥",
-        "💎 جودة بسعر خيالي! 🔥",
-        "🚀 عرض صاروخي! ⚡️",
-        "🔥 يا سلااام على السعر! 🤩",
-        "⏰ العرض محدود! 🔥",
-        "💥 خصم يجنن! 🚨",
+    name = product_info['name']
+    price = product_info['price']
+    old_price = product_info.get('old_price')
+    discount = product_info.get('discount_percent', 0)
+    brand = product_info.get('brand', '')
+    rating = product_info.get('rating', '')
+    
+    # أنماط عشوائية للبوست
+    styles = [
+        # نمط 1: صيحة + سعر
+        lambda: f"""🤯😱🔥
+{name}
+❌ كان بـ {old_price or '---'} ريال
+✅ الحين بـ {price} ريال بس!
+🔗 {product_info['url']}""",
+        
+        # نمط 2: خصم + براند
+        lambda: f"""🔥🚨💥
+{f"براند {brand} " if brand and brand != 'غير معروف' else ''}{name}
+💰 خصم {discount}% مجنون!
+⚡️ من {old_price or '---'} لـ {price} ريال
+🔗 {product_info['url']}""",
+        
+        # نمط 3: تقييم + سعر
+        lambda: f"""⭐✨🔥
+{name}
+{f"⭐ تقييم {rating} " if rating and rating != 'غير معروف' else ''}💎 جودة ممتازة
+❌ {old_price or '---'} ريال
+✅ {price} ريال فقط!
+🔗 {product_info['url']}""",
+        
+        # نمط 4: وفر + صيحة
+        lambda: f"""💥🎉🔥
+{name}
+😱 وفر {int((float(str(old_price).replace(',', '')) - float(str(price).replace(',', ''))) if old_price else 0} ريال!
+💰 الحين بـ {price} ريال بس
+⏰ العرض محدود!
+🔗 {product_info['url']}""",
+        
+        # نمط 5: مختصر جداً
+        lambda: f"""🔥💎✨
+{name}
+🤩 من {old_price or '---'} لـ {price} ريال!
+💰 سعر مره حلو 👌
+🔗 {product_info['url']}""",
+        
+        # نمط 6: حماسي
+        lambda: f"""🚨⏰🔥
+لا يفوتك يا جماعة!
+{name}
+❌ قبل: {old_price or '---'} ريال
+✅ الحين: {price} ريال فقط!
+🔗 {product_info['url']}""",
     ]
     
-    if discount_percent and discount_percent > 30:
-        discount_templates = [
-            f"🔥 خصم {discount_percent}% يا جماعة! 🚨",
-            f"🤩 وفر {discount_percent}% الحين! ⚡️",
-            f"💥 خصم {discount_percent}% مجنون! 🔥",
-            f"🎯 خصم {discount_percent}% لا يتفوت! ⏰",
-        ]
-        return random.choice(discount_templates)
-    
-    return random.choice(hype_templates)
+    return random.choice(styles)()
 
 
 # ===================================
@@ -129,6 +235,31 @@ CATEGORY_KEYWORDS = {
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "exercise", "workout", "sport", "running", "walking", "training", "sneakers", "shoes", "رياضة", "جيم", "لياقة", "تمارين", "سير", "دامبل", "يوغا", "دراجة", "كرة", "جري", "مشي", "تدريب"]
 }
 
+BRAND_KEYWORDS = {
+    "nike": "Nike", "adidas": "Adidas", "puma": "Puma", "reebok": "Reebok",
+    "skechers": "Skechers", "new balance": "New Balance", "asics": "ASICS",
+    "under armour": "Under Armour",
+    "apple": "Apple", "samsung": "Samsung", "huawei": "Huawei", "xiaomi": "Xiaomi",
+    "sony": "Sony", "lg": "LG", "philips": "Philips", "bosch": "Bosch",
+    "pierre cardin": "Pierre Cardin", "gucci": "Gucci", "prada": "Prada",
+    "zara": "Zara", "h&m": "H&M", "shein": "SHEIN", "mango": "Mango",
+    "lacoste": "Lacoste", "tommy hilfiger": "Tommy Hilfiger",
+    "calvin klein": "Calvin Klein", "armani": "Armani",
+    "levi's": "Levi's", "wrangler": "Wrangler", "diesel": "Diesel",
+    "ray-ban": "Ray-Ban", "oakley": "Oakley",
+    "casio": "Casio", "g-shock": "G-Shock", "seiko": "Seiko",
+    "dior": "Dior", "chanel": "Chanel", "versace": "Versace",
+    "l'oreal": "L'Oreal", "nivea": "Nivea", "dove": "Dove",
+    "oral-b": "Oral-B", "gillette": "Gillette", "braun": "Braun",
+    "tefal": "Tefal", "moulinex": "Moulinex", "kenwood": "Kenwood",
+    "delonghi": "DeLonghi", "nespresso": "Nespresso",
+    "ikea": "IKEA", "home centre": "Home Centre",
+    "the north face": "The North Face", "columbia": "Columbia",
+    "lego": "LEGO", "barbie": "Barbie", "hasbro": "Hasbro",
+    "comfort": "Comfort", "persil": "Persil", "ariel": "Ariel",
+    "tide": "Tide", "downy": "Downy",
+}
+
 def detect_product_category(product_name):
     name_lower = product_name.lower()
     for category, keywords in CATEGORY_KEYWORDS.items():
@@ -136,6 +267,13 @@ def detect_product_category(product_name):
             if keyword in name_lower:
                 return category
     return "general"
+
+def detect_brand(product_name):
+    name_lower = product_name.lower()
+    for keyword, brand in BRAND_KEYWORDS.items():
+        if keyword in name_lower:
+            return brand
+    return "غير معروف"
 
 def detect_product_gender(product_name):
     name_lower = product_name.lower()
@@ -154,9 +292,6 @@ def detect_product_gender(product_name):
 # ===================================
 
 TRANSLATION_DICT = {
-    "adidas": "Adidas", "nike": "Nike", "puma": "Puma", "reebok": "Reebok",
-    "apple": "Apple", "samsung": "Samsung", "huawei": "Huawei", "xiaomi": "Xiaomi",
-    "iphone": "iPhone", "ipad": "iPad", "macbook": "MacBook", "airpods": "AirPods",
     "laptop": "لابتوب", "tablet": "تابلت", "keyboard": "كيبورد", "mouse": "ماوس",
     "charger": "شاحن", "cable": "كيبل", "power bank": "باور بانك", "battery": "بطارية",
     "screen": "شاشة", "monitor": "شاشة عرض", "camera": "كاميرا", "speaker": "سماعة",
@@ -265,7 +400,7 @@ def clean_price(price_text):
             num_str = nums[0].replace(",", "")
             num_float = float(num_str)
             num_int = int(num_float)
-            return f"{num_int} ريال"
+            return num_int
     except:
         pass
     return price_text
@@ -349,6 +484,34 @@ def get_product(asin):
             if not title_elem:
                 continue
             full_title = title_elem.text.strip()
+            
+            # استخراج البراند
+            brand = detect_brand(full_title)
+            brand_elem = soup.select_one("#bylineInfo") or soup.select_one(".po-brand .po-break-word")
+            if brand_elem:
+                brand_text = brand_elem.text.strip()
+                if brand_text and brand == 'غير معروف':
+                    brand = brand_text
+            
+            # استخراج التقييم
+            rating = None
+            rating_elem = soup.select_one("[data-hook='average-star-rating'] .a-icon-alt") or soup.select_one(".a-icon-alt")
+            if rating_elem:
+                rating_text = rating_elem.text.strip()
+                rating_match = re.search(r'([\d.]+)\s*out of\s*5', rating_text) or re.search(r'([\d.]+)', rating_text)
+                if rating_match:
+                    rating = rating_match.group(1)
+            
+            # استخراج عدد التقييمات
+            reviews_count = None
+            reviews_elem = soup.select_one("[data-hook='total-review-count']") or soup.select_one("a[href*='reviews'] span")
+            if reviews_elem:
+                reviews_text = reviews_elem.text.strip()
+                reviews_match = re.search(r'([\d,]+)', reviews_text)
+                if reviews_match:
+                    reviews_count = reviews_match.group(1)
+            
+            # استخراج السعر
             price = None
             price_selectors = [
                 ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
@@ -364,6 +527,8 @@ def get_product(asin):
                     price = elem.text.strip()
                     if any(c.isdigit() for c in price):
                         break
+            
+            # استخراج السعر القديم
             old_price = None
             old_selectors = [
                 ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
@@ -377,7 +542,11 @@ def get_product(asin):
                     if text != price and any(c.isdigit() for c in text):
                         old_price = text
                         break
+            
+            # استخراج الصورة
             image = get_high_quality_image(soup)
+            
+            # حساب الخصم
             discount_percent = None
             try:
                 if old_price and price:
@@ -387,50 +556,47 @@ def get_product(asin):
                         discount_percent = int(((old_num - new_num) / old_num) * 100)
             except:
                 pass
+            
+            # التحقق من Best Seller
+            is_best_seller = bool(soup.select_one("[data-hook='best-seller-badge']") or soup.select_one(".badge-best-seller"))
+            
+            # التحقق من Amazon's Choice
+            is_amazon_choice = bool(soup.select_one(".ac-badge") or soup.select_one("[data-hook='amazon-choice-badge']"))
+            
+            # التحقق من Prime
+            prime = bool(soup.select_one("[aria-label='Prime']") or soup.select_one(".a-icon-prime"))
+            
             if price:
                 arabic_title = smart_arabic_title(full_title)
-                return arabic_title, price, old_price, image, discount_percent
+                clean_price_val = clean_price(price)
+                clean_old_price = clean_price(old_price) if old_price else None
+                
+                return {
+                    'name': arabic_title,
+                    'full_name': full_title,
+                    'price': clean_price_val,
+                    'old_price': clean_old_price,
+                    'discount_percent': discount_percent,
+                    'image': image,
+                    'brand': brand,
+                    'rating': rating or 'غير معروف',
+                    'reviews_count': reviews_count or 'غير معروف',
+                    'is_best_seller': is_best_seller,
+                    'is_amazon_choice': is_amazon_choice,
+                    'prime': prime,
+                    'category': detect_product_category(full_title),
+                    'gender': detect_product_gender(full_title),
+                    'url': f"https://www.amazon.sa/dp/{asin}"
+                }
+                
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
             continue
     return None
 
 # ===================================
-# ✨ التوليد النهائي - بنفس طريقة القنوات الكبيرة
+# ✨ معالجة الرسائل
 # ===================================
-
-def generate_post(product_name, price, old_price, discount_percent, original_url):
-    category = detect_product_category(product_name)
-    gender = detect_product_gender(product_name)
-    
-    # 🧠 توليد الجملة الحماسية المختصرة
-    opening = generate_ai_sentence(product_name, category, price, old_price, discount_percent, gender)
-
-    clean_current = clean_price(price)
-    clean_old = clean_price(old_price) if old_price else None
-
-    lines = []
-    
-    # السطر الأول: الجملة الحماسية
-    lines.append(opening)
-    lines.append("")
-    
-    # السطر الثاني: اسم المنتج المختصر
-    lines.append(f"📦 {product_name}")
-    lines.append("")
-    
-    # السطر الثالث: السعر بشكل مثير
-    if clean_old and discount_percent and discount_percent > 5:
-        lines.append(f"❌ كان بـ {clean_old}")
-        lines.append(f"🔥 الحين بـ {clean_current} فقط!")
-        lines.append(f"💰 وفر {discount_percent}%")
-    else:
-        lines.append(f"💰 السعر: {clean_current}")
-    
-    lines.append("")
-    lines.append(f"🔗 {original_url}")
-
-    return "\n".join(lines)
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -453,7 +619,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري التحليل...")
+        wait = bot.reply_to(msg, "⏳ جاري التحليل الذكي...")
 
         product = get_product(asin)
 
@@ -461,12 +627,15 @@ def handler(msg):
             bot.edit_message_text("❌ تعذر قراءة بيانات المنتج", msg.chat.id, wait.message_id)
             continue
 
-        product_name, price, old_price, image, discount_percent = product
-        post = generate_post(product_name, price, old_price, discount_percent, original_url)
+        # إضافة الرابط الأصلي للبيانات
+        product['url'] = original_url
+        
+        # توليد البوست بشكل عشوائي ومبدع
+        post = generate_ai_post(product)
 
         try:
-            if image:
-                bot.send_photo(msg.chat.id, image, caption=post)
+            if product.get('image'):
+                bot.send_photo(msg.chat.id, product['image'], caption=post)
             else:
                 bot.send_message(msg.chat.id, post)
             bot.delete_message(msg.chat.id, wait.message_id)
@@ -478,5 +647,5 @@ def handler(msg):
             except:
                 bot.edit_message_text("❌ حدث خطأ في الإرسال", msg.chat.id, wait.message_id)
 
-print("🤖 البوت يعمل...")
+print("🤖 البوت يعمل بالذكاء الاصطناعي...")
 bot.infinity_polling()
