@@ -32,10 +32,11 @@ def calculate_savings(old_price, new_price):
 
 def generate_ai_post(product_info):
     """
-    أسلوب سعودي راقي ومتنوع - كل منتج له جملته الخاصة
+    أسلوب سعودي راقي - المنتج والسعر هما الأبطال
+    هدف: أفيلييت - الناس تضغط وتشتري من لينكاتي
     """
     
-    # نختار بذكاء معلومة واحدة تخدم التسويق
+    # نختار بذكاء معلومة واحدة تخدم التسويق (بدون Prime)
     hook_data = []
     
     if product_info.get('discount_percent') and product_info['discount_percent'] >= 25:
@@ -44,14 +45,11 @@ def generate_ai_post(product_info):
         hook_data.append("الأكثر مبيعاً")
     if product_info.get('is_amazon_choice'):
         hook_data.append("Amazon's Choice")
-    if product_info.get('prime'):
-        hook_data.append("Prime")
     if product_info.get('brand') and product_info['brand'] != 'غير معروف':
         hook_data.append(f"براند {product_info['brand']}")
     if product_info.get('rating') and product_info['rating'] != 'غير معروف':
         hook_data.append(f"تقييم {product_info['rating']}")
     
-    # نختار واحدة بس
     selected_hook = random.choice(hook_data) if hook_data else ""
     
     savings = calculate_savings(product_info.get('old_price'), product_info['price'])
@@ -65,28 +63,30 @@ def generate_ai_post(product_info):
         f"✅ الحين {product_info['price']} ريال!",
         f"✅ وصار {product_info['price']} ريال!",
         f"✅ بـ {product_info['price']} ريال فقط!",
-        f"✅ {product_info['price']} ريال يا هلا!",
+        f"✅ {product_info['price']} ريال!",
         f"✅ بس {product_info['price']} ريال!",
         f"✅ {product_info['price']} ريال ولا غلطة!"
     ]
     price_line = random.choice(price_styles)
     
-    prompt = f"""أنت كاتب محتوى سعودي راقي في قنوات تسويق بالعمولة.
+    prompt = f"""أنت كاتب محتوى سعودي راقي في قنوات تسويق بالعمولة (أفيلييت).
 اكتب بوست تسويقي للمنتج التالي.
 
 🔹 الأسلوب:
 - سعودي راقي، متنوع، كل بوست مختلف
-- ما فيه "يا جماعة" كتير - استخدم بدائل (يا سيدي، يا سلام، يا هلا، ولا غلطة...)
-- الجملة التسويقية تتبنى على المنتج نفسه
-- التنسيق:
+- ما فيه "يا جماعة" أو "يا سيدي" أو أي كلمة بعد المنتج
+- المنتج والسعر هما الأبطال - واضحين وبارزين
+- ما فيه "قم بزيارة" أو أي إشارة للرابط - الرابط موجود أصلاً
+- الهدف: الناس تضغط على اللينك وتشتري من لينكاتي
+- التنسيط:
   السطر 1: جملة حماسية مختصرة (ممكن تذكر الخصم/البراند/التقييم)
   السطر 2: اسم المنتج مختصر + إيموجي
   سطر فارغ
-  السطر 3: جملة شدّ (اختيارية - لو فيه سعر قديم أو خصم أو ميزة)
+  السطر 3: جملة شدّ (اختيارية)
   السطر 4: السعر الحالي بأسلوب متغير
   سطر فارغ
-  السطر 5: الرابط
-- لو ما فيه سعر قديم، استغل بيانات تانية (Prime، Amazon's Choice، التقييم، البراند)
+  السطر 5: الرابط فقط
+- لو ما فيه سعر قديم، استغل بيانات تانية (Amazon's Choice، التقييم، البراند)
 
 🔹 بيانات المنتج:
 - الاسم: {product_info['name']}
@@ -99,73 +99,72 @@ def generate_ai_post(product_info):
 🔹 أمثلة للأسلوب المتنوع:
 
 مثال 1 - حذاء:
-👟 Nike أصلي يا سيدي!
-حذاء رياضي أسطوري ⭐ 4.8
+👟 Nike أصلي
+حذاء رياضي أسطوري
 
-🔥 خصم 55% مجنون!
+🔥 خصم 55%
 ✅ بـ 199 ريال بس!
 
 🔗 https://ty.gl/xxx
 
 مثال 2 - عطر:
-🖤 عطر لافا الأسود!
-مسك وعود خرافي ⭐ الأكثر مبيعاً
+🖤 عطر لافا الأسود
+مسك وعود خرافي
 
-🔥 ريحة تثبت في الملابس!
-✅ 99 ريال يا هلا!
+🔥 الأكثر مبيعاً
+✅ 99 ريال!
 
 🔗 https://amzn.to/xxx
 
 مثال 3 - مكيف:
-🥶 حر الصيف جاي!
-مكيف سبلت 18 ألف وحدة 🚚 Prime
+🥶 مكيف سبلت 18 ألف وحدة
 
-🔥 توصيل بكرة لبيتك!
+🔥 توصيل سريع
 ✅ سعره 1299 ريال!
 
 🔗 https://ty.gl/xxx
 
 مثال 4 - زيت:
-🫒 زيت زيتون السوسن!
-2 لتر يا سلام ✅ Amazon's Choice
+🫒 زيت زيتون السوسن
+2 لتر ✅ Amazon's Choice
 
-🔥 صحي وطبيعي 100%!
+🔥 صحي وطبيعي
 ✅ وصار 40 ريال بس!
 
 🔗 https://amzn.to/xxx
 
 مثال 5 - حقيبة:
-💎 Pierre Cardin يا سلام!
-حقيبة نسائية فرنسية 🇫🇷
+💎 Pierre Cardin
+حقيبة نسائية فرنسية
 
-🔥 أنيقة وعملية!
+🔥 أنيقة وعملية
 ✅ بـ 112 ريال فقط!
 
 🔗 https://ty.gl/xxx
 
 مثال 6 - شامبو:
-💆‍♀️ شامبو بانتين!
-3 حبات بسعر حبتين ⭐ 4.7
+💆‍♀️ شامبو بانتين
+3 حبات بسعر حبتين
 
-🔥 شعر حرير من أول غسلة!
+🔥 شعر حرير من أول غسلة
 ✅ بس 39 ريال!
 
 🔗 https://amzn.to/xxx
 
 مثال 7 - ساعة:
-⌚ ساعة ذكية برو!
-تتبع رياضة ونوم وأكسجين 💰 وفر 350 ريال
+⌚ ساعة ذكية برو
+تتبع رياضة ونوم وأكسجين
 
-🔥 سعر ما يتكرر!
+🔥 سعر ما يتكرر
 ✅ 149 ريال ولا غلطة!
 
 🔗 https://ty.gl/xxx
 
 مثال 8 - كنبة:
-🛋️ كنبة استرخاء فاخرة!
-من SACO 🚚 Prime
+🛋️ كنبة استرخاء فاخرة
+من SACO
 
-🔥 راحة ما بعدها راحة!
+🔥 راحة ما بعدها راحة
 ✅ الحين 325 ريال!
 
 🔗 https://ty.gl/xxx
@@ -180,7 +179,7 @@ def generate_ai_post(product_info):
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي راقي في قنوات تسويق بالعمولة. تكتب بوستات مختصرة، متنوعة، كل بوست مختلف عن اللي قبله. ما تستخدم 'يا جماعة' كتير. الأسلوب سعودي راقي وقريب من الناس."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي راقي في قنوات تسويق بالعمولة (أفيلييت). تكتب بوستات مختصرة، متنوعة، كل بوست مختلف. المنتج والسعر هما الأبطال. ما تستخدم 'يا جماعة' أو 'يا سيدي' أو 'قم بزيارة'. الهدف: الناس تضغط على اللينك وتشتري."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.95,
@@ -199,6 +198,7 @@ def generate_ai_post(product_info):
             post = result["choices"][0]["message"]["content"].strip()
             post = post.replace('"', '').replace("'", "").strip()
             
+            # نضمن إن الرابط موجود
             if original_url and original_url not in post:
                 post += f"\n\n🔗 {original_url}"
             
@@ -211,7 +211,7 @@ def generate_ai_post(product_info):
 
 
 def generate_smart_fallback_post(product_info):
-    """Fallback متنوع ومتغير كل مرة"""
+    """Fallback متنوع - المنتج والسعر أبطال، هدف: أفيلييت"""
     
     name = product_info['name']
     price = product_info['price']
@@ -222,7 +222,7 @@ def generate_smart_fallback_post(product_info):
     savings = calculate_savings(old_price, price)
     url = product_info.get('url', '')
     
-    # نختار بذكاء معلومة واحدة
+    # نختار بذكاء معلومة واحدة (بدون Prime)
     hooks = []
     if discount >= 25:
         hooks.append(f"خصم {discount}% 🔥")
@@ -232,8 +232,6 @@ def generate_smart_fallback_post(product_info):
         hooks.append("الأكثر مبيعاً ⭐")
     if product_info.get('is_amazon_choice'):
         hooks.append("Amazon's Choice ✅")
-    if product_info.get('prime'):
-        hooks.append("Prime 🚚")
     if rating and rating != 'غير معروف':
         hooks.append(f"تقييم {rating} ⭐")
     if savings > 100:
@@ -248,42 +246,16 @@ def generate_smart_fallback_post(product_info):
         f"✅ الحين {price} ريال!",
         f"✅ وصار {price} ريال!",
         f"✅ بـ {price} ريال فقط!",
-        f"✅ {price} ريال يا هلا!",
+        f"✅ {price} ريال!",
         f"✅ بس {price} ريال!",
         f"✅ {price} ريال ولا غلطة!"
     ]
     price_line = random.choice(price_styles)
     
-    # أسلوب الجملة التسويقية المتغير
-    marketing_lines = [
-        "🔥 لا يفوتك!",
-        "🔥 سعر ما يتكرر!",
-        "🔥 صيدة من يوما!",
-        "🔥 ووووووو!",
-        "🔥 يا سلام!",
-        "🔥 فرصة ذهبية!",
-        "🔥 ما بعدها فرصة!",
-        "🔥 خذها بسرعة!",
-    ]
-    marketing = random.choice(marketing_lines)
-    
-    # أسلوب الافتتاحية المتغير
-    openers = [
-        f"👟 {hook}\n{name}",
-        f"🖤 {name}\n{hook}",
-        f"🥶 {name} {hook}",
-        f"🫒 {name}\n{hook}",
-        f"💎 {hook}\n{name}",
-        f"💆‍♀️ {name} {hook}",
-        f"⌚ {name}\n{hook}",
-        f"🛋️ {hook}\n{name}",
-    ]
-    
-    # نبني البوست حسب المتغيرات
+    # أنماط متنوعة - المنتج والسعر أبطال
     if old_price:
-        # فيه سعر قديم
         styles = [
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else marketing}
+            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'عرض ممتاز!'}
 {name}
 
 ❌ كان بـ {old_price} ريال
@@ -291,7 +263,7 @@ def generate_smart_fallback_post(product_info):
 
 🔗 {url}""",
             
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else marketing}
+            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'لا يفوت!'}
 {name}
 
 🔥 من {old_price} لـ {price} ريال!
@@ -299,7 +271,7 @@ def generate_smart_fallback_post(product_info):
 
 🔗 {url}""",
             
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else marketing}
+            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'صيدة!'}
 {name}
 
 😱 وفر {savings} ريال!
@@ -308,19 +280,18 @@ def generate_smart_fallback_post(product_info):
 🔗 {url}""",
         ]
     else:
-        # ما فيه سعر قديم
         styles = [
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else marketing}
+            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'سعر خيالي!'}
 {name}
 
 {price_line}
 
 🔗 {url}""",
             
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else marketing}
+            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'فرصة!'}
 {name}
 
-🔥 {random.choice(['سعر ممتاز!', 'فرصة!', 'لا تفوت!', 'استغل العرض!'])}
+🔥 {random.choice(['سعر ممتاز!', 'لا تفوت!', 'استغل العرض!', 'سعر ما يتكرر!'])}
 {price_line}
 
 🔗 {url}""",
