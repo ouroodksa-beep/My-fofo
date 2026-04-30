@@ -32,11 +32,11 @@ def calculate_savings(old_price, new_price):
 
 def generate_ai_post(product_info):
     """
-    أسلوب سعودي راقي - المنتج والسعر هما الأبطال
-    هدف: أفيلييت - الناس تضغط وتشتري من لينكاتي
+    لهجة سعودية - 4-6 جمل - إيموجيز موزعة على الجمل
+    كل بوست فريد - البراند بالإنجليزي في وسط المنتج
     """
     
-    # نختار بذكاء معلومة واحدة تخدم التسويق (بدون Prime)
+    # نختار بذكاء معلومة واحدة تخدم التسويق
     hook_data = []
     
     if product_info.get('discount_percent') and product_info['discount_percent'] >= 25:
@@ -45,127 +45,122 @@ def generate_ai_post(product_info):
         hook_data.append("الأكثر مبيعاً")
     if product_info.get('is_amazon_choice'):
         hook_data.append("Amazon's Choice")
-    if product_info.get('brand') and product_info['brand'] != 'غير معروف':
-        hook_data.append(f"براند {product_info['brand']}")
     if product_info.get('rating') and product_info['rating'] != 'غير معروف':
         hook_data.append(f"تقييم {product_info['rating']}")
     
     selected_hook = random.choice(hook_data) if hook_data else ""
     
-    savings = calculate_savings(product_info.get('old_price'), product_info['price'])
-    
     original_url = product_info.get('url', '')
     
     # أسلوب السعر المتغير
     price_styles = [
-        f"✅ بـ {product_info['price']} ريال بس!",
-        f"✅ سعره {product_info['price']} ريال!",
-        f"✅ الحين {product_info['price']} ريال!",
-        f"✅ وصار {product_info['price']} ريال!",
-        f"✅ بـ {product_info['price']} ريال فقط!",
-        f"✅ {product_info['price']} ريال!",
-        f"✅ بس {product_info['price']} ريال!",
-        f"✅ {product_info['price']} ريال ولا غلطة!"
+        f"✅ {product_info['price']} ريال 💰",
+        f"✅ بـ {product_info['price']} ريال 🔥",
+        f"✅ سعره {product_info['price']} ريال 💯",
+        f"✅ الحين {product_info['price']} ريال 👌",
+        f"✅ بس {product_info['price']} ريال ✨",
     ]
     price_line = random.choice(price_styles)
     
-    prompt = f"""أنت كاتب محتوى سعودي راقي في قنوات تسويق بالعمولة (أفيلييت).
+    prompt = f"""أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة (أفيلييت).
 اكتب بوست تسويقي للمنتج التالي.
 
 🔹 الأسلوب:
-- سعودي راقي، متنوع، كل بوست مختلف
-- ما فيه "يا جماعة" أو "يا سيدي" أو أي كلمة بعد المنتج
-- المنتج والسعر هما الأبطال - واضحين وبارزين
-- ما فيه "قم بزيارة" أو أي إشارة للرابط - الرابط موجود أصلاً
-- الهدف: الناس تضغط على اللينك وتشتري من لينكاتي
+- لهجة سعودية قريبة من الناس (مو فصحى)
+- من 4 لـ 6 جمل بالضبط
+- إيموجيز موزعة على الجمل (ما تكون في سطر واحد)
+- البراند بالإنجليزي في وسط المنتج
+- السعر الحالي لوحده - بدون سعر قديم
+- لا "قم بزيارة" أو أي إشارة للرابط
+- كل بوست فريد - ما تكرر جمل
 - التنسيط:
-  السطر 1: جملة حماسية مختصرة (ممكن تذكر الخصم/البراند/التقييم)
-  السطر 2: اسم المنتج مختصر + إيموجي
+  السطر 1: اسم المنتج + إيموجي (البراند بالإنجليزي)
+  السطر 2: جملة شدّ + إيموجي
+  السطر 3: جملة شدّ + إيموجي (اختيارية)
+  السطر 4: جملة شدّ + إيموجي (اختيارية)
   سطر فارغ
-  السطر 3: جملة شدّ (اختيارية)
-  السطر 4: السعر الحالي بأسلوب متغير
+  السطر 5: السعر الحالي + إيموجي
   سطر فارغ
-  السطر 5: الرابط فقط
-- لو ما فيه سعر قديم، استغل بيانات تانية (Amazon's Choice، التقييم، البراند)
+  السطر 6: الرابط فقط
 
 🔹 بيانات المنتج:
 - الاسم: {product_info['name']}
+- البراند: {product_info.get('brand', '')}
 - السعر الحالي: {product_info['price']} ريال
-- السعر القديم: {product_info.get('old_price', 'غير متوفر')} ريال
 - المعلومة المختارة: {selected_hook}
-- التوفير: {savings} ريال
 - الرابط: {original_url}
 
-🔹 أمثلة للأسلوب المتنوع:
+🔹 أمثلة للأسلوب:
 
-مثال 1 - حذاء:
-👟 Nike أصلي
-حذاء رياضي أسطوري
+مثال 1:
+👟 حذاء رياضي Nike أصلي
+أسطوري ومره مريح 💯
+جربته ولا غلطة 👌
 
-🔥 خصم 55%
-✅ بـ 199 ريال بس!
+✅ 199 ريال 💰
 
 🔗 https://ty.gl/xxx
 
-مثال 2 - عطر:
+مثال 2:
 🖤 عطر لافا الأسود
-مسك وعود خرافي
+مسك وعود خرافي 🔥
+ريحة تثبت في الملابس ✨
 
-🔥 الأكثر مبيعاً
-✅ 99 ريال!
+✅ 99 ريال 👌
 
 🔗 https://amzn.to/xxx
 
-مثال 3 - مكيف:
+مثال 3:
 🥶 مكيف سبلت 18 ألف وحدة
+حر الصيف جاي ❄️
+برد ونعومة من أول استخدام 💯
 
-🔥 توصيل سريع
-✅ سعره 1299 ريال!
+✅ 1299 ريال 🔥
 
 🔗 https://ty.gl/xxx
 
-مثال 4 - زيت:
+مثال 4:
 🫒 زيت زيتون السوسن
-2 لتر ✅ Amazon's Choice
+2 لتر صحي وطبيعي 🌿
+من أجود الأنواع ✨
 
-🔥 صحي وطبيعي
-✅ وصار 40 ريال بس!
+✅ 40 ريال 💰
 
 🔗 https://amzn.to/xxx
 
-مثال 5 - حقيبة:
-💎 Pierre Cardin
-حقيبة نسائية فرنسية
+مثال 5:
+💎 حقيبة نسائية Pierre Cardin
+فرنسية وأنيقة 🔥
+مناسبة لكل المناسبات 👌
 
-🔥 أنيقة وعملية
-✅ بـ 112 ريال فقط!
+✅ 112 ريال ✨
 
 🔗 https://ty.gl/xxx
 
-مثال 6 - شامبو:
+مثال 6:
 💆‍♀️ شامبو بانتين
-3 حبات بسعر حبتين
+3 حبات بسعر حبتين 🌸
+شعر حرير من أول غسلة 💯
 
-🔥 شعر حرير من أول غسلة
-✅ بس 39 ريال!
+✅ 39 ريال 🔥
 
 🔗 https://amzn.to/xxx
 
-مثال 7 - ساعة:
+مثال 7:
 ⌚ ساعة ذكية برو
-تتبع رياضة ونوم وأكسجين
+تتبع رياضة ونوم وأكسجين ⌚
+سعر ما يتكرر أبداً ✨
 
-🔥 سعر ما يتكرر
-✅ 149 ريال ولا غلطة!
+✅ 149 ريال 💰
 
 🔗 https://ty.gl/xxx
 
-مثال 8 - كنبة:
-🛋️ كنبة استرخاء فاخرة
-من SACO
+مثال 8:
+🛋️ كنبة استرخاء من SACO
+راحة ما بعدها راحة 🏠
+تستاهل التجربة بصراحة 👌
 
-🔥 راحة ما بعدها راحة
-✅ الحين 325 ريال!
+✅ 325 ريال 🔥
 
 🔗 https://ty.gl/xxx
 
@@ -179,7 +174,7 @@ def generate_ai_post(product_info):
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي راقي في قنوات تسويق بالعمولة (أفيلييت). تكتب بوستات مختصرة، متنوعة، كل بوست مختلف. المنتج والسعر هما الأبطال. ما تستخدم 'يا جماعة' أو 'يا سيدي' أو 'قم بزيارة'. الهدف: الناس تضغط على اللينك وتشتري."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي في قنوات تسويق بالعمولة. تكتب بوستات من 4-6 جمل، إيموجيز موزعة على الجمل، كل بوست فريد. البراند بالإنجليزي في وسط المنتج. الهدف: الناس تضغط على اللينك وتشتري."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.95,
@@ -198,7 +193,6 @@ def generate_ai_post(product_info):
             post = result["choices"][0]["message"]["content"].strip()
             post = post.replace('"', '').replace("'", "").strip()
             
-            # نضمن إن الرابط موجود
             if original_url and original_url not in post:
                 post += f"\n\n🔗 {original_url}"
             
@@ -211,93 +205,102 @@ def generate_ai_post(product_info):
 
 
 def generate_smart_fallback_post(product_info):
-    """Fallback متنوع - المنتج والسعر أبطال، هدف: أفيلييت"""
+    """Fallback - 4-6 جمل - إيموجيز موزعة - كل بوست فريد"""
     
     name = product_info['name']
     price = product_info['price']
-    old_price = product_info.get('old_price')
-    discount = product_info.get('discount_percent', 0)
     brand = product_info.get('brand', '')
-    rating = product_info.get('rating', '')
-    savings = calculate_savings(old_price, price)
     url = product_info.get('url', '')
     
-    # نختار بذكاء معلومة واحدة (بدون Prime)
+    # نختار بذكاء معلومة واحدة
     hooks = []
-    if discount >= 25:
-        hooks.append(f"خصم {discount}% 🔥")
-    if brand and brand != 'غير معروف':
-        hooks.append(f"براند {brand} 💎")
+    if product_info.get('discount_percent') and product_info['discount_percent'] >= 25:
+        hooks.append(f"خصم {product_info['discount_percent']}%")
     if product_info.get('is_best_seller'):
-        hooks.append("الأكثر مبيعاً ⭐")
+        hooks.append("الأكثر مبيعاً")
     if product_info.get('is_amazon_choice'):
-        hooks.append("Amazon's Choice ✅")
-    if rating and rating != 'غير معروف':
-        hooks.append(f"تقييم {rating} ⭐")
-    if savings > 100:
-        hooks.append(f"وفر {savings} ريال 💰")
+        hooks.append("Amazon's Choice")
+    if product_info.get('rating') and product_info['rating'] != 'غير معروف':
+        hooks.append(f"تقييم {product_info['rating']}")
     
     hook = random.choice(hooks) if hooks else ""
     
     # أسلوب السعر المتغير
     price_styles = [
-        f"✅ بـ {price} ريال بس!",
-        f"✅ سعره {price} ريال!",
-        f"✅ الحين {price} ريال!",
-        f"✅ وصار {price} ريال!",
-        f"✅ بـ {price} ريال فقط!",
-        f"✅ {price} ريال!",
-        f"✅ بس {price} ريال!",
-        f"✅ {price} ريال ولا غلطة!"
+        f"✅ {price} ريال 💰",
+        f"✅ بـ {price} ريال 🔥",
+        f"✅ سعره {price} ريال 💯",
+        f"✅ الحين {price} ريال 👌",
+        f"✅ بس {price} ريال ✨",
     ]
     price_line = random.choice(price_styles)
     
-    # أنماط متنوعة - المنتج والسعر أبطال
-    if old_price:
-        styles = [
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'عرض ممتاز!'}
-{name}
-
-❌ كان بـ {old_price} ريال
-{price_line}
-
-🔗 {url}""",
-            
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'لا يفوت!'}
-{name}
-
-🔥 من {old_price} لـ {price} ريال!
-{price_line}
-
-🔗 {url}""",
-            
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'صيدة!'}
-{name}
-
-😱 وفر {savings} ريال!
-{price_line}
-
-🔗 {url}""",
-        ]
+    # البراند بالإنجليزي في وسط المنتج
+    if brand and brand != 'غير معروف':
+        name_parts = name.split()
+        if len(name_parts) > 2:
+            mid = len(name_parts) // 2
+            name_with_brand = " ".join(name_parts[:mid]) + f" {brand} " + " ".join(name_parts[mid:])
+        else:
+            name_with_brand = f"{name} {brand}"
     else:
-        styles = [
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'سعر خيالي!'}
-{name}
-
-{price_line}
-
-🔗 {url}""",
-            
-            f"""{random.choice(['🔥', '💥', '🎉', '😎', '🚨', '👀'])} {hook if hook else 'فرصة!'}
-{name}
-
-🔥 {random.choice(['سعر ممتاز!', 'لا تفوت!', 'استغل العرض!', 'سعر ما يتكرر!'])}
-{price_line}
-
-🔗 {url}""",
-        ]
+        name_with_brand = name
     
-    return random.choice(styles)
+    # جمل متنوعة - ما تتكرر
+    line1_options = [
+        f"👟 {name_with_brand}",
+        f"🔥 {name_with_brand}",
+        f"✨ {name_with_brand}",
+        f"💎 {name_with_brand}",
+        f"🌟 {name_with_brand}",
+    ]
+    
+    line2_options = [
+        f"أسطوري ومره مريح 💯",
+        f"جودة عالية بسعر خيالي 🔥",
+        f"يستاهل التجربة بصراحة 👌",
+        f"من أجود الأنواع ✨",
+        f"لا يفوتك أبداً 💰",
+        f"فرصة ما تتكرر 🔥",
+        f"توب توب توب 💯",
+        f"خذها بسرعة قبل ينتهي ✨",
+    ]
+    
+    line3_options = [
+        f"جربته ولا غلطة 👌",
+        f"ريحة تثبت في الملابس 🌸",
+        f"برد ونعومة من أول استخدام ❄️",
+        f"شعر حرير من أول غسلة 💆‍♀️",
+        f"تتبع رياضة ونوم وأكسجين ⌚",
+        f"راحة ما بعدها راحة 🏠",
+        f"مناسبة لكل المناسبات 💎",
+        f"2 لتر صحي وطبيعي 🌿",
+    ]
+    
+    line4_options = [
+        f"سعر ما يتكرر أبداً 🔥",
+        f"الأكثر مبيعاً حالياً ⭐",
+        f"توصيل سريع لباب البيت 🚚",
+        f"ضمان وجودة مضمونة ✨",
+        f"تستاهل كل ريال 💰",
+        f"لا تفوت الفرصة 👌",
+    ]
+    
+    # نبني البوست عشوائياً - 4-6 جمل
+    num_lines = random.randint(4, 6)
+    
+    post_lines = [random.choice(line1_options)]
+    
+    if num_lines >= 4:
+        post_lines.append(random.choice(line2_options))
+    if num_lines >= 5:
+        post_lines.append(random.choice(line3_options))
+    if num_lines >= 6:
+        post_lines.append(random.choice(line4_options))
+    
+    post = "\n".join(post_lines) + f"\n\n{price_line}\n\n🔗 {url}"
+    
+    return post
 
 
 # ===================================
