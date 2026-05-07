@@ -2,7 +2,6 @@ import telebot
 import requests
 from bs4 import BeautifulSoup
 import re
-import random
 import time
 import json
 
@@ -10,10 +9,6 @@ TOKEN = "7956075348:AAEYTL28GKeMN7TXyVeGM69iUcfg5ZwOSIk"
 bot = telebot.TeleBot(TOKEN)
 
 GROQ_API_KEY = "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"
-
-# ===================================
-# Brand Names Dictionary
-# ===================================
 
 BRAND_NAMES = {
     "nespresso": "Nespresso", "nescafe": "Nescafé", "nescafé": "Nescafé",
@@ -77,46 +72,6 @@ def protect_brands(text):
     return text
 
 
-# ===================================
-# International Prices (approximate)
-# ===================================
-
-INTERNATIONAL_PRICES = {
-    "iphone": {"us": 999, "ae": 4200},
-    "ipad": {"us": 449, "ae": 1900},
-    "macbook": {"us": 1299, "ae": 5200},
-    "airpods": {"us": 179, "ae": 750},
-    "samsung": {"us": 899, "ae": 3800},
-    "sony": {"us": 350, "ae": 1400},
-    "dyson": {"us": 500, "ae": 2100},
-    "philips": {"us": 200, "ae": 850},
-    "nespresso": {"us": 200, "ae": 850},
-    "nescafe": {"us": 150, "ae": 650},
-    "dolce gusto": {"us": 120, "ae": 550},
-    "delonghi": {"us": 300, "ae": 1300},
-    "l'oreal": {"us": 25, "ae": 100},
-    "vichy": {"us": 35, "ae": 150},
-    "dove": {"us": 15, "ae": 65},
-    "nivea": {"us": 12, "ae": 50},
-    "nike": {"us": 120, "ae": 500},
-    "adidas": {"us": 100, "ae": 420},
-    "puma": {"us": 80, "ae": 340},
-}
-
-
-def get_international_price(product_name):
-    name_lower = product_name.lower()
-    for brand, prices in INTERNATIONAL_PRICES.items():
-        if brand in name_lower:
-            avg_usd = (prices["us"] + prices["ae"] / 3.75) / 2
-            return int(avg_usd * 3.75)
-    return None
-
-
-# ===================================
-# Category Keywords
-# ===================================
-
 CATEGORY_KEYWORDS = {
     "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني"],
     "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء"],
@@ -134,10 +89,6 @@ def detect_product_category(product_name):
                 return category
     return "general"
 
-
-# ===================================
-# Translation Dictionary
-# ===================================
 
 TRANSLATION_DICT = {
     "laptop": "لابتوب", "tablet": "تابلت", "keyboard": "كيبورد", "mouse": "ماوس",
@@ -332,60 +283,6 @@ def clean_image_url(url):
     return cleaned
 
 
-# ===================================
-# Data Extraction from Page
-# ===================================
-
-def get_rating_and_reviews(soup):
-    rating = None
-    review_count = None
-    review_text = None
-    
-    rating_selectors = [
-        "[data-hook='average-star-rating'] .a-icon-alt",
-        ".a-icon-alt",
-        "#acrPopover .a-icon-alt",
-        "[data-hook='rating-out-of-text']",
-    ]
-    for selector in rating_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            text = elem.get_text(strip=True)
-            match = re.search(r'(\d+\.?\d*)\s*out of\s*5', text)
-            if match:
-                rating = float(match.group(1))
-                break
-            match = re.search(r'(\d+\.?\d*)', text)
-            if match:
-                val = float(match.group(1))
-                if 1 <= val <= 5:
-                    rating = val
-                    break
-    
-    review_selectors = [
-        "[data-hook='total-review-count']",
-        "#acrCustomerReviewText",
-        "[data-hook='acr-count']",
-        "a[href*='customerReviews']",
-    ]
-    for selector in review_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            text = elem.get_text(strip=True)
-            match = re.search(r'([\d,]+)', text)
-            if match:
-                review_count = int(match.group(1).replace(",", ""))
-                break
-    
-    review_elem = soup.select_one("[data-hook='review-body'] span")
-    if review_elem:
-        review_text = review_elem.get_text(strip=True)
-        if len(review_text) > 120:
-            review_text = review_text[:120] + "..."
-    
-    return rating, review_count, review_text
-
-
 def get_seller_info(soup):
     seller_name = None
     seller_rating = None
@@ -415,30 +312,11 @@ def get_seller_info(soup):
 
 
 def translate_coupon(coupon_text):
-    """Translate coupon text to Arabic"""
     if not coupon_text:
         return None
     
-    # Common translations
-    translations = {
-        "coupon": "كوبون",
-        "save": "وفّر",
-        "extra": "إضافي",
-        "additional": "إضافي",
-        "discount": "خصم",
-        "off": "خصم",
-        "apply": "طبّق",
-        "clip": "قص",
-        "promotion": "عرض",
-        "deal": "صفقة",
-        "offer": "عرض",
-    }
-    
-    # Clean and translate
     text = coupon_text.strip()
-    text_lower = text.lower()
     
-    # Extract percentage or amount
     percent_match = re.search(r'(\d+)%', text)
     amount_match = re.search(r'(\d+)\s*SAR|(\d+)\s*ريال', text)
     
@@ -449,10 +327,7 @@ def translate_coupon(coupon_text):
         amount = amount_match.group(1) or amount_match.group(2)
         return f"🎟️ كوبون خصم {amount} ريال"
     else:
-        # Generic translation
-        for en, ar in translations.items():
-            text_lower = text_lower.replace(en, ar)
-        return f"🎟️ {text_lower}"
+        return f"🎟️ كوبون خصم"
 
 
 def get_coupons_and_discounts(soup, current_price_num):
@@ -514,17 +389,12 @@ def calculate_total_discount(old_price_num, current_price_num, extra_discount_pe
 
 
 def calculate_final_price(current_price_num, extra_discount_percent):
-    """Calculate price after extra discount"""
     if current_price_num > 0 and extra_discount_percent > 0:
         discount_amount = (current_price_num * extra_discount_percent) / 100
         final_price = current_price_num - discount_amount
         return int(final_price)
     return int(current_price_num) if current_price_num > 0 else 0
 
-
-# ===================================
-# Product Data Fetching
-# ===================================
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -591,7 +461,6 @@ def get_product(asin):
                         break
             
             image = get_high_quality_image(soup)
-            rating, review_count, review_text = get_rating_and_reviews(soup)
             seller_name, seller_rating = get_seller_info(soup)
             
             current_price_num = extract_number(price) if price else 0
@@ -611,9 +480,6 @@ def get_product(asin):
                     "price": price,
                     "old_price": old_price,
                     "image": image,
-                    "rating": rating,
-                    "review_count": review_count,
-                    "review_text": review_text,
                     "seller_name": seller_name,
                     "seller_rating": seller_rating,
                     "coupons": coupons,
@@ -630,22 +496,11 @@ def get_product(asin):
     return None
 
 
-# ===================================
-# Final Post Generation - Short & Strong
-# ===================================
-
 def generate_post(product_data, original_url):
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
-    rating = product_data["rating"]
-    review_count = product_data["review_count"]
-    review_text = product_data["review_text"]
-    seller_name = product_data["seller_name"]
-    seller_rating = product_data["seller_rating"]
     coupons = product_data["coupons"]
-    base_discount = product_data["base_discount"]
-    extra_discount = product_data["extra_discount"]
     total_discount = product_data["total_discount"]
     final_price = product_data["final_price"]
     
@@ -656,90 +511,76 @@ def generate_post(product_data, original_url):
     current_num = extract_number(price)
     old_num = extract_number(old_price) if old_price else 0
     
-    intl_price = get_international_price(name)
-    
-    # Build rich context for AI
+    # Build context for AI
     context_parts = []
     
     if clean_old and old_num > current_num:
-        context_parts.append(f"السعر قبل {clean_old} والحالي {clean_current}")
-        if base_discount > 0:
-            context_parts.append(f"خصم مباشر {base_discount}%")
-    
-    if intl_price and intl_price > old_num:
-        context_parts.append(f"سعره بالخارج يوصل {intl_price} ريال")
-    
-    if rating and rating >= 4.0 and review_count:
-        context_parts.append(f"تقييم {rating} نجوم من {review_count}+ مراجعة")
-        if review_text:
-            context_parts.append(f"مراجعة: {review_text}")
-    
-    if seller_name and seller_rating and seller_rating >= 90:
-        context_parts.append(f"بائع موثوق {seller_name} تقييم {seller_rating}%")
+        context_parts.append(f"السعر السابق {clean_old} والسعر الحالي {clean_current}")
+        if total_discount > 0:
+            context_parts.append(f"خصم {total_discount}%")
     
     if coupons:
         translated = translate_coupon(coupons[0])
-        context_parts.append(f"في كوبون: {translated}")
+        context_parts.append(f"كوبون: {translated}")
     
-    if extra_discount > 0:
-        context_parts.append(f"خصم إضافي {extra_discount}%")
-        context_parts.append(f"السعر بعد الخصم: {final_price} ريال")
-    
-    if total_discount > base_discount and total_discount > 0:
-        context_parts.append(f"الخصم الكلي {total_discount}%")
+    if final_price > 0 and final_price != int(current_num):
+        context_parts.append(f"السعر بعد الكوبون {final_price} ريال")
     
     context = " | ".join(context_parts)
     
-    # AI generates opening sentence based on product
+    # AI generates opening sentence
     opening = generate_ai_sentence(name, category, context)
     
     emoji = get_category_emoji(category)
     
     parts = []
+    
+    # Opening sentence
     parts.append(opening)
-    parts.append(f"{emoji} {name}")
     
-    # Old price in separate line
+    # Product name + quick price
     if clean_old and old_num > current_num:
-        parts.append(f"❌ السعر السابق: ~~{clean_old}~~")
+        parts.append(f"{emoji} {name} بـ {int(current_num)} بدل {int(old_num)} ‼️")
+    else:
+        parts.append(f"{emoji} {name}")
     
-    # Current price in separate line
-    parts.append(f"✅ السعر الحالي: {clean_current}")
+    # Detailed price line
+    if clean_old and old_num > current_num:
+        parts.append(f"بـ {clean_current} بدل {clean_old}")
     
-    # Discount in separate line
+    # Discount line
     if total_discount > 0:
-        parts.append(f"📉 نسبة الخصم: {total_discount}%")
+        parts.append(f"(خصم {total_discount}%)")
     
-    # Final price after discount in separate line
-    if extra_discount > 0 and final_price > 0 and final_price != int(current_num):
-        parts.append(f"💰 السعر بعد الخصم: {final_price} ريال")
-    
-    # Translated coupon in separate line
+    # Coupon + final price line
     if coupons:
         translated_coupon = translate_coupon(coupons[0])
         if translated_coupon:
-            parts.append(translated_coupon)
+            if final_price > 0 and final_price != int(current_num):
+                parts.append(f"{translated_coupon} يطلع بـ {final_price} ريال 🔥")
+            else:
+                parts.append(translated_coupon)
     
     # Link
-    parts.append(f"🔗 {original_url}")
+    parts.append(f"رابط الشراء 👇🏻\n{original_url}")
     
     return "\n\n".join(parts)
 
 
 def generate_ai_sentence(product_name, category, context):
-    """Generate short powerful opening sentence based on product data"""
+    """AI generates unique opening sentence based on product data"""
     
     prompt = f"""أنت كاتب محتوى سعودي خليجي محترف في قناة تليجرام "صيدات وصفقات" للتسويق بالعمولة.
-اكتب جملة افتتاحية قصيرة جداً (سطر واحد فقط، 5-10 كلمات كحد أقصى) باللهجة السعودية الخليجية.
+اكتب جملة افتتاحية قصيرة جداً (سطر واحد فقط، 3-8 كلمات كحد أقصى) باللهجة السعودية الخليجية.
 
 🔹 قواعد مهمة:
-- الجملة لازم تكون مختصرة جداً ومختصرة (تنفع تغريدة تويتر)
-- استخدم إيموجي (2-3 إيموجي بس) في الجملة نفسها
+- الجملة لازم تكون مختصرة جداً (تنفع تغريدة تويتر)
+- استخدم إيموجي (1-2 إيموجي بس) في الجملة نفسها
 - الجملة لازم تكون حماسية وتشد وتبيع المنتج
-- بلهجة سعودية خليجية كريمة (مثل: "صيدة", "فرصة", "خطير", "يقطع", "يستاهل", "جودة")
+- بلهجة سعودية خليجية كريمة
 - ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
-- ✅ استخدم أسلوب وصفي كريم: "صيدة من العيار الثقيل", "فرصة ما تتفوت", "جودة تاخذ العقل"
-- كل مرة اكتب جملة مختلفة تماماً
+- ❌ ممنوع أي أمثلة جاهزة أو نمط ثابت
+- كل مرة اكتب جملة مختلفة تماماً بناءً على المنتج والسياق
 
 🔹 المنتج: {product_name}
 🔹 الفئة: {category}
@@ -755,11 +596,11 @@ def generate_ai_sentence(product_name, category, context):
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة وقوية بإيموجي. أسلوبك حماسي وراقي ومختصر. كل مرة تكتب جملة مختلفة تماماً."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة وقوية بإيموجي. أسلوبك حماسي وراقي ومختصر. كل مرة تكتب جملة مختلفة تماماً بناءً على المنتج. ممنوع الأمثلة الجاهزة."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.95,
-            "max_tokens": 40
+            "max_tokens": 35
         }
         
         r = requests.post(
@@ -778,31 +619,15 @@ def generate_ai_sentence(product_name, category, context):
             vulgar_calls = ["ياجدعان", "ياجماعه", "ياجماعة", "يالله يا", "حياكم", "يالا", "يالله"]
             for vulgar in vulgar_calls:
                 if vulgar in sentence.lower().replace(" ", ""):
-                    return generate_smart_fallback(category)
+                    return "🔥 صيدة لازم تشوفها!"
             
             return sentence
                 
     except Exception as e:
         print(f"Groq error: {e}")
     
-    return generate_smart_fallback(category)
+    return "🔥 صيدة لازم تشوفها!"
 
-
-def generate_smart_fallback(category):
-    """Short powerful fallback sentences"""
-    templates = {
-        "electronics": ["⚡️ صيدة تقنية تاخذ العقل 🔥", "📱 جودة ما تتفوت 💎", "🚀 تحديث يستاهل ⚡️"],
-        "home": ["🏠 بيتك يستاهل التحفة دي ✨", "☕️ لحظة هدوء تستاهلها 💫", "🔥 جهاز يسهللك حياتك 🏠"],
-        "beauty": ["💄 جمالك يستاهل العناية ✨", "🌸 ريحة تفتح النفس 💫", "💎 فخامة تليق بيك 🌸"],
-        "fashion": ["👟 طلة تكسر الدنيا ✨", "🔥 لبس ياخذ العقل 👌", "💫 أناقة بلا حدود 👟"],
-        "sports": ["💪 طاقة تفجّر يا بطل 🔥", "🏋️ رياضتك تستاهل الأفضل ⚡️", "🔥 عرق اليوم يستاهل 💪"],
-    }
-    return random.choice(templates.get(category, ["🔥 صيدة من العيار الثقيل ✨", "💎 فرصة ما تتفوت 🔥", "⚡️ جودة تاخذ العقل 💫"]))
-
-
-# ===================================
-# Message Handler
-# ===================================
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
