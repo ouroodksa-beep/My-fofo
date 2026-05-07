@@ -325,30 +325,37 @@ def get_seller_info(soup):
 
 
 def extract_coupon_code(coupon_text):
-    """Extract coupon code from text"""
+    """Extract coupon code and discount percentage from text"""
     if not coupon_text:
-        return None
+        return None, 0
     
-    # Look for code patterns like CODE123, SUPER20, etc.
+    # Extract code
+    code = None
     code_patterns = [
-        r'([A-Z0-9]{4,20})',  # Generic code pattern
+        r'([A-Z0-9]{4,20})',
         r'كود\s*([A-Z0-9]+)',
         r'code\s*([A-Z0-9]+)',
         r'قسيمة\s*([A-Z0-9]+)',
     ]
-    
     for pattern in code_patterns:
         match = re.search(pattern, coupon_text, re.IGNORECASE)
         if match:
-            return match.group(1)
+            code = match.group(1)
+            break
     
-    return None
+    # Extract discount percentage
+    discount_percent = 0
+    percent_match = re.search(r'(\d+)%', coupon_text)
+    if percent_match:
+        discount_percent = int(percent_match.group(1))
+    
+    return code, discount_percent
 
 
 def get_coupons_and_discounts(soup, current_price_num):
     coupons = []
-    extra_discount_percent = 0
     coupon_code = None
+    coupon_discount_percent = 0
     
     coupon_selectors = [
         "#couponTextInput",
@@ -367,40 +374,21 @@ def get_coupons_and_discounts(soup, current_price_num):
                 text = re.sub(r'\s+', ' ', text).strip()
                 if len(text) > 5 and text not in coupons:
                     coupons.append(text)
-                    # Extract code from this coupon
-                    code = extract_coupon_code(text)
+                    # Extract code and percentage from this coupon
+                    code, percent = extract_coupon_code(text)
                     if code:
                         coupon_code = code
-    
-    discount_patterns = [
-        r'(\d+)%\s*(?:extra|additional|إضافي|إضافية)',
-        r'(?:extra|additional|إضافي|إضافية)\s*(\d+)%',
-        r'وفّر\s*(\d+)\s*ريال',
-        r'save\s*SAR\s*(\d+)',
-        r'save\s*([\d,]+)',
-    ]
-    
-    for pattern in discount_patterns:
-        matches = re.findall(pattern, soup.get_text(), re.IGNORECASE)
-        for match in matches:
-            try:
-                val = float(match.replace(",", ""))
-                if val > 0:
-                    if current_price_num > 0 and val < current_price_num * 0.9:
-                        extra_discount_percent = int((val / current_price_num) * 100)
-                    else:
-                        extra_discount_percent = int(val)
-                    break
-            except:
-                continue
+                    if percent > 0:
+                        coupon_discount_percent = percent
     
     coupons = list(set(coupons))[:2]
-    return coupons, extra_discount_percent, coupon_code
+    return coupons, coupon_code, coupon_discount_percent
 
 
-def calculate_final_price(current_price_num, extra_discount_percent):
-    if current_price_num > 0 and extra_discount_percent > 0:
-        discount_amount = (current_price_num * extra_discount_percent) / 100
+def calculate_final_price(current_price_num, coupon_discount_percent):
+    """Calculate price after coupon discount using the percentage shown on page"""
+    if current_price_num > 0 and coupon_discount_percent > 0:
+        discount_amount = (current_price_num * coupon_discount_percent) / 100
         final_price = current_price_num - discount_amount
         return int(final_price)
     return int(current_price_num) if current_price_num > 0 else 0
@@ -474,11 +462,9 @@ def get_product(asin):
             seller_name, seller_rating = get_seller_info(soup)
             
             current_price_num = extract_number(price) if price else 0
-            coupons, extra_discount, coupon_code = get_coupons_and_discounts(soup, current_price_num)
+            coupons, coupon_code, coupon_discount_percent = get_coupons_and_discounts(soup, current_price_num)
             
-            old_price_num = extract_number(old_price) if old_price else 0
-            
-            final_price = calculate_final_price(current_price_num, extra_discount)
+            final_price = calculate_final_price(current_price_num, coupon_discount_percent)
             
             if price:
                 arabic_title = smart_arabic_title(full_title)
@@ -490,8 +476,8 @@ def get_product(asin):
                     "seller_name": seller_name,
                     "seller_rating": seller_rating,
                     "coupons": coupons,
-                    "extra_discount": extra_discount,
                     "coupon_code": coupon_code,
+                    "coupon_discount_percent": coupon_discount_percent,
                     "final_price": final_price,
                 }
                 
@@ -507,6 +493,7 @@ def generate_post(product_data, original_url):
     price = product_data["price"]
     old_price = product_data["old_price"]
     coupon_code = product_data["coupon_code"]
+    coupon_discount_percent = product_data["coupon_discount_percent"]
     final_price = product_data["final_price"]
     
     category = detect_product_category(name)
@@ -517,45 +504,49 @@ def generate_post(product_data, original_url):
     current_num = extract_number(price)
     old_num = extract_number(old_price) if old_price else 0
     
-    # Build context for AI with gender info
+    # Build context for AI
     context_parts = []
     
     if clean_old and old_num > current_num:
         context_parts.append(f"السعر السابق {clean_old} والسعر الحالي {clean_current}")
     
-    if coupon_code:
-        context_parts.append(f"كوبون {coupon_code}")
+    if coupon_code and coupon_discount_percent > 0:
+        context_parts.append(f"كوبون {coupon_code} بخصم {coupon_discount_percent}%")
         if final_price > 0 and final_price != int(current_num):
             context_parts.append(f"السعر بعد الكوبون {final_price} ريال")
     
     context = " | ".join(context_parts)
     
-    # AI generates opening sentence with gender awareness
+    # AI generates opening sentence - varies with each product
     opening = generate_ai_sentence(name, category, gender, context)
     
     emoji = get_category_emoji(category)
     
     parts = []
     
-    # Opening sentence (AI generated, varies each time)
+    # Opening sentence (AI generated, unique each time)
     parts.append(opening)
     
-    # Product name only (no price next to it)
+    # Product name only
     parts.append(f"{emoji} {name}")
     
-    # Old price in separate line
+    # Prices without empty line between them
+    price_lines = []
     if clean_old and old_num > current_num:
-        parts.append(f"❌ السعر السابق: {clean_old}")
+        price_lines.append(f"❌ السعر السابق: {clean_old}")
+    price_lines.append(f"✅ السعر الحالي: {clean_current}")
     
-    # Current price in separate line
-    parts.append(f"✅ السعر الحالي: {clean_current}")
+    # Join prices with single newline (no empty line)
+    parts.append("\n".join(price_lines))
     
-    # Coupon code + final price
-    if coupon_code:
+    # Coupon with exact percentage from page
+    if coupon_code and coupon_discount_percent > 0:
         if final_price > 0 and final_price != int(current_num):
-            parts.append(f"🎟️ مع كود {coupon_code} يطلع بـ {final_price} ريال 🔥")
+            parts.append(f"🎟️ مع كود {coupon_code} (خصم {coupon_discount_percent}%) يطلع بـ {final_price} ريال 🔥")
         else:
-            parts.append(f"🎟️ كوبون: {coupon_code}")
+            parts.append(f"🎟️ كوبون {coupon_code} (خصم {coupon_discount_percent}%)")
+    elif coupon_code:
+        parts.append(f"🎟️ كوبون: {coupon_code}")
     
     # Link
     parts.append(f"رابط الشراء 👇🏻\n{original_url}")
