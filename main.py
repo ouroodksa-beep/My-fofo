@@ -90,6 +90,19 @@ def detect_product_category(product_name):
     return "general"
 
 
+def detect_product_gender(product_name):
+    name_lower = product_name.lower()
+    women_indicators = ['women', 'woman', 'ladies', 'lady', 'female', 'feminine', 'نسائي', 'نساء', 'نسا', 'سيدات', 'سيدة', 'انثى', 'انثوي', 'dress', 'skirt', 'فستان', 'تنورة', 'بلايز', 'فساتين', 'makeup', 'lipstick', 'شامبو', 'بلسم', 'كريم', 'عطر نسائي', 'عطر للنساء']
+    men_indicators = ['men', 'man', 'male', 'masculine', 'gents', 'gentlemen', 'رجالي', 'رجال', 'رجل', 'ذكر', 'ذكوري', 'رجولة', 'عطر رجالي', 'عطر للرجال']
+    for indicator in women_indicators:
+        if indicator in name_lower:
+            return 'women'
+    for indicator in men_indicators:
+        if indicator in name_lower:
+            return 'men'
+    return 'neutral'
+
+
 TRANSLATION_DICT = {
     "laptop": "لابتوب", "tablet": "تابلت", "keyboard": "كيبورد", "mouse": "ماوس",
     "charger": "شاحن", "cable": "كيبل", "power bank": "باور بانك", "battery": "بطارية",
@@ -311,28 +324,31 @@ def get_seller_info(soup):
     return seller_name, seller_rating
 
 
-def translate_coupon(coupon_text):
+def extract_coupon_code(coupon_text):
+    """Extract coupon code from text"""
     if not coupon_text:
         return None
     
-    text = coupon_text.strip()
+    # Look for code patterns like CODE123, SUPER20, etc.
+    code_patterns = [
+        r'([A-Z0-9]{4,20})',  # Generic code pattern
+        r'كود\s*([A-Z0-9]+)',
+        r'code\s*([A-Z0-9]+)',
+        r'قسيمة\s*([A-Z0-9]+)',
+    ]
     
-    percent_match = re.search(r'(\d+)%', text)
-    amount_match = re.search(r'(\d+)\s*SAR|(\d+)\s*ريال', text)
+    for pattern in code_patterns:
+        match = re.search(pattern, coupon_text, re.IGNORECASE)
+        if match:
+            return match.group(1)
     
-    if percent_match:
-        percent = percent_match.group(1)
-        return f"🎟️ كوبون خصم {percent}%"
-    elif amount_match:
-        amount = amount_match.group(1) or amount_match.group(2)
-        return f"🎟️ كوبون خصم {amount} ريال"
-    else:
-        return f"🎟️ كوبون خصم"
+    return None
 
 
 def get_coupons_and_discounts(soup, current_price_num):
     coupons = []
     extra_discount_percent = 0
+    coupon_code = None
     
     coupon_selectors = [
         "#couponTextInput",
@@ -351,6 +367,10 @@ def get_coupons_and_discounts(soup, current_price_num):
                 text = re.sub(r'\s+', ' ', text).strip()
                 if len(text) > 5 and text not in coupons:
                     coupons.append(text)
+                    # Extract code from this coupon
+                    code = extract_coupon_code(text)
+                    if code:
+                        coupon_code = code
     
     discount_patterns = [
         r'(\d+)%\s*(?:extra|additional|إضافي|إضافية)',
@@ -375,17 +395,7 @@ def get_coupons_and_discounts(soup, current_price_num):
                 continue
     
     coupons = list(set(coupons))[:2]
-    return coupons, extra_discount_percent
-
-
-def calculate_total_discount(old_price_num, current_price_num, extra_discount_percent):
-    if old_price_num > 0 and current_price_num > 0:
-        base_discount = int(((old_price_num - current_price_num) / old_price_num) * 100)
-        if extra_discount_percent > 0:
-            total = base_discount + extra_discount_percent
-            return base_discount, extra_discount_percent, total
-        return base_discount, 0, base_discount
-    return 0, 0, 0
+    return coupons, extra_discount_percent, coupon_code
 
 
 def calculate_final_price(current_price_num, extra_discount_percent):
@@ -464,14 +474,11 @@ def get_product(asin):
             seller_name, seller_rating = get_seller_info(soup)
             
             current_price_num = extract_number(price) if price else 0
-            coupons, extra_discount = get_coupons_and_discounts(soup, current_price_num)
+            coupons, extra_discount, coupon_code = get_coupons_and_discounts(soup, current_price_num)
             
             old_price_num = extract_number(old_price) if old_price else 0
-            base_discount, extra_discount_pct, total_discount = calculate_total_discount(
-                old_price_num, current_price_num, extra_discount
-            )
             
-            final_price = calculate_final_price(current_price_num, extra_discount_pct)
+            final_price = calculate_final_price(current_price_num, extra_discount)
             
             if price:
                 arabic_title = smart_arabic_title(full_title)
@@ -483,9 +490,8 @@ def get_product(asin):
                     "seller_name": seller_name,
                     "seller_rating": seller_rating,
                     "coupons": coupons,
-                    "base_discount": base_discount,
-                    "extra_discount": extra_discount_pct,
-                    "total_discount": total_discount,
+                    "extra_discount": extra_discount,
+                    "coupon_code": coupon_code,
                     "final_price": final_price,
                 }
                 
@@ -500,66 +506,56 @@ def generate_post(product_data, original_url):
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
-    coupons = product_data["coupons"]
-    total_discount = product_data["total_discount"]
+    coupon_code = product_data["coupon_code"]
     final_price = product_data["final_price"]
     
     category = detect_product_category(name)
+    gender = detect_product_gender(name)
     
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else None
     current_num = extract_number(price)
     old_num = extract_number(old_price) if old_price else 0
     
-    # Build context for AI
+    # Build context for AI with gender info
     context_parts = []
     
     if clean_old and old_num > current_num:
         context_parts.append(f"السعر السابق {clean_old} والسعر الحالي {clean_current}")
-        if total_discount > 0:
-            context_parts.append(f"خصم {total_discount}%")
     
-    if coupons:
-        translated = translate_coupon(coupons[0])
-        context_parts.append(f"كوبون: {translated}")
-    
-    if final_price > 0 and final_price != int(current_num):
-        context_parts.append(f"السعر بعد الكوبون {final_price} ريال")
+    if coupon_code:
+        context_parts.append(f"كوبون {coupon_code}")
+        if final_price > 0 and final_price != int(current_num):
+            context_parts.append(f"السعر بعد الكوبون {final_price} ريال")
     
     context = " | ".join(context_parts)
     
-    # AI generates opening sentence
-    opening = generate_ai_sentence(name, category, context)
+    # AI generates opening sentence with gender awareness
+    opening = generate_ai_sentence(name, category, gender, context)
     
     emoji = get_category_emoji(category)
     
     parts = []
     
-    # Opening sentence
+    # Opening sentence (AI generated, varies each time)
     parts.append(opening)
     
-    # Product name + quick price
+    # Product name only (no price next to it)
+    parts.append(f"{emoji} {name}")
+    
+    # Old price in separate line
     if clean_old and old_num > current_num:
-        parts.append(f"{emoji} {name} بـ {int(current_num)} بدل {int(old_num)} ‼️")
-    else:
-        parts.append(f"{emoji} {name}")
+        parts.append(f"❌ السعر السابق: {clean_old}")
     
-    # Detailed price line
-    if clean_old and old_num > current_num:
-        parts.append(f"بـ {clean_current} بدل {clean_old}")
+    # Current price in separate line
+    parts.append(f"✅ السعر الحالي: {clean_current}")
     
-    # Discount line
-    if total_discount > 0:
-        parts.append(f"(خصم {total_discount}%)")
-    
-    # Coupon + final price line
-    if coupons:
-        translated_coupon = translate_coupon(coupons[0])
-        if translated_coupon:
-            if final_price > 0 and final_price != int(current_num):
-                parts.append(f"{translated_coupon} يطلع بـ {final_price} ريال 🔥")
-            else:
-                parts.append(translated_coupon)
+    # Coupon code + final price
+    if coupon_code:
+        if final_price > 0 and final_price != int(current_num):
+            parts.append(f"🎟️ مع كود {coupon_code} يطلع بـ {final_price} ريال 🔥")
+        else:
+            parts.append(f"🎟️ كوبون: {coupon_code}")
     
     # Link
     parts.append(f"رابط الشراء 👇🏻\n{original_url}")
@@ -567,8 +563,16 @@ def generate_post(product_data, original_url):
     return "\n\n".join(parts)
 
 
-def generate_ai_sentence(product_name, category, context):
-    """AI generates unique opening sentence based on product data"""
+def generate_ai_sentence(product_name, category, gender, context):
+    """AI generates unique opening sentence based on product, gender, and context"""
+    
+    gender_hint = ""
+    if gender == "women":
+        gender_hint = "المنتج نسائي، وجه الجملة للبنات والنساء بلهجة مناسبة (مثل: 'صيدة بناتية'، 'فرصة للبنات'، 'يستاهلج')"
+    elif gender == "men":
+        gender_hint = "المنتج رجالي، وجه الجملة للرجال بلهجة مناسبة (مثل: 'صيدة رجالية'، 'يستاهلك يا بطل'، 'فرصة للشباب')"
+    else:
+        gender_hint = "المنتج للجنسين، اكتب جملة عامة تناسب الكل"
     
     prompt = f"""أنت كاتب محتوى سعودي خليجي محترف في قناة تليجرام "صيدات وصفقات" للتسويق بالعمولة.
 اكتب جملة افتتاحية قصيرة جداً (سطر واحد فقط، 3-8 كلمات كحد أقصى) باللهجة السعودية الخليجية.
@@ -581,6 +585,8 @@ def generate_ai_sentence(product_name, category, context):
 - ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
 - ❌ ممنوع أي أمثلة جاهزة أو نمط ثابت
 - كل مرة اكتب جملة مختلفة تماماً بناءً على المنتج والسياق
+
+🔹 {gender_hint}
 
 🔹 المنتج: {product_name}
 🔹 الفئة: {category}
