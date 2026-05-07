@@ -324,7 +324,7 @@ def get_seller_info(soup):
     return seller_name, seller_rating
 
 
-def extract_coupon_code(coupon_text):
+def extract_coupon_details(coupon_text):
     """Extract coupon code and discount percentage from text"""
     if not coupon_text:
         return None, 0
@@ -353,9 +353,8 @@ def extract_coupon_code(coupon_text):
 
 
 def get_coupons_and_discounts(soup, current_price_num):
-    coupons = []
-    coupon_code = None
-    coupon_discount_percent = 0
+    """Extract all coupons and calculate best final price"""
+    all_coupons = []
     
     coupon_selectors = [
         "#couponTextInput",
@@ -364,34 +363,49 @@ def get_coupons_and_discounts(soup, current_price_num):
         "#couponContainer",
         "[id*='coupon']",
         ".promoPriceBlockMessage",
+        ".a-section.a-spacing-small",
+        "[data-a-expander-name='couponSecondaryView']",
+        ".couponCheckbox",
     ]
     
     for selector in coupon_selectors:
         elems = soup.select(selector)
         for elem in elems:
             text = elem.get_text(strip=True)
-            if text and any(word in text.lower() for word in ['coupon', 'خصم', 'discount', 'save', 'وفّر', 'قسيمة', 'كوبون']):
+            if text and any(word in text.lower() for word in ['coupon', 'خصم', 'discount', 'save', 'وفّر', 'قسيمة', 'كوبون', 'clip', 'apply']):
                 text = re.sub(r'\s+', ' ', text).strip()
-                if len(text) > 5 and text not in coupons:
-                    coupons.append(text)
-                    # Extract code and percentage from this coupon
-                    code, percent = extract_coupon_code(text)
-                    if code:
-                        coupon_code = code
-                    if percent > 0:
-                        coupon_discount_percent = percent
+                if len(text) > 5:
+                    all_coupons.append(text)
     
-    coupons = list(set(coupons))[:2]
-    return coupons, coupon_code, coupon_discount_percent
-
-
-def calculate_final_price(current_price_num, coupon_discount_percent):
-    """Calculate price after coupon discount using the percentage shown on page"""
-    if current_price_num > 0 and coupon_discount_percent > 0:
-        discount_amount = (current_price_num * coupon_discount_percent) / 100
-        final_price = current_price_num - discount_amount
-        return int(final_price)
-    return int(current_price_num) if current_price_num > 0 else 0
+    # Remove duplicates
+    all_coupons = list(set(all_coupons))
+    
+    # Extract details from each coupon
+    coupons_data = []
+    for coupon_text in all_coupons:
+        code, percent = extract_coupon_details(coupon_text)
+        if code or percent > 0:
+            coupons_data.append({
+                "text": coupon_text,
+                "code": code,
+                "percent": percent
+            })
+    
+    # Find best coupon (highest discount)
+    best_coupon = None
+    best_discount = 0
+    for coupon in coupons_data:
+        if coupon["percent"] > best_discount:
+            best_discount = coupon["percent"]
+            best_coupon = coupon
+    
+    # Calculate final price with best coupon
+    final_price = int(current_price_num) if current_price_num > 0 else 0
+    if best_coupon and best_coupon["percent"] > 0:
+        discount_amount = (current_price_num * best_coupon["percent"]) / 100
+        final_price = int(current_price_num - discount_amount)
+    
+    return coupons_data, best_coupon, final_price
 
 
 def get_product(asin):
@@ -462,9 +476,7 @@ def get_product(asin):
             seller_name, seller_rating = get_seller_info(soup)
             
             current_price_num = extract_number(price) if price else 0
-            coupons, coupon_code, coupon_discount_percent = get_coupons_and_discounts(soup, current_price_num)
-            
-            final_price = calculate_final_price(current_price_num, coupon_discount_percent)
+            all_coupons, best_coupon, final_price = get_coupons_and_discounts(soup, current_price_num)
             
             if price:
                 arabic_title = smart_arabic_title(full_title)
@@ -475,9 +487,8 @@ def get_product(asin):
                     "image": image,
                     "seller_name": seller_name,
                     "seller_rating": seller_rating,
-                    "coupons": coupons,
-                    "coupon_code": coupon_code,
-                    "coupon_discount_percent": coupon_discount_percent,
+                    "all_coupons": all_coupons,
+                    "best_coupon": best_coupon,
                     "final_price": final_price,
                 }
                 
@@ -492,8 +503,7 @@ def generate_post(product_data, original_url):
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
-    coupon_code = product_data["coupon_code"]
-    coupon_discount_percent = product_data["coupon_discount_percent"]
+    best_coupon = product_data["best_coupon"]
     final_price = product_data["final_price"]
     
     category = detect_product_category(name)
@@ -504,20 +514,23 @@ def generate_post(product_data, original_url):
     current_num = extract_number(price)
     old_num = extract_number(old_price) if old_price else 0
     
-    # Build context for AI
+    # Build context for AI with all available info
     context_parts = []
     
     if clean_old and old_num > current_num:
         context_parts.append(f"السعر السابق {clean_old} والسعر الحالي {clean_current}")
     
-    if coupon_code and coupon_discount_percent > 0:
-        context_parts.append(f"كوبون {coupon_code} بخصم {coupon_discount_percent}%")
+    if best_coupon:
+        if best_coupon["code"]:
+            context_parts.append(f"كوبون {best_coupon['code']} بخصم {best_coupon['percent']}%")
+        else:
+            context_parts.append(f"خصم إضافي {best_coupon['percent']}%")
         if final_price > 0 and final_price != int(current_num):
             context_parts.append(f"السعر بعد الكوبون {final_price} ريال")
     
     context = " | ".join(context_parts)
     
-    # AI generates opening sentence - varies with each product
+    # AI generates unique opening sentence
     opening = generate_ai_sentence(name, category, gender, context)
     
     emoji = get_category_emoji(category)
@@ -539,14 +552,13 @@ def generate_post(product_data, original_url):
     # Join prices with single newline (no empty line)
     parts.append("\n".join(price_lines))
     
-    # Coupon with exact percentage from page
-    if coupon_code and coupon_discount_percent > 0:
+    # Best coupon with exact percentage and final price
+    if best_coupon:
+        coupon_code = best_coupon["code"] if best_coupon["code"] else "الكوبون"
         if final_price > 0 and final_price != int(current_num):
-            parts.append(f"🎟️ مع كود {coupon_code} (خصم {coupon_discount_percent}%) يطلع بـ {final_price} ريال 🔥")
+            parts.append(f"🎟️ مع كود {coupon_code} (خصم {best_coupon['percent']}%) يطلع بـ {final_price} ريال 🔥")
         else:
-            parts.append(f"🎟️ كوبون {coupon_code} (خصم {coupon_discount_percent}%)")
-    elif coupon_code:
-        parts.append(f"🎟️ كوبون: {coupon_code}")
+            parts.append(f"🎟️ كوبون {coupon_code} (خصم {best_coupon['percent']}%)")
     
     # Link
     parts.append(f"رابط الشراء 👇🏻\n{original_url}")
@@ -555,13 +567,13 @@ def generate_post(product_data, original_url):
 
 
 def generate_ai_sentence(product_name, category, gender, context):
-    """AI generates unique opening sentence based on product, gender, and context"""
+    """AI generates unique opening sentence - never repeats"""
     
     gender_hint = ""
     if gender == "women":
-        gender_hint = "المنتج نسائي، وجه الجملة للبنات والنساء بلهجة مناسبة (مثل: 'صيدة بناتية'، 'فرصة للبنات'، 'يستاهلج')"
+        gender_hint = "المنتج نسائي، وجه الجملة للبنات والنساء بلهجة مناسبة"
     elif gender == "men":
-        gender_hint = "المنتج رجالي، وجه الجملة للرجال بلهجة مناسبة (مثل: 'صيدة رجالية'، 'يستاهلك يا بطل'، 'فرصة للشباب')"
+        gender_hint = "المنتج رجالي، وجه الجملة للرجال بلهجة مناسبة"
     else:
         gender_hint = "المنتج للجنسين، اكتب جملة عامة تناسب الكل"
     
@@ -575,6 +587,7 @@ def generate_ai_sentence(product_name, category, gender, context):
 - بلهجة سعودية خليجية كريمة
 - ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
 - ❌ ممنوع أي أمثلة جاهزة أو نمط ثابت
+- ❌ ممنوع تكرار نفس الجملة أو نفس الأسلوب
 - كل مرة اكتب جملة مختلفة تماماً بناءً على المنتج والسياق
 
 🔹 {gender_hint}
@@ -593,10 +606,10 @@ def generate_ai_sentence(product_name, category, gender, context):
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة وقوية بإيموجي. أسلوبك حماسي وراقي ومختصر. كل مرة تكتب جملة مختلفة تماماً بناءً على المنتج. ممنوع الأمثلة الجاهزة."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة وقوية بإيموجي. أسلوبك حماسي وراقي ومختصر. كل مرة تكتب جملة مختلفة تماماً بناءً على المنتج. ممنوع الأمثلة الجاهزة. ممنوع التكرار."},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.95,
+            "temperature": 0.98,
             "max_tokens": 35
         }
         
