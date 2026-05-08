@@ -322,32 +322,100 @@ def get_seller_info(soup):
     return seller_name, seller_rating
 
 
+def is_valid_coupon_code(text):
+    """Filter out product features and invalid codes"""
+    if not text:
+        return False
+    
+    # Skip product features/tech specs
+    invalid_keywords = [
+        'turbo', 'wash', 'dry', 'spin', 'rpm', 'kg', 'kilo', 'inverter',
+        'wifi', 'bluetooth', 'smart', 'sensor', 'motor', 'digital', 'display',
+        'touch', 'control', 'mode', 'speed', 'power', 'energy', 'class',
+        'dimension', 'size', 'weight', 'capacity', 'volume', 'noise',
+        'program', 'function', 'technology', 'system', 'filter', 'brush',
+        'battery', 'wireless', 'cable', 'charger', 'adapter', 'remote',
+        ' guarantee', 'warranty', 'year', 'month', 'day', 'model', 'series',
+        'version', 'generation', 'type', 'color', 'black', 'white', 'silver',
+        'gold', 'red', 'blue', 'green', 'new', 'original', 'official',
+    ]
+    
+    text_lower = text.lower()
+    for kw in invalid_keywords:
+        if kw in text_lower:
+            return False
+    
+    # Must contain at least one letter and one digit, or be all uppercase letters
+    has_letter = bool(re.search(r'[a-zA-Z]', text))
+    has_digit = bool(re.search(r'\d', text))
+    
+    # Pure numbers are not coupon codes
+    if not has_letter and has_digit:
+        return False
+    
+    # Too short or too long
+    if len(text) < 4 or len(text) > 20:
+        return False
+    
+    # Must look like a code (contains uppercase or digits)
+    if not re.match(r'^[A-Z0-9]+$', text):
+        # Allow some mixed case but mostly uppercase
+        if sum(1 for c in text if c.isupper()) < 2 and not has_digit:
+            return False
+    
+    return True
+
+
 def extract_coupon_details(coupon_text):
     if not coupon_text:
         return None, 0
+    
+    # Extract code - look for explicit code patterns first
     code = None
-    code_patterns = [
-        r'([A-Z0-9]{4,20})',
-        r'كود\s*([A-Z0-9]+)',
-        r'code\s*([A-Z0-9]+)',
-        r'قسيمة\s*([A-Z0-9]+)',
+    
+    # Pattern: "Apply XXXXX" or "Clip XXXXX" or "Code: XXXXX"
+    explicit_patterns = [
+        r'(?:apply|clip|use|enter)\s+([A-Z0-9]{4,15})',
+        r'(?:code|كود|قسيمة)[\s:]+([A-Z0-9]{4,15})',
+        r'([A-Z0-9]{5,12})(?:\s*[-–]\s*\d+%)',
     ]
-    for pattern in code_patterns:
+    
+    for pattern in explicit_patterns:
         match = re.search(pattern, coupon_text, re.IGNORECASE)
         if match:
-            code = match.group(1)
-            break
+            candidate = match.group(1).strip()
+            if is_valid_coupon_code(candidate):
+                code = candidate
+                break
+    
+    # If no explicit code, look for standalone codes
+    if not code:
+        standalone = re.findall(r'\b([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,}|[A-Z0-9]{6,12})\b', coupon_text)
+        for candidate in standalone:
+            if is_valid_coupon_code(candidate):
+                code = candidate
+                break
+    
+    # Extract discount percentage
     discount_percent = 0
     percent_match = re.search(r'(\d+)%', coupon_text)
     if percent_match:
         discount_percent = int(percent_match.group(1))
-    return code, discount_percent
+    
+    # Extract fixed amount discount
+    fixed_discount = 0
+    amount_match = re.search(r'(\d+)\s*(?:SAR|ريال)', coupon_text, re.IGNORECASE)
+    if amount_match:
+        fixed_discount = int(amount_match.group(1))
+    
+    return code, discount_percent, fixed_discount
 
 
 def get_all_promos_and_coupons(soup, current_price_num):
-    """Extract ALL promo codes and coupons, calculate price after EACH"""
+    """Extract ALL valid promo codes and coupons"""
     all_coupons = []
     
+    # Look in coupon-specific areas
     coupon_selectors = [
         "#couponTextInput",
         "[data-feature-name='coupon']",
@@ -355,56 +423,58 @@ def get_all_promos_and_coupons(soup, current_price_num):
         "#couponContainer",
         "[id*='coupon']",
         ".promoPriceBlockMessage",
-        ".a-section.a-spacing-small",
         "[data-a-expander-name='couponSecondaryView']",
         ".couponCheckbox",
         ".savingsPercentage",
-        "[data-a-color='secondary']",
         ".a-color-price",
-        ".promoPriceBlockMessage",
-        ".a-alert-content",
     ]
     
     for selector in coupon_selectors:
         elems = soup.select(selector)
         for elem in elems:
             text = elem.get_text(strip=True)
-            if text and any(word in text.lower() for word in ['coupon', 'خصم', 'discount', 'save', 'وفّر', 'قسيمة', 'كوبون', 'clip', 'apply', 'promo', 'كود', 'offer', 'عرض']):
+            if text and any(word in text.lower() for word in ['coupon', 'خصم', 'discount', 'save', 'وفّر', 'قسيمة', 'كوبون', 'clip', 'apply', 'promo', 'كود', 'offer', 'عرض', 'extra']):
                 text = re.sub(r'\s+', ' ', text).strip()
                 if len(text) > 3:
                     all_coupons.append(text)
     
-    # Also search in entire page text for promo patterns
+    # Search page text for promo patterns with actual codes
     page_text = soup.get_text()
     promo_patterns = [
-        r'([A-Z0-9]{5,15})\s*[-–]\s*(\d+)%',
-        r'كود\s*([A-Z0-9]+)\s*[-–]\s*(\d+)%',
-        r'promo\s*code\s*([A-Z0-9]+)',
-        r'([A-Z0-9]{4,12})\s*خصم\s*(\d+)%',
+        r'(?:apply|clip|use|enter)\s+([A-Z]{3,}\d{2,})\s*(?:to save|to get|for|للحصول)',
+        r'(?:promo\s*code|كود\s*الخصم|كوبون)[\s:]+([A-Z0-9]{4,12})',
+        r'([A-Z]{4,}\d{2,4})\s*[-–]\s*save\s*\d+%',
+        r'([A-Z]{3,}\d{2,})\s*[-–]\s*\d+%\s*off',
     ]
     for pattern in promo_patterns:
         matches = re.findall(pattern, page_text, re.IGNORECASE)
         for match in matches:
-            if isinstance(match, tuple):
-                code, percent = match[0], int(match[1]) if match[1].isdigit() else 0
-                all_coupons.append(f"{code} خصم {percent}%")
-            else:
-                all_coupons.append(match)
+            if isinstance(match, str) and is_valid_coupon_code(match):
+                all_coupons.append(f"Code {match}")
+            elif isinstance(match, tuple) and match[0] and is_valid_coupon_code(match[0]):
+                all_coupons.append(f"Code {match[0]}")
     
     all_coupons = list(set(all_coupons))
     
     coupons_data = []
     for coupon_text in all_coupons:
-        code, percent = extract_coupon_details(coupon_text)
-        if code or percent > 0:
+        code, percent, fixed = extract_coupon_details(coupon_text)
+        if code and (percent > 0 or fixed > 0):
             final_price = int(current_price_num)
             if percent > 0 and current_price_num > 0:
                 discount_amount = (current_price_num * percent) / 100
                 final_price = int(current_price_num - discount_amount)
+            elif fixed > 0 and current_price_num > 0:
+                final_price = int(current_price_num - fixed)
+                if final_price < 0:
+                    final_price = 0
+                percent = int((fixed / current_price_num) * 100)
+            
             coupons_data.append({
                 "text": coupon_text,
-                "code": code if code else f"خصم {percent}%",
+                "code": code,
                 "percent": percent,
+                "fixed": fixed,
                 "final_price": final_price
             })
     
@@ -534,15 +604,12 @@ def generate_post(product_data, original_url):
         context_parts.append(f"السعر السابق {clean_old} والسعر الحالي {clean_current}")
     
     if all_coupons:
-        for c in all_coupons[:3]:
-            if c["percent"] > 0:
-                context_parts.append(f"كوبون {c['code']} خصم {c['percent']}% يصير بـ {c['final_price']} ريال")
-            else:
-                context_parts.append(f"كوبون {c['code']}")
+        for c in all_coupons[:2]:
+            context_parts.append(f"كود {c['code']} خصم {c['percent']}% يصير بـ {c['final_price']} ريال")
     
     context = " | ".join(context_parts)
     
-    # AI generates unique opening sentence in "صيدات وصفقات" vibe
+    # AI generates dramatic opening sentence
     opening = generate_ai_sentence(name, category, gender, context)
     
     emoji = get_category_emoji(category)
@@ -558,15 +625,13 @@ def generate_post(product_data, original_url):
     price_lines.append(f"✅ السعر الحالي: {clean_current}")
     parts.append("\n".join(price_lines))
     
-    # ALL coupons with their final prices
+    # Valid coupons only
     if all_coupons:
-        for coupon in all_coupons[:3]:
-            if coupon["percent"] > 0 and coupon["final_price"] > 0 and coupon["final_price"] != int(current_price_num):
-                parts.append(f"🎟️ مع كود {coupon['code']} (خصم {coupon['percent']}%) يطلع بـ {coupon['final_price']} ريال")
+        for coupon in all_coupons[:2]:
+            if coupon["final_price"] > 0 and coupon["final_price"] != int(current_price_num):
+                parts.append(f"🎟️ مع كود {coupon['code']} (خصم {coupon['percent']}%) يطلع بـ {coupon['final_price']} ريال 🔥")
             elif coupon["percent"] > 0:
-                parts.append(f"🎟️ كوبون {coupon['code']} (خصم {coupon['percent']}%)")
-            else:
-                parts.append(f"🎟️ كوبون {coupon['code']}")
+                parts.append(f"🎟️ كود {coupon['code']} (خصم {coupon['percent']}%)")
     
     parts.append(f"رابط الشراء 👇🏻\n{original_url}")
     
@@ -574,23 +639,23 @@ def generate_post(product_data, original_url):
 
 
 def generate_ai_sentence(product_name, category, gender, context):
-    """AI generates unique opening sentence in 'صيدات وصفقات' vibe"""
+    """AI generates dramatic/exaggerated opening sentence"""
     
     gender_hint = ""
     if gender == "women":
-        gender_hint = "المنتج نسائي، وجه الجملة للبنات والنساء"
+        gender_hint = "المنتج نسائي، وجه الجملة للبنات بأسلوب تهويلي"
     elif gender == "men":
-        gender_hint = "المنتج رجالي، وجه الجملة للرجال"
+        gender_hint = "المنتج رجالي، وجه الجملة للرجال بأسلوب تهويلي"
     else:
-        gender_hint = "المنتج للجنسين"
+        gender_hint = "المنتج للجنسين، اكتب بأسلوب تهويلي عام"
     
-    # Random style instruction to ensure variety
+    # Random dramatic style
     styles = [
-        "افتتح بأسلوب صياد لقى غنيمة",
-        "افتتح بأسلوب فرحة بالصفقة",
-        "افتتح بأسلوب مفاجأة بالسعر",
-        "افتتح بأسلوب توفير خرافي",
-        "افتتح بأسلوب جودة بسعر مجنون",
+        "افتتح بأسلوب تهويلي صاروخي (مثل: 'انفجار سعر!'، 'صدمة!'، 'مستحيل!'، 'تخيلوا!')",
+        "افتتح بأسلوب صياد لقى كنز (مثل: 'غنيمة العمر!'، 'صفقة تاريخية!'، 'هجمة!'، 'صطولة!')",
+        "افتتح بأسلوب مفاجأة صادمة (مثل: 'صدمووو!'، 'تبي تصدق!'، 'عقلك راح ينفجر!'، 'لا يفوتك!')",
+        "افتتح بأسلوب تحدي (مثل: 'جربوا تصدقوا!'، 'أقوى صفقة!'، 'ما راح تلقى مثلها!'، 'فرصة وحيدة!')",
+        "افتتح بأسلوب فزعة (مثل: 'عاجل!'، 'هيّا!'، 'بسرعة!'، 'الحين الحين!'، 'قبل ما ينتهي!')",
     ]
     chosen_style = random.choice(styles)
     
@@ -600,8 +665,8 @@ def generate_ai_sentence(product_name, category, gender, context):
 🔹 قواعد مهمة:
 - الجملة لازم تكون مختصرة جداً (تنفع تغريدة تويتر)
 - استخدم إيموجي (2-3 إيموجي) في الجملة نفسها
-- الجملة لازم تكون حماسية وتشد وتبيع المنتج
-- جو القناة: "صيدات وصفقات" (صيد، صفقات، فرص، توفير، غنيمة، صطولة)
+- الجملة لازم تكون بأسلوب تهويلي حماسي صادم يشد العين فوراً
+- أسلوب التهويل: صدمة، انفجار، غنيمة، صفقة خرافية، فرصة مجنونة، توفير جنوني
 - بلهجة سعودية خليجية كريمة
 - ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
 - ❌ ممنوع أي أمثلة جاهزة أو نمط ثابت
@@ -626,7 +691,7 @@ def generate_ai_sentence(product_name, category, gender, context):
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة وقوية بإيموجي. أسلوبك حماسي وراقي ومختصر. جو القناة: صيد، صفقات، فرص، توفير. كل مرة تكتب جملة مختلفة تماماً. ممنوع الأمثلة الجاهزة. ممنوع التكرار. ممنوع استخدام كلمة 'صيدة' أو 'لازم تشوفها'."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة بأسلوب تهويلي صادم. أسلوبك: صدمة، انفجار، غنيمة، صفقة خرافية. كل مرة تكتب جملة مختلفة تماماً. ممنوع الأمثلة الجاهزة. ممنوع التكرار. ممنوع استخدام كلمة 'صيدة' أو 'لازم تشوفها'."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.99,
@@ -660,20 +725,20 @@ def generate_ai_sentence(product_name, category, gender, context):
 
 
 def generate_fallback_sentence(category):
-    """Fallback sentences - varied and unique, no repetition"""
-    all_fallbacks = [
-        "💰 صفقة العمر هنا! 🔥",
-        "🎯 غنيمة ما تتفوت! ⚡️",
-        "🏆 توفير خرافي اليوم! 💸",
-        "🚀 فرصة صطورة بانتظارك! 💎",
-        "⚡️ صفقة تكسر الدنيا! 🔥",
-        "💎 غنيمة من ذهب! 🏆",
-        "🔥 توفير مجنون شفتوه! 💰",
-        "⚡️ صفقة تاريخية اليوم! 🚀",
-        "💸 غنيمة ببلاش تقريباً! 🎯",
-        "🏹 صطولة ما تتعوض! 💎",
+    """Dramatic fallback sentences"""
+    fallbacks = [
+        "💥 انفجار سعر مجنون! 🔥",
+        "🎯 غنيمة العمر وصلت! ⚡️",
+        "💰 صفقة تاريخية بانتظارك! 🚀",
+        "🔥 صدمة سعر لا تُصدق! 💎",
+        "⚡️ فرصة مجنونة قبل تفوت! 💸",
+        "💎 كنز ببلاش تقريباً! 🏆",
+        "🚀 هجمة أسعار لا تُفوت! 🔥",
+        "💸 توفير جنوني شفتوه! ⚡️",
+        "🔥 مستحيل تلقى مثلها! 💰",
+        "⚡️ عاجل! صفقة صطورة! 🎯",
     ]
-    return random.choice(all_fallbacks)
+    return random.choice(fallbacks)
 
 
 @bot.message_handler(func=lambda m: True)
