@@ -325,11 +325,9 @@ def get_seller_info(soup):
 
 
 def extract_coupon_details(coupon_text):
-    """Extract coupon code and discount percentage from text"""
     if not coupon_text:
         return None, 0
     
-    # Extract code
     code = None
     code_patterns = [
         r'([A-Z0-9]{4,20})',
@@ -343,7 +341,6 @@ def extract_coupon_details(coupon_text):
             code = match.group(1)
             break
     
-    # Extract discount percentage
     discount_percent = 0
     percent_match = re.search(r'(\d+)%', coupon_text)
     if percent_match:
@@ -353,7 +350,6 @@ def extract_coupon_details(coupon_text):
 
 
 def get_coupons_and_discounts(soup, current_price_num):
-    """Extract all coupons and calculate best final price"""
     all_coupons = []
     
     coupon_selectors = [
@@ -377,10 +373,8 @@ def get_coupons_and_discounts(soup, current_price_num):
                 if len(text) > 5:
                     all_coupons.append(text)
     
-    # Remove duplicates
     all_coupons = list(set(all_coupons))
     
-    # Extract details from each coupon
     coupons_data = []
     for coupon_text in all_coupons:
         code, percent = extract_coupon_details(coupon_text)
@@ -391,7 +385,6 @@ def get_coupons_and_discounts(soup, current_price_num):
                 "percent": percent
             })
     
-    # Find best coupon (highest discount)
     best_coupon = None
     best_discount = 0
     for coupon in coupons_data:
@@ -399,7 +392,6 @@ def get_coupons_and_discounts(soup, current_price_num):
             best_discount = coupon["percent"]
             best_coupon = coupon
     
-    # Calculate final price with best coupon
     final_price = int(current_price_num) if current_price_num > 0 else 0
     if best_coupon and best_coupon["percent"] > 0:
         discount_amount = (current_price_num * best_coupon["percent"]) / 100
@@ -514,7 +506,6 @@ def generate_post(product_data, original_url):
     current_num = extract_number(price)
     old_num = extract_number(old_price) if old_price else 0
     
-    # Build context for AI with all available info
     context_parts = []
     
     if clean_old and old_num > current_num:
@@ -530,29 +521,20 @@ def generate_post(product_data, original_url):
     
     context = " | ".join(context_parts)
     
-    # AI generates unique opening sentence
     opening = generate_ai_sentence(name, category, gender, context)
     
     emoji = get_category_emoji(category)
     
     parts = []
-    
-    # Opening sentence (AI generated, unique each time)
     parts.append(opening)
-    
-    # Product name only
     parts.append(f"{emoji} {name}")
     
-    # Prices without empty line between them
     price_lines = []
     if clean_old and old_num > current_num:
         price_lines.append(f"❌ السعر السابق: {clean_old}")
     price_lines.append(f"✅ السعر الحالي: {clean_current}")
-    
-    # Join prices with single newline (no empty line)
     parts.append("\n".join(price_lines))
     
-    # Best coupon with exact percentage and final price
     if best_coupon:
         coupon_code = best_coupon["code"] if best_coupon["code"] else "الكوبون"
         if final_price > 0 and final_price != int(current_num):
@@ -560,15 +542,12 @@ def generate_post(product_data, original_url):
         else:
             parts.append(f"🎟️ كوبون {coupon_code} (خصم {best_coupon['percent']}%)")
     
-    # Link
     parts.append(f"رابط الشراء 👇🏻\n{original_url}")
     
     return "\n\n".join(parts)
 
 
 def generate_ai_sentence(product_name, category, gender, context):
-    """AI generates unique opening sentence - never repeats"""
-    
     gender_hint = ""
     if gender == "women":
         gender_hint = "المنتج نسائي، وجه الجملة للبنات والنساء بلهجة مناسبة"
@@ -588,6 +567,7 @@ def generate_ai_sentence(product_name, category, gender, context):
 - ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
 - ❌ ممنوع أي أمثلة جاهزة أو نمط ثابت
 - ❌ ممنوع تكرار نفس الجملة أو نفس الأسلوب
+- ❌ ممنوع استخدام كلمة "صيدة" أو "لازم تشوفها"
 - كل مرة اكتب جملة مختلفة تماماً بناءً على المنتج والسياق
 
 🔹 {gender_hint}
@@ -606,7 +586,7 @@ def generate_ai_sentence(product_name, category, gender, context):
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة وقوية بإيموجي. أسلوبك حماسي وراقي ومختصر. كل مرة تكتب جملة مختلفة تماماً بناءً على المنتج. ممنوع الأمثلة الجاهزة. ممنوع التكرار."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة وقوية بإيموجي. أسلوبك حماسي وراقي ومختصر. كل مرة تكتب جملة مختلفة تماماً بناءً على المنتج. ممنوع الأمثلة الجاهزة. ممنوع التكرار. ممنوع استخدام كلمة 'صيدة' أو 'لازم تشوفها'."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.98,
@@ -629,14 +609,14 @@ def generate_ai_sentence(product_name, category, gender, context):
             vulgar_calls = ["ياجدعان", "ياجماعه", "ياجماعة", "يالله يا", "حياكم", "يالا", "يالله"]
             for vulgar in vulgar_calls:
                 if vulgar in sentence.lower().replace(" ", ""):
-                    return "🔥 صيدة لازم تشوفها!"
+                    return "🔥 فرصة ما تتفوت!"
             
             return sentence
                 
     except Exception as e:
         print(f"Groq error: {e}")
     
-    return "🔥 صيدة لازم تشوفها!"
+    return "🔥 فرصة ما تتفوت!"
 
 
 @bot.message_handler(func=lambda m: True)
