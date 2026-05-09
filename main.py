@@ -322,105 +322,191 @@ def get_seller_info(soup):
     return seller_name, seller_rating
 
 
-def get_all_coupons(soup, current_price_num):
-    """Extract REAL coupon/promo codes only, calculate discount from current price"""
-    found_coupons = []
-    seen_codes = set()
+def extract_discount_info(text):
+    """Extract percentage or fixed amount from offer text"""
+    if not text:
+        return 0, 0
     
-    # Get page text for searching
+    percent = 0
+    fixed = 0
+    
+    # Look for percentage
+    percent_match = re.search(r'(\d+)\s*%', text)
+    if percent_match:
+        p = int(percent_match.group(1))
+        if 1 <= p <= 99:
+            percent = p
+    
+    # Look for fixed amount (SAR or ريال)
+    fixed_match = re.search(r'(\d+)\s*(?:SAR|ريال)', text, re.IGNORECASE)
+    if fixed_match:
+        fixed = int(fixed_match.group(1))
+    
+    return percent, fixed
+
+
+def extract_code_from_text(text):
+    """Extract promo code from text"""
+    if not text:
+        return None
+    
+    # Look for explicit code patterns
+    patterns = [
+        r'(?:apply|clip|use|enter|code|كود)[\s:]+([A-Z0-9]{4,12})',
+        r'\b([A-Z]{3,}\d{2,})\b',
+        r'\b([A-Z]{4,})\b',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            code = match.group(1).upper()
+            # Validate: must have letters, not just numbers
+            if re.search(r'[A-Z]', code) and len(code) >= 4:
+                return code
+    
+    return None
+
+
+def get_all_offers_and_coupons(soup, current_price_num):
+    """Extract ALL offers and discounts from the page, calculate from current price"""
+    found_offers = []
+    seen_texts = set()
+    
+    # 1. Look for "Offers and Discounts" section
+    offer_section_selectors = [
+        "#promoPriceBlockMessage",
+        "[data-feature-name='coupon']",
+        "[data-a-expander-name='couponSecondaryView']",
+        ".a-section:has-text('Offers')",
+        ".a-section:has-text('Discounts')",
+        ".a-section:has-text('عروض')",
+        ".a-section:has-text('خصومات')",
+        "#couponContainer",
+        ".promoPriceBlockMessage",
+    ]
+    
+    for selector in offer_section_selectors:
+        elems = soup.select(selector)
+        for elem in elems:
+            text = elem.get_text(strip=True)
+            text_clean = re.sub(r'\s+', ' ', text).strip()
+            if text_clean and len(text_clean) > 5 and text_clean not in seen_texts:
+                seen_texts.add(text_clean)
+                
+                percent, fixed = extract_discount_info(text_clean)
+                code = extract_code_from_text(text_clean)
+                
+                # Calculate final price from CURRENT price
+                final_price = int(current_price_num)
+                if percent > 0 and current_price_num > 0:
+                    final_price = int(current_price_num - (current_price_num * percent / 100))
+                elif fixed > 0 and current_price_num > 0:
+                    final_price = int(current_price_num - fixed)
+                    if final_price < 0:
+                        final_price = 0
+                    percent = int((fixed / current_price_num) * 100)
+                
+                # Only add if it actually gives a discount
+                if final_price < current_price_num and (percent > 0 or fixed > 0):
+                    found_offers.append({
+                        "text": text_clean,
+                        "code": code if code else f"خصم {percent}%",
+                        "percent": percent,
+                        "fixed": fixed,
+                        "final_price": final_price
+                    })
+    
+    # 2. Search page text for explicit promo code patterns
     page_text = soup.get_text()
     
-    # Look for explicit coupon code patterns (real promo codes)
-    # Pattern 1: "Apply XXXXX to save/get" or "Clip XXXXX"
-    # Pattern 2: "Promo code: XXXXX"
-    # Pattern 3: "Code: XXXXX"
-    # Pattern 4: "Coupon: XXXXX"
-    explicit_patterns = [
-        r'(?:apply|clip|use|enter|استخدم|طبّق|اضغط)\s+([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,})\s*(?:to save|to get|for|للحصول|ووفّر)',
-        r'(?:promo\s*code|كود\s*الخصم|كوبون|قسيمة|coupon\s*code)[\s:]+([A-Z0-9]{4,12})',
-        r'(?:code|الكود)[\s:]+([A-Z0-9]{4,12})',
+    # Find patterns like "Apply XXXXX to save XX%" or "Enter code XXXXX for XX% off"
+    promo_patterns = [
+        r'(?:apply|clip|use|enter|استخدم|طبّق)\s+([A-Z0-9]{4,12})\s*(?:to save|to get|for|للحصول|ووفّر)\s*(\d+)%',
+        r'(?:promo\s*code|كود\s*الخصم|كوبون|قسيمة)[\s:]+([A-Z0-9]{4,12})',
         r'([A-Z]{4,}\d{2,4})\s*[-–]\s*(?:save|خصم)\s*(\d+)%',
         r'([A-Z]{3,}\d{2,})\s*[-–]\s*(\d+)%\s*(?:off|خصم)',
         r'(?:save|خصم)\s*(\d+)%\s*(?:with|مع|بـ)\s*(?:code|كود)\s*([A-Z0-9]{4,12})',
     ]
     
-    for pattern in explicit_patterns:
+    for pattern in promo_patterns:
         matches = re.findall(pattern, page_text, re.IGNORECASE)
         for match in matches:
             if isinstance(match, tuple):
-                # Find which element is the code and which is the percent
+                # Find code and percent
                 code = None
                 percent = 0
                 for item in match:
                     if re.match(r'^[A-Z0-9]{4,15}$', item) and re.search(r'[A-Z]', item):
                         code = item.upper()
-                    elif item.isdigit():
+                    elif str(item).isdigit():
                         percent = int(item)
+                
                 if code and percent > 0:
-                    if code not in seen_codes:
-                        seen_codes.add(code)
+                    text_clean = f"كود {code} خصم {percent}%"
+                    if text_clean not in seen_texts:
+                        seen_texts.add(text_clean)
                         final_price = int(current_price_num - (current_price_num * percent / 100))
-                        found_coupons.append({
-                            "code": code,
-                            "percent": percent,
-                            "final_price": final_price
-                        })
-            else:
-                # Single match - try to find percent near it
-                code = match.upper() if isinstance(match, str) else match
-                if code and re.match(r'^[A-Z0-9]{4,15}$', code) and re.search(r'[A-Z]', code):
-                    # Look for percentage near this code in text
-                    near_text = page_text[max(0, page_text.find(code) - 100):page_text.find(code) + 100]
-                    percent_match = re.search(r'(\d+)%', near_text)
-                    percent = int(percent_match.group(1)) if percent_match else 0
-                    if code not in seen_codes and percent > 0:
-                        seen_codes.add(code)
-                        final_price = int(current_price_num - (current_price_num * percent / 100))
-                        found_coupons.append({
-                            "code": code,
-                            "percent": percent,
-                            "final_price": final_price
-                        })
+                        if final_price < current_price_num:
+                            found_offers.append({
+                                "text": text_clean,
+                                "code": code,
+                                "percent": percent,
+                                "fixed": 0,
+                                "final_price": final_price
+                            })
     
-    # Also check coupon-specific HTML elements for real codes
+    # 3. Look for coupon-specific elements
     coupon_selectors = [
         "#couponTextInput",
-        "[data-feature-name='coupon']",
         ".couponText",
-        "#couponContainer",
         "[id*='coupon']",
-        ".promoPriceBlockMessage",
-        "[data-a-expander-name='couponSecondaryView']",
         ".couponCheckbox",
+        ".savingsPercentage",
     ]
     
     for selector in coupon_selectors:
         elems = soup.select(selector)
         for elem in elems:
             text = elem.get_text(strip=True)
-            if text:
-                # Look for code in this element
-                code_match = re.search(r'\b([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,}|[A-Z]{5,})\b', text)
-                if code_match:
-                    code = code_match.group(1).upper()
-                    percent_match = re.search(r'(\d+)%', text)
-                    percent = int(percent_match.group(1)) if percent_match else 0
-                    
-                    # Validate: must have letters, not just numbers
-                    if re.search(r'[A-Z]', code) and len(code) >= 4 and len(code) <= 15:
-                        if code not in seen_codes and percent > 0:
-                            seen_codes.add(code)
-                            final_price = int(current_price_num - (current_price_num * percent / 100))
-                            found_coupons.append({
-                                "code": code,
-                                "percent": percent,
-                                "final_price": final_price
-                            })
+            text_clean = re.sub(r'\s+', ' ', text).strip()
+            if text_clean and len(text_clean) > 3 and text_clean not in seen_texts:
+                seen_texts.add(text_clean)
+                
+                percent, fixed = extract_discount_info(text_clean)
+                code = extract_code_from_text(text_clean)
+                
+                final_price = int(current_price_num)
+                if percent > 0 and current_price_num > 0:
+                    final_price = int(current_price_num - (current_price_num * percent / 100))
+                elif fixed > 0 and current_price_num > 0:
+                    final_price = int(current_price_num - fixed)
+                    if final_price < 0:
+                        final_price = 0
+                    percent = int((fixed / current_price_num) * 100)
+                
+                if final_price < current_price_num and (percent > 0 or fixed > 0):
+                    found_offers.append({
+                        "text": text_clean,
+                        "code": code if code else f"خصم {percent}%",
+                        "percent": percent,
+                        "fixed": fixed,
+                        "final_price": final_price
+                    })
     
-    # Sort by discount (highest first)
-    found_coupons.sort(key=lambda x: x["percent"], reverse=True)
+    # Remove duplicates by code
+    seen_codes = {}
+    unique_offers = []
+    for o in found_offers:
+        key = o["code"].upper()
+        if key not in seen_codes:
+            seen_codes[key] = True
+            unique_offers.append(o)
     
-    return found_coupons
+    # Sort by discount percentage (highest first)
+    unique_offers.sort(key=lambda x: x["percent"], reverse=True)
+    
+    return unique_offers
 
 
 def get_product(asin):
@@ -491,7 +577,7 @@ def get_product(asin):
             seller_name, seller_rating = get_seller_info(soup)
             
             current_price_num = extract_number(price) if price else 0
-            all_coupons = get_all_coupons(soup, current_price_num)
+            all_offers = get_all_offers_and_coupons(soup, current_price_num)
             
             if price:
                 arabic_title = smart_arabic_title(full_title)
@@ -502,7 +588,7 @@ def get_product(asin):
                     "image": image,
                     "seller_name": seller_name,
                     "seller_rating": seller_rating,
-                    "all_coupons": all_coupons,
+                    "all_offers": all_offers,
                     "current_price_num": current_price_num,
                 }
                 
@@ -517,7 +603,7 @@ def generate_post(product_data, original_url):
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
-    all_coupons = product_data["all_coupons"]
+    all_offers = product_data["all_offers"]
     current_price_num = product_data["current_price_num"]
     
     category = detect_product_category(name)
@@ -533,11 +619,11 @@ def generate_post(product_data, original_url):
     if clean_old and old_num > current_price_num:
         context_parts.append(f"السعر السابق {clean_old} والحالي {clean_current}")
     
-    if all_coupons:
-        best = all_coupons[0]
+    if all_offers:
+        best = all_offers[0]
         context_parts.append(f"كود {best['code']} خصم {best['percent']}% يصير بـ {best['final_price']} ريال")
-        if len(all_coupons) > 1:
-            context_parts.append(f"وفيه كوبونات ثانية")
+        if len(all_offers) > 1:
+            context_parts.append(f"وفيه عروض ثانية")
     
     context = " | ".join(context_parts)
     
@@ -557,20 +643,18 @@ def generate_post(product_data, original_url):
     price_lines.append(f"✅ السعر الحالي: {clean_current}")
     parts.append("\n".join(price_lines))
     
-    # Best coupon with calculated price from CURRENT price
-    if all_coupons:
-        best = all_coupons[0]
-        if best["final_price"] > 0 and best["final_price"] < int(current_price_num):
-            parts.append(f"🎟️ مع كود {best['code']} (خصم {best['percent']}%) يطلع بـ {best['final_price']} ريال 🔥")
-        elif best["percent"] > 0:
-            parts.append(f"🎟️ كود {best['code']} (خصم {best['percent']}%)")
-        
-        # Additional coupons
-        if len(all_coupons) > 1:
-            extra_lines = ["💡 عروض إضافية تخفض زيادة:"]
-            for c in all_coupons[1:3]:
-                extra_lines.append(f"   • كود {c['code']} (خصم {c['percent']}%)")
-            parts.append("\n".join(extra_lines))
+    # ALL offers with calculated prices from CURRENT price
+    if all_offers:
+        offer_lines = ["🎁 العروض والخصومات المتاحة:"]
+        for i, offer in enumerate(all_offers[:4]):
+            if offer["final_price"] > 0 and offer["final_price"] < int(current_price_num):
+                if i == 0:
+                    offer_lines.append(f"🔥 {offer['code']} (خصم {offer['percent']}%) → السعر يصير {offer['final_price']} ريال")
+                else:
+                    offer_lines.append(f"✨ {offer['code']} (خصم {offer['percent']}%) → يصير بـ {offer['final_price']} ريال")
+            elif offer["percent"] > 0:
+                offer_lines.append(f"🎟️ {offer['code']} (خصم {offer['percent']}%)")
+        parts.append("\n".join(offer_lines))
     
     parts.append(f"رابط الشراء 👇🏻\n{original_url}")
     
