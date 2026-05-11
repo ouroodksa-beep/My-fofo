@@ -5,6 +5,7 @@ import re
 import time
 import json
 import random
+import urllib.parse
 
 TOKEN = "7956075348:AAEYTL28GKeMN7TXyVeGM69iUcfg5ZwOSIk"
 bot = telebot.TeleBot(TOKEN)
@@ -65,12 +66,269 @@ BRAND_NAMES = {
     "energy": "Energy",
 }
 
+# Official brand websites for Saudi Arabia / Middle East
+BRAND_OFFICIAL_SITES = {
+    "nike": {
+        "search_url": "https://www.nike.com/sa/search?q={query}",
+        "price_selectors": [".product-price", ".css-1wmqe5w", ".css-11s11ax", "[data-testid='product-price']"],
+        "domain": "nike.com/sa"
+    },
+    "adidas": {
+        "search_url": "https://www.adidas.sa/search?q={query}",
+        "price_selectors": [".gl-price-item", ".price-item", "[data-testid='price']", ".sales-price"],
+        "domain": "adidas.sa"
+    },
+    "apple": {
+        "search_url": "https://www.apple.com/sa/search/{query}",
+        "price_selectors": [".rf-hcard-copy", ".as-price-currentprice", ".typography-caption"],
+        "domain": "apple.com/sa"
+    },
+    "samsung": {
+        "search_url": "https://www.samsung.com/sa/search/?searchvalue={query}",
+        "price_selectors": [".price", ".prd-price", "[data-price]", ".cost"],
+        "domain": "samsung.com/sa"
+    },
+    "xiaomi": {
+        "search_url": "https://www.mi.com/sa/search?keyword={query}",
+        "price_selectors": [".price", ".pro-price", ".goods-price"],
+        "domain": "mi.com/sa"
+    },
+    "huawei": {
+        "search_url": "https://consumer.huawei.com/sa/search/?q={query}",
+        "price_selectors": [".price", ".p-price", ".product-price"],
+        "domain": "consumer.huawei.com/sa"
+    },
+    "philips": {
+        "search_url": "https://www.philips.com.sa/c-m/search?q={query}",
+        "price_selectors": [".price", ".pdp-price", ".product-price"],
+        "domain": "philips.com.sa"
+    },
+    "lg": {
+        "search_url": "https://www.lg.com/sa/search?search={query}",
+        "price_selectors": [".price", ".model-price", ".retail-price"],
+        "domain": "lg.com/sa"
+    },
+    "sony": {
+        "search_url": "https://www.sony.com.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".pdp-price"],
+        "domain": "sony.com.sa"
+    },
+    "dyson": {
+        "search_url": "https://www.dyson.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".value"],
+        "domain": "dyson.sa"
+    },
+    "bosch": {
+        "search_url": "https://www.bosch-home.com.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "bosch-home.com.sa"
+    },
+    "puma": {
+        "search_url": "https://sa.puma.com/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".sales-price"],
+        "domain": "sa.puma.com"
+    },
+    "under armour": {
+        "search_url": "https://www.underarmour.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".ua-price"],
+        "domain": "underarmour.sa"
+    },
+    "reebok": {
+        "search_url": "https://www.reebok.sa/search?q={query}",
+        "price_selectors": [".price", ".gl-price-item", ".sales-price"],
+        "domain": "reebok.sa"
+    },
+    "new balance": {
+        "search_url": "https://www.newbalance.com.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "newbalance.com.sa"
+    },
+    "asics": {
+        "search_url": "https://www.asics.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".sales"],
+        "domain": "asics.com/sa"
+    },
+    "skechers": {
+        "search_url": "https://www.skechers.com.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "skechers.com.sa"
+    },
+    "crocs": {
+        "search_url": "https://www.crocs.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "crocs.sa"
+    },
+    "levis": {
+        "search_url": "https://www.levi.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "levi.com/sa"
+    },
+    "tommy hilfiger": {
+        "search_url": "https://sa.tommy.com/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "sa.tommy.com"
+    },
+    "calvin klein": {
+        "search_url": "https://www.calvinklein.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "calvinklein.sa"
+    },
+    "lacoste": {
+        "search_url": "https://www.lacoste.com.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "lacoste.com.sa"
+    },
+    "fossil": {
+        "search_url": "https://www.fossil.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "fossil.com/sa"
+    },
+    "casio": {
+        "search_url": "https://www.casio.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "casio.com/sa"
+    },
+    "guess": {
+        "search_url": "https://www.guess.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "guess.com/sa"
+    },
+    "swiss arabian": {
+        "search_url": "https://www.swissarabian.com/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "swissarabian.com"
+    },
+    "l'oreal": {
+        "search_url": "https://www.lorealparis.com.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "lorealparis.com.sa"
+    },
+    "gillette": {
+        "search_url": "https://www.gillette.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "gillette.sa"
+    },
+    "oral-b": {
+        "search_url": "https://www.oralb.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "oralb.com/sa"
+    },
+    "colgate": {
+        "search_url": "https://www.colgate.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "colgate.com/sa"
+    },
+    "dettol": {
+        "search_url": "https://www.dettol.com.sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "dettol.com.sa"
+    },
+    "pampers": {
+        "search_url": "https://www.pampers.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "pampers.com/sa"
+    },
+    "huggies": {
+        "search_url": "https://www.huggies.com/sa/search?q={query}",
+        "price_selectors": [".price", ".product-price", ".amount"],
+        "domain": "huggies.com/sa"
+    },
+}
+
 
 def protect_brands(text):
     for brand_key, brand_original in sorted(BRAND_NAMES.items(), key=lambda x: -len(x[0])):
         pattern = re.compile(re.escape(brand_key), re.IGNORECASE)
         text = pattern.sub(brand_original, text)
     return text
+
+
+def detect_brand_from_title(title):
+    """Detect brand name from product title"""
+    title_lower = title.lower()
+    for brand_key in sorted(BRAND_NAMES.keys(), key=len, reverse=True):
+        if brand_key in title_lower:
+            return brand_key
+    return None
+
+
+def get_official_brand_price(brand, product_name):
+    """Try to get price from official brand website"""
+    if not brand or brand not in BRAND_OFFICIAL_SITES:
+        return None, None
+    
+    brand_info = BRAND_OFFICIAL_SITES[brand]
+    
+    # Clean product name for search
+    search_query = re.sub(r'[^\w\s]', '', product_name)
+    search_query = search_query.replace('  ', ' ').strip()
+    # Limit to first 3-4 words for better search
+    words = search_query.split()
+    if len(words) > 4:
+        search_query = ' '.join(words[:4])
+    
+    encoded_query = urllib.parse.quote(search_query)
+    search_url = brand_info["search_url"].format(query=encoded_query)
+    
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    ]
+    
+    try:
+        headers = {
+            "User-Agent": random.choice(user_agents),
+            "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+        }
+        
+        r = requests.get(search_url, headers=headers, timeout=15, allow_redirects=True)
+        
+        if r.status_code == 200 and len(r.text) > 1000:
+            soup = BeautifulSoup(r.text, "html.parser")
+            
+            # Try all price selectors
+            for selector in brand_info["price_selectors"]:
+                elems = soup.select(selector)
+                for elem in elems:
+                    text = elem.get_text(strip=True)
+                    # Extract price from text
+                    price_match = re.search(r'([\d,]+(?:\.\d+)?)\s*(?:SAR|ريال|ر\.س|SR)?', text)
+                    if price_match:
+                        price_num = float(price_match.group(1).replace(',', ''))
+                        if price_num > 10:  # Reasonable price filter
+                            return f"{int(price_num)} ريال", brand_info["domain"]
+                    
+                    # Try without currency symbol
+                    price_match = re.search(r'([\d,]+(?:\.\d+)?)', text)
+                    if price_match:
+                        price_num = float(price_match.group(1).replace(',', ''))
+                        if 10 < price_num < 50000:  # Reasonable range
+                            return f"{int(price_num)} ريال", brand_info["domain"]
+            
+            # Try to find any price pattern in page
+            page_text = soup.get_text()
+            price_patterns = [
+                r'(\d[\d,]*)\s*SAR',
+                r'(\d[\d,]*)\s*ريال',
+                r'(\d[\d,]*)\s*ر\.س',
+                r'\b(\d{2,4})\s*\$',
+            ]
+            for pattern in price_patterns:
+                match = re.search(pattern, page_text)
+                if match:
+                    price_num = float(match.group(1).replace(',', ''))
+                    if 10 < price_num < 50000:
+                        return f"{int(price_num)} ريال", brand_info["domain"]
+    
+    except Exception as e:
+        print(f"Brand price fetch error for {brand}: {e}")
+    
+    return None, None
 
 
 CATEGORY_KEYWORDS = {
@@ -323,27 +581,21 @@ def get_seller_info(soup):
 
 
 def extract_coupon_info(text):
-    """Extract coupon code and discount from text"""
     if not text:
         return None, 0
     
-    # Extract percentage
     percent = 0
     percent_match = re.search(r'(\d+)%', text)
     if percent_match:
         percent = int(percent_match.group(1))
     
-    # Extract code - look for uppercase codes
     code = None
-    # Pattern: code like SUPER20, SAVE10, etc.
     code_match = re.search(r'\b([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,}|[A-Z]{4,})\b', text)
     if code_match:
         candidate = code_match.group(1)
-        # Must have at least one letter and reasonable length
         if len(candidate) >= 4 and len(candidate) <= 15 and re.search(r'[A-Z]', candidate):
             code = candidate
     
-    # If no code found but text mentions coupon/discount
     if not code and percent > 0:
         code = f"خصم {percent}%"
     
@@ -351,10 +603,8 @@ def extract_coupon_info(text):
 
 
 def get_all_coupons(soup, current_price_num):
-    """Extract all valid coupons from page"""
     found_coupons = []
     
-    # Search in coupon-specific elements
     selectors = [
         "#couponTextInput",
         "[data-feature-name='coupon']",
@@ -383,10 +633,8 @@ def get_all_coupons(soup, current_price_num):
                         "text": text
                     })
     
-    # Also search in page text for explicit coupon patterns
     page_text = soup.get_text()
     
-    # Look for patterns like "Apply XXXXX to save XX%"
     explicit_patterns = [
         r'(?:apply|clip|use|enter|استخدم|طبّق)\s+([A-Z0-9]{4,12})\s*(?:to save|للحصول|for)\s*(\d+)%',
         r'([A-Z]{3,}\d{2,})\s*[-–]\s*save\s*(\d+)%',
@@ -411,7 +659,6 @@ def get_all_coupons(soup, current_price_num):
                     "text": f"{code} خصم {percent}%"
                 })
     
-    # Remove duplicates by code
     seen = {}
     unique = []
     for c in found_coupons:
@@ -420,10 +667,97 @@ def get_all_coupons(soup, current_price_num):
             seen[key] = True
             unique.append(c)
     
-    # Sort by discount (highest first)
     unique.sort(key=lambda x: x["percent"], reverse=True)
     
     return unique
+
+
+def get_reviews_info(soup):
+    rating = None
+    review_count = None
+    
+    rating_selectors = [
+        "[data-hook='average-star-rating'] .a-icon-alt",
+        ".a-icon-alt",
+        "#acrPopover .a-icon-alt",
+        "[data-hook='rating-out-of-text']"
+    ]
+    for selector in rating_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            text = elem.get_text(strip=True)
+            match = re.search(r'(\d+\.?\d*)\s*out of\s*5', text)
+            if match:
+                rating = float(match.group(1))
+                break
+            match = re.search(r'(\d+\.?\d*)', text)
+            if match and float(match.group(1)) <= 5:
+                rating = float(match.group(1))
+                break
+    
+    review_selectors = [
+        "[data-hook='total-review-count']",
+        "#acrCustomerReviewText",
+        "a[href*='#customerReviews']",
+        "[data-hook='see-all-reviews-link-foot']"
+    ]
+    for selector in review_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            text = elem.get_text(strip=True)
+            match = re.search(r'(\d[\d,]*)', text)
+            if match:
+                review_count = match.group(1).replace(",", "")
+                break
+    
+    return rating, review_count
+
+
+def get_list_price(soup):
+    list_price = None
+    
+    list_selectors = [
+        ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
+        ".a-price.a-text-price .a-offscreen",
+        ".basisPrice .a-offscreen",
+        "#listPrice",
+        ".a-price[data-a-color='secondary'] .a-offscreen",
+        "[data-a-color='secondary'] .a-offscreen"
+    ]
+    
+    for selector in list_selectors:
+        elem = soup.select_one(selector)
+        if elem and elem.text:
+            text = elem.text.strip()
+            if any(c.isdigit() for c in text):
+                list_price = text
+                break
+    
+    if not list_price:
+        typical_selectors = [
+            "#typicalPrice",
+            ".a-price[data-a-color='tertiary'] .a-offscreen",
+            "[data-a-color='tertiary'] .a-offscreen"
+        ]
+        for selector in typical_selectors:
+            elem = soup.select_one(selector)
+            if elem and elem.text:
+                text = elem.text.strip()
+                if any(c.isdigit() for c in text):
+                    list_price = text
+                    break
+    
+    return list_price
+
+
+def get_discount_percentage(soup, current_price, list_price):
+    current_num = extract_number(current_price)
+    list_num = extract_number(list_price) if list_price else 0
+    
+    if list_num > current_num and list_num > 0:
+        discount = int(((list_num - current_num) / list_num) * 100)
+        return discount
+    return 0
 
 
 def get_product(asin):
@@ -476,6 +810,9 @@ def get_product(asin):
                     if any(c.isdigit() for c in price):
                         break
             
+            list_price = get_list_price(soup)
+            discount_percent = get_discount_percentage(soup, price, list_price)
+            
             old_price = None
             old_selectors = [
                 ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
@@ -492,9 +829,16 @@ def get_product(asin):
             
             image = get_high_quality_image(soup)
             seller_name, seller_rating = get_seller_info(soup)
+            product_rating, review_count = get_reviews_info(soup)
             
             current_price_num = extract_number(price) if price else 0
             all_coupons = get_all_coupons(soup, current_price_num)
+            
+            # Try to get official brand price
+            detected_brand = detect_brand_from_title(full_title)
+            official_price, official_domain = None, None
+            if detected_brand:
+                official_price, official_domain = get_official_brand_price(detected_brand, full_title)
             
             if price:
                 arabic_title = smart_arabic_title(full_title)
@@ -502,11 +846,18 @@ def get_product(asin):
                     "name": arabic_title,
                     "price": price,
                     "old_price": old_price,
+                    "list_price": list_price,
+                    "discount_percent": discount_percent,
                     "image": image,
                     "seller_name": seller_name,
                     "seller_rating": seller_rating,
+                    "product_rating": product_rating,
+                    "review_count": review_count,
                     "all_coupons": all_coupons,
                     "current_price_num": current_price_num,
+                    "detected_brand": detected_brand,
+                    "official_brand_price": official_price,
+                    "official_brand_domain": official_domain,
                 }
                 
         except Exception as e:
@@ -520,21 +871,45 @@ def generate_post(product_data, original_url):
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
+    list_price = product_data["list_price"]
+    discount_percent = product_data["discount_percent"]
     all_coupons = product_data["all_coupons"]
     current_price_num = product_data["current_price_num"]
+    seller_name = product_data["seller_name"]
+    seller_rating = product_data["seller_rating"]
+    product_rating = product_data["product_rating"]
+    review_count = product_data["review_count"]
+    detected_brand = product_data.get("detected_brand")
+    official_brand_price = product_data.get("official_brand_price")
+    official_brand_domain = product_data.get("official_brand_domain")
     
     category = detect_product_category(name)
     gender = detect_product_gender(name)
     
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else None
+    clean_list = clean_price(list_price) if list_price else None
     old_num = extract_number(old_price) if old_price else 0
+    list_num = extract_number(list_price) if list_price else 0
     
-    # Build context for AI
+    # Build context for AI with ALL available data
     context_parts = []
     
     if clean_old and old_num > current_price_num:
-        context_parts.append(f"السعر السابق {clean_old} والحالي {clean_current}")
+        context_parts.append(f"السعر السابق على أمازون {clean_old} والحالي {clean_current}")
+    
+    if clean_list and list_num > current_price_num:
+        context_parts.append(f"السعر القائم/الأساسي {clean_list}")
+    
+    if discount_percent > 0:
+        context_parts.append(f"نسبة الخصم على أمازون {discount_percent}%")
+    
+    # Official brand price comparison
+    if official_brand_price and official_brand_domain:
+        official_num = extract_number(official_brand_price)
+        if official_num > current_price_num:
+            context_parts.append(f"السعر على موقع البراند الرسمي ({official_brand_domain}) {official_brand_price}")
+            context_parts.append(f"الفرق: توفير {int(official_num - current_price_num)} ريال")
     
     if all_coupons:
         best = all_coupons[0]
@@ -542,87 +917,118 @@ def generate_post(product_data, original_url):
         if len(all_coupons) > 1:
             context_parts.append(f"وفيه كوبونات ثانية")
     
+    if seller_name and seller_rating and seller_rating >= 90:
+        context_parts.append(f"بائع {seller_name} تقييم {seller_rating}%")
+    
+    if product_rating and review_count:
+        context_parts.append(f"تقييم المنتج {product_rating}/5 من {review_count} تقييم")
+    elif product_rating:
+        context_parts.append(f"تقييم المنتج {product_rating}/5")
+    
     context = " | ".join(context_parts)
     
-    # AI generates dramatic opening
-    opening = generate_ai_sentence(name, category, gender, context)
+    post = generate_ai_post(
+        name, category, gender, context, 
+        clean_current, clean_old, clean_list, discount_percent, 
+        all_coupons, seller_name, seller_rating, 
+        product_rating, review_count, 
+        detected_brand, official_brand_price, official_brand_domain,
+        original_url
+    )
     
-    emoji = get_category_emoji(category)
-    
-    parts = []
-    parts.append(opening)
-    parts.append(f"{emoji} {name}")
-    
-    # Prices
-    price_lines = []
-    if clean_old and old_num > current_price_num:
-        price_lines.append(f"❌ السعر السابق: {clean_old}")
-    price_lines.append(f"✅ السعر الحالي: {clean_current}")
-    parts.append("\n".join(price_lines))
-    
-    # Best coupon with calculated price
-    if all_coupons:
-        best = all_coupons[0]
-        if best["final_price"] > 0 and best["final_price"] != int(current_price_num):
-            parts.append(f"🎟️ مع كود {best['code']} (خصم {best['percent']}%) يطلع بـ {best['final_price']} ريال 🔥")
-        elif best["percent"] > 0:
-            parts.append(f"🎟️ كود {best['code']} (خصم {best['percent']}%)")
-        
-        # Additional coupons as "more savings"
-        if len(all_coupons) > 1:
-            extra_lines = ["💡 عروض إضافية تخفض زيادة:"]
-            for c in all_coupons[1:3]:
-                extra_lines.append(f"   • كود {c['code']} (خصم {c['percent']}%)")
-            parts.append("\n".join(extra_lines))
-    
-    parts.append(f"رابط الشراء 👇🏻\n{original_url}")
-    
-    return "\n\n".join(parts)
+    return post
 
 
-def generate_ai_sentence(product_name, category, gender, context):
-    """AI generates dramatic opening in Saudi dialect"""
+def generate_ai_post(
+    product_name, category, gender, context, 
+    current_price, old_price, list_price, discount_percent, 
+    all_coupons, seller_name, seller_rating, 
+    product_rating, review_count,
+    detected_brand, official_brand_price, official_brand_domain,
+    url
+):
+    """AI generates complete post in Saudi marketing style based on examples"""
     
     gender_hint = ""
     if gender == "women":
-        gender_hint = "المنتج نسائي، وجه الجملة للبنات"
+        gender_hint = "المنتج نسائي، وجه الأسلوب للبنات"
     elif gender == "men":
-        gender_hint = "المنتج رجالي، وجه الجملة للرجال"
+        gender_hint = "المنتج رجالي، وجه الأسلوب للرجال"
     else:
         gender_hint = "المنتج للجنسين"
     
-    styles = [
-        "افتتح بأسلوب تهويلي صاروخي (مثل: 'انفجار سعر!'، 'صدمة!'، 'مستحيل!'، 'تخيلوا!')",
-        "افتتح بأسلوب صياد لقى كنز (مثل: 'غنيمة العمر!'، 'صفقة تاريخية!'، 'هجمة!'، 'صطولة!')",
-        "افتتح بأسلوب مفاجأة صادمة (مثل: 'صدمووو!'، 'تبي تصدق!'، 'عقلك راح ينفجر!'، 'لا يفوتك!')",
-        "افتتح بأسلوب تحدي (مثل: 'جربوا تصدقوا!'، 'أقوى صفقة!'، 'ما راح تلقى مثلها!'، 'فرصة وحيدة!')",
-        "افتتح بأسلوب فزعة (مثل: 'عاجل!'، 'هيّا!'، 'بسرعة!'، 'الحين الحين!'، 'قبل ما ينتهي!')",
-    ]
-    chosen_style = random.choice(styles)
+    structured_data = {
+        "product_name": product_name,
+        "category": category,
+        "current_price": current_price,
+        "old_price": old_price,
+        "list_price": list_price,
+        "discount_percent": discount_percent,
+        "coupons": all_coupons,
+        "seller_name": seller_name,
+        "seller_rating": seller_rating,
+        "product_rating": product_rating,
+        "review_count": review_count,
+        "detected_brand": detected_brand,
+        "official_brand_price": official_brand_price,
+        "official_brand_domain": official_brand_domain,
+        "url": url
+    }
     
     prompt = f"""أنت كاتب محتوى سعودي خليجي محترف في قناة تليجرام "صيدات وصفقات" للتسويق بالعمولة.
-اكتب جملة افتتاحية قصيرة جداً (سطر واحد فقط، 4-10 كلمات كحد أقصى) باللهجة السعودية الخليجية.
 
-🔹 قواعد مهمة:
-- الجملة لازم تكون مختصرة جداً (تنفع تغريدة تويتر)
-- استخدم إيموجي (2-3 إيموجي) في الجملة نفسها
-- الجملة لازم تكون بأسلوب تهويلي حماسي صادم يشد العين فوراً
-- أسلوب التهويل: صدمة، انفجار، غنيمة، صفقة خرافية، فرصة مجنونة، توفير جنوني
-- بلهجة سعودية خليجية كريمة (مثل: "يستاهل"، "فرصة"، "صفقة"، "غنيمة"، "هجمة"، "صطولة")
-- ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
-- ❌ ممنوع أي أمثلة جاهزة أو نمط ثابت
-- ❌ ممنوع تكرار نفس الجملة أو نفس الأسلوب
-- ❌ ممنوع استخدام كلمة "صيدة" أو "لازم تشوفها"
-- كل مرة اكتب جملة مختلفة تماماً بناءً على المنتج والسياق
-- الأسلوب المطلوب: {chosen_style}
+🔹 مهمتك: اكتب منشور تسويقي كامل ومقنع باللهجة السعودية الخليجية، بناءً على البيانات التالية.
+
+🔹 البيانات المتاحة:
+{json.dumps(structured_data, ensure_ascii=False, indent=2)}
+
+🔹 سياق إضافي: {context}
 
 🔹 {gender_hint}
 
-🔹 المنتج: {product_name}
-🔹 الفئة: {category}
-🔹 المعلومات المتاحة: {context}
+---
 
-اكتب جملة واحدة فقط بدون أي مقدمة:"""
+🔹 أنماط المنشورات المطلوبة (اقرأها كوصف للأسلوب، لا تنسخها حرفياً):
+
+النمط 1 - التهويل المتكرر:
+افتتح بكلمة "صيدة" متكررة مع إيموجي صدمة ونار. اعرض المنتج بإيموجي مناسب. اذكر خصم متراكم (خصم + كوبون) مع السعر النهائي الصاروخي. اختتم برابط.
+
+النمط 2 - السؤال الصادم:
+افتتح بسؤال بلهجة سعودية صادمة مثل "وش هاذي الأسعار بالله". قارن السعر على الموقع الرسمي للعلامة التجارية بالسعر على أمازون. اختتم برابط.
+
+النمط 3 - شخصية العلامة التجارية:
+اجعل أمازون أو العلامة التجارية تتكلم مباشرة للجمهور. اذكر السعر القديم بإيموجي فلوس وإكس. اذكر السعر الجديد بعد الخصم + الكوبون بإيموجي نار. اذكر نصيحة ذكية: "قبل الشراء ابحث بالمواقع ممكن تحصل سعر أقل". اختتم برابط.
+
+النمط 4 - الخصم الإضافي + المقارنة الخارجية:
+اذكر خصم إضافي محدد. اذكر سعر الكمية (مثل: إذا أخذت 2). قارن بسعر خارجي من متجر معروف (صيدلية، سوق، إلخ). اختتم برابط.
+
+النمط 5 - الصيدة + العلامة التجارية:
+افتتح بـ "صيييييدة" + اسم العلامة التجارية + إيموجي إنذار ونار. اذكر المنتج بالتفصيل (مقاسات، ألوان). اذكر نسبة الخصم. اذكر السعر القديم بإيموجي فلوس. اذكر السعر الجديد بإيموجي نار. أضف عربة تسوق 🛒 ثم رابط. اختتم بعبارة إلحاحية مثل "المقاسات محدودة" أو "الكمية محدودة".
+
+النمط 6 - الفرصة المحددة:
+اذكر أن كل المقاسات بسعر معين، لكن مقاس محدد بسعر أقل بكثير (صفقة خاصة). اختتم برابط.
+
+---
+
+🔹 قواعد صارمة:
+1. اكتب المنشور كاملاً (3-7 أسطر قصيرة)
+2. كل سطر يحتوي على إيموجي مناسب (2-4 إيموجي في السطر الواحد)
+3. استخدم لهجة سعودية خليجية أصيلة (وش، هاذي، بالله، بتدفع، صارت، يستاهل، فرصة، صفقة، غنيمة، هجمة، صطولة)
+4. مدح الأحرف للتأكيد: صيييييدة، الشــراء، السعــر، اقــل
+5. لا نقاط في نهاية الأسطر
+6. أسلوب صادم يشد العين فوراً
+7. قارن الأسعار داخل صفحة أمازون (السعر القديم vs الجديد)
+8. إذا فيه سعر من موقع البراند الرسمي، قارنه بصراحة مع سعر أمازون واذكر الفرق بالريال
+9. إذا فيه كوبون، اذكره بوضوح مع السعر بعد الخصم
+10. إذا فيه تقييم منتج عالي (>4.5) وعدد تقييمات كبير، اذكره كدليل مصداقية
+11. إذا البائع تقييمه عالي (>90%)، اذكر اسم البائع
+12. اختتم دائماً برابط + إيموجي سهم/عربة
+13. ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
+14. ❌ ممنوع كلمة "صيدة" في بداية كل منشور - غيّر الأسلوب
+15. ❌ ممنوع نسخ الأمثلة حرفياً - استلهم الأسلوب فقط
+16. اكتب منشور واحد فقط بدون أي مقدمة أو شرح
+
+اكتب المنشور الآن:"""
 
     try:
         headers = {
@@ -632,53 +1038,97 @@ def generate_ai_sentence(product_name, category, gender, context):
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب جمل افتتاحية قصيرة بأسلوب تهويلي صادم. أسلوبك: صدمة، انفجار، غنيمة، صفقة خرافية. بلهجة سعودية خليجية. كل مرة تكتب جملة مختلفة تماماً. ممنوع الأمثلة الجاهزة. ممنوع التكرار. ممنوع استخدام كلمة 'صيدة' أو 'لازم تشوفها'."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب منشورات تسويقية قصيرة بأسلوب صادم وحماسي. أسلوبك: صدمة، انفجار، غنيمة، صفقة خرافية، توفير جنوني. بلهجة سعودية خليجية. كل مرة تكتب منشور مختلف تماماً. ممنوع الأمثلة الجاهزة. ممنوع التكرار."},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.99,
-            "max_tokens": 40
+            "temperature": 0.95,
+            "max_tokens": 250
         }
         
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=20
+            timeout=30
         )
         
         if r.status_code == 200:
             result = r.json()
-            sentence = result["choices"][0]["message"]["content"].strip()
-            sentence = sentence.replace('"', '').replace("'", "").strip()
-            sentence = re.sub(r'^[ـ\s]+', '', sentence)
+            post = result["choices"][0]["message"]["content"].strip()
+            
+            post = post.replace('"', '').replace("'", "").strip()
+            post = re.sub(r'^[ـ\s]+', '', post)
+            
+            if url not in post:
+                post += f"\n\n{url}"
             
             vulgar_calls = ["ياجدعان", "ياجماعه", "ياجماعة", "يالله يا", "حياكم", "يالا", "يالله"]
             for vulgar in vulgar_calls:
-                if vulgar in sentence.lower().replace(" ", ""):
-                    return generate_fallback_sentence(category)
+                if vulgar in post.lower().replace(" ", ""):
+                    return generate_fallback_post(
+                        product_name, current_price, old_price, list_price, 
+                        discount_percent, all_coupons, detected_brand, 
+                        official_brand_price, official_brand_domain, url
+                    )
             
-            return sentence
+            return post
                 
     except Exception as e:
         print(f"Groq error: {e}")
     
-    return generate_fallback_sentence(category)
+    return generate_fallback_post(
+        product_name, current_price, old_price, list_price, 
+        discount_percent, all_coupons, detected_brand, 
+        official_brand_price, official_brand_domain, url
+    )
 
 
-def generate_fallback_sentence(category):
-    fallbacks = [
-        "💥 انفجار سعر مجنون! 🔥",
-        "🎯 غنيمة العمر وصلت! ⚡️",
-        "💰 صفقة تاريخية بانتظارك! 🚀",
-        "🔥 صدمة سعر لا تُصدق! 💎",
-        "⚡️ فرصة مجنونة قبل تفوت! 💸",
-        "💎 كنز ببلاش تقريباً! 🏆",
-        "🚀 هجمة أسعار لا تُفوت! 🔥",
-        "💸 توفير جنوني شفتوه! ⚡️",
-        "🔥 مستحيل تلقى مثلها! 💰",
-        "⚡️ عاجل! صفقة صطورة! 🎯",
+def generate_fallback_post(
+    name, current_price, old_price, list_price, 
+    discount_percent, all_coupons, detected_brand, 
+    official_brand_price, official_brand_domain, url
+):
+    """Fallback post if AI fails"""
+    parts = []
+    
+    # Random opening
+    openings = [
+        f"💥 انفجار سعر على {name} 🤯🔥",
+        f"🎯 غنيمة العمر وصلت! {name} ⚡️",
+        f"💰 صفقة تاريخية: {name} 🚀",
+        f"🔥 صدمة سعر لا تُصدق! {name} 💎",
+        f"⚡️ فرصة مجنونة: {name} 💸",
     ]
-    return random.choice(fallbacks)
+    parts.append(random.choice(openings))
+    
+    # Price info
+    price_lines = []
+    if old_price:
+        price_lines.append(f"❌ كان بـ {old_price}")
+    if list_price and list_price != old_price:
+        price_lines.append(f"📊 السعر الأساسي: {list_price}")
+    
+    # Official brand comparison
+    if official_brand_price and official_brand_domain:
+        price_lines.append(f"🏪 على موقع {official_brand_domain}: {official_brand_price}")
+    
+    price_lines.append(f"✅ الحين على أمازون بـ {current_price}")
+    
+    if discount_percent > 0:
+        price_lines.append(f"💥 خصم {discount_percent}%")
+    
+    parts.append("\n".join(price_lines))
+    
+    # Coupons
+    if all_coupons:
+        best = all_coupons[0]
+        if best["final_price"] > 0:
+            parts.append(f"🎟️ مع كود {best['code']} (خصم {best['percent']}%) يصير بـ {best['final_price']} ريال 🔥")
+    
+    # URL
+    parts.append(f"👇🏻 رابط الشراء\n{url}")
+    
+    return "\n\n".join(parts)
 
 
 @bot.message_handler(func=lambda m: True)
