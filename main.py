@@ -934,84 +934,37 @@ def generate_ai_post(
     detected_brand, official_brand_price, official_brand_domain,
     url
 ):
-    """AI generates complete post - NO TEMPLATES, pure creative freedom"""
+    """AI generates post using EXACT few-shot examples from user"""
     
     gender_hint = ""
     if gender == "women":
-        gender_hint = "المنتج نسائي، وجه الأسلوب للبنات"
+        gender_hint = "المنتج نسائي"
     elif gender == "men":
-        gender_hint = "المنتج رجالي، وجه الأسلوب للرجال"
+        gender_hint = "المنتج رجالي"
     else:
         gender_hint = "المنتج للجنسين"
     
-    structured_data = {
-        "product_name": product_name,
-        "category": category,
-        "current_price": current_price,
-        "old_price": old_price,
-        "list_price": list_price,
-        "discount_percent": discount_percent,
-        "coupons": all_coupons,
-        "seller_name": seller_name,
-        "seller_rating": seller_rating,
-        "product_rating": product_rating,
-        "review_count": review_count,
-        "detected_brand": detected_brand,
-        "official_brand_price": official_brand_price,
-        "official_brand_domain": official_brand_domain,
-        "url": url
-    }
-    
-    # Random seed for variety - different angle each time
-    angles = [
-        "افتتح بسؤال صادم يشد العين فوراً",
-        "افتتح بتهويل وصدمة وإيموجي نار",
-        "افتتح بأسلوب غنيمة/هجمة/صفقة",
-        "افتتح بأسلوب فزعة وإلحاح 'بسرعة قبل ينتهي'",
-        "افتتح بتحدي 'جرب تصدق'",
-        "افتتح بأسلوب شخصية العلامة التجارية تتكلم",
-        "افتتح بمقارنة سعر مباشرة وصادمة",
-        "افتتح بأسلوب 'قبل لا تشتري من الموقع الرسمي شوف هنا'",
-        "افتتح بأسلوب كنز/ذهب/ثروة",
-        "افتتح بأسلوب 'أنا صدمت لما شفت السعر'",
+    # Pick a random example style to emulate
+    example_styles = [
+        "style_1",  # صيدة صيدة صيدة
+        "style_2",  # وش هاذي الاسعاار بالله
+        "style_3",  # أمازون يقولكم
+        "style_4",  # خصم إضافي + مقارنة خارجية
+        "style_5",  # صيييييدة أديداس
+        "style_6",  # صيييييدة مقاس محدد
     ]
-    chosen_angle = random.choice(angles)
+    chosen_style = random.choice(example_styles)
     
-    # Random structure
-    structures = [
-        "افتتاحية صادمة → اسم المنتج → مقارنة الأسعار → كوبون → إلحاح → رابط",
-        "سؤال صادم → المنتج → السعر القديم بإكس → السعر الجديد بنار → رابط",
-        "تهويل → منتج → مقارنة موقع رسمي vs أمازون → توفير بالريال → رابط",
-        "فزعة → منتج → سعر → كوبون → 'المقاسات محدودة' → رابط",
-        "شخصية البراند تتكلم → سعرها القديم → سعر أمازون → نصيحة → رابط",
-        "تحدي → المنتج → كل التفاصيل → السعر الصاروخي → رابط",
-    ]
-    chosen_structure = random.choice(structures)
-    
-    prompt = f"""أنت كاتب محتوى سعودي خليجي محترف في قناة تليجرام "صيدات وصفقات" للتسويق بالعمولة.
+    # Build the few-shot prompt with REAL examples
+    few_shot_prompt = f"""أنت كاتب محتوى سعودي خليجي في قناة "صيدات وصفقات". تكتب منشورات تسويقية قصيرة بأسلوب صادم وحماسي. بلهجة سعودية خليجية.
 
-🔹 مهمتك: اكتب منشور تسويقي كامل ومقنع باللهجة السعودية الخليجية.
-
-🔹 البيانات المتاحة:
-{json.dumps(structured_data, ensure_ascii=False, indent=2)}
-
-🔹 سياق إضافي: {context}
-
-🔹 {gender_hint}
+🔹 مهمتك: اكتب منشور جديد يقلد **الأسلوب والهيكل والطاقة** تماماً مثل الأمثلة التالية، لكن ببيانات المنتج الجديد.
 
 ---
 
-🔹 الزاوية المطلوبة لهذا المنشور (استخدمها فقط كإلهام، لا تنسخها حرفياً):
-{chosen_angle}
+🔹 الأمثلة (اقرأها كوصف للأسلوب المطلوب):
 
-🔹 الهيكل المقترح (استخدمه كإرشاد مرن، ليس قالب ثابت):
-{chosen_structure}
-
----
-
-🔹 أمثلة للأسلوب المطلوب (استلهم الأسلوب والطاقة فقط، لا تنسخها):
-
-مثال 1:
+مثال ١ - أسلوب التهويل المتكرر:
 صيدة صيدة صيدة 🤯🔥
 
 لحاف فندقي مبطن 🛌
@@ -1021,7 +974,7 @@ def generate_ai_post(
 
 الرابط
 
-مثال 2:
+مثال ٢ - أسلوب السؤال الصادم + مقارنة البراند:
 وش هاذي الاسعاار بالله
 
 السعر الاساسي لهذا الحذاء على موقع نايكي بـ 450 ريال
@@ -1029,7 +982,7 @@ def generate_ai_post(
 الان على أمازون فقط بـ 194 ريال
 الرابط
 
-مثال 3:
+مثال ٣ - أسلوب شخصية البراند:
 أمازون يقولكم هوفر منظف السجاد
 كانت بـ 999 ريال 💸❌
 
@@ -1039,7 +992,7 @@ def generate_ai_post(
 قبل الشــراء ابحث بالمواقع ممكن تحصل سعــر اقــل
 الرابط
 
-مثال 4:
+مثال ٤ - أسلوب الخصم الإضافي + مقارنة خارجية:
 🔥 خصم إضافي 30٪ على الشــفرات
 
 إذا أخذت (2) بتدفع 58 ريال فقط ✅
@@ -1049,7 +1002,7 @@ def generate_ai_post(
 
 الرابط
 
-مثال 5:
+مثال ٥ - أسلوب الصيدة + تفاصيل + إلحاح:
 🚨 صيييييدة أديداس 🔥😱
 
 👟 جراند كورت لمقاس 44 و 45
@@ -1064,7 +1017,7 @@ def generate_ai_post(
 
 ⏳ المقاسات محدودة
 
-مثال 6:
+مثال ٦ - أسلوب الفرصة المحددة:
 👟 صيييييدة 🔥
 
 💸 كل المقاسات 280 ريال
@@ -1074,10 +1027,29 @@ def generate_ai_post(
 
 ---
 
+🔹 الأسلوب المطلوب لهذا المنشور: {chosen_style}
+
+🔹 بيانات المنتج الجديد:
+- اسم المنتج: {product_name}
+- الفئة: {category}
+- السعر الحالي على أمازون: {current_price}
+- السعر القديم على أمازون: {old_price if old_price else 'غير متوفر'}
+- السعر على موقع البراند الرسمي: {official_brand_price if official_brand_price else 'غير متوفر'}
+- نسبة الخصم: {discount_percent}%
+- الكوبونات: {json.dumps(all_coupons, ensure_ascii=False) if all_coupons else 'لا يوجد'}
+- تقييم المنتج: {product_rating if product_rating else 'غير متوفر'}
+- عدد التقييمات: {review_count if review_count else 'غير متوفر'}
+- البائع: {seller_name if seller_name else 'غير متوفر'}
+- {gender_hint}
+
+🔹 سياق إضافي: {context}
+
+---
+
 🔹 قواعد صارمة:
-1. اكتب منشور فريد وغير مكرر (3-7 أسطر قصيرة)
-2. كل سطر يحتوي على إيموجي مناسب (2-4 إيموجي في السطر الواحد)
-3. استخدم لهجة سعودية خليجية أصيلة (وش، هاذي، بالله، بتدفع، صارت، يستاهل، فرصة، صفقة، غنيمة، هجمة، صطولة)
+1. اكتب المنشور **بنفس الأسلوب والهيكل** تماماً مثل الأمثلة أعلاه
+2. استخدم **نفس عدد الأسطر** و**نفس توزيع الإيموجي**
+3. استخدم لهجة سعودية خليجية (وش، هاذي، بالله، بتدفع، صارت، يستاهل، فرصة، صفقة، غنيمة، هجمة، صطولة)
 4. مدح الأحرف للتأكيد: صيييييدة، الشــراء، السعــر، اقــل
 5. لا نقاط في نهاية الأسطر
 6. أسلوب صادم يشد العين فوراً
@@ -1085,14 +1057,10 @@ def generate_ai_post(
 8. إذا فيه سعر من موقع البراند الرسمي، قارنه بصراحة مع سعر أمازون واذكر الفرق بالريال
 9. إذا فيه كوبون، اذكره بوضوح مع السعر بعد الخصم
 10. إذا فيه تقييم منتج عالي (>4.5) وعدد تقييمات كبير، اذكره كدليل مصداقية
-11. إذا البائع تقييمه عالي (>90%)، اذكر اسم البائع
-12. اختتم دائماً برابط + إيموجي سهم/عربة
-13. ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
-14. ❌ ممنوع تكرار نفس الأسلوب أو نفس الجملة في منشورات مختلفة
-15. ❌ ممنوع نسخ الأمثلة حرفياً - استلهم الأسلوب والطاقة فقط
-16. اكتب منشور واحد فقط بدون أي مقدمة أو شرح
-
-🔹 تذكر: كل منتج يستحق منشور بأسلوب مختلف تماماً. لا تكرر نفسك. كن مبدعاً وصادماً.
+11. اختتم دائماً برابط + إيموجي سهم/عربة
+12. ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
+13. ❌ ممنوع تكرار نفس الجملة أو نفس الأسلوب في منشورات مختلفة
+14. اكتب منشور واحد فقط بدون أي مقدمة أو شرح
 
 اكتب المنشور الآن:"""
 
@@ -1104,10 +1072,10 @@ def generate_ai_post(
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب منشورات تسويقية قصيرة بأسلوب صادم وحماسي. أسلوبك: صدمة، انفجار، غنيمة، صفقة خرافية، توفير جنوني. بلهجة سعودية خليجية. كل مرة تكتب منشور مختلف تماماً. ممنوع الأمثلة الجاهزة. ممنوع التكرار. ممنوع القوالب الثابتة."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب منشورات تسويقية قصيرة بأسلوب صادم وحماسي. بلهجة سعودية خليجية. تقلد الأمثلة المعطاة في الأسلوب والهيكل والطاقة. ممنوع الأمثلة الجاهزة. ممنوع التكرار."},
+                {"role": "user", "content": few_shot_prompt}
             ],
-            "temperature": 0.98,
+            "temperature": 0.92,
             "max_tokens": 250
         }
         
@@ -1154,11 +1122,15 @@ def generate_fallback_post(
     discount_percent, all_coupons, detected_brand, 
     official_brand_price, official_brand_domain, url
 ):
-    """Fallback post - also randomized"""
+    """Fallback post - randomized to match user examples"""
     parts = []
     
-    # Random opening from many options
+    # Random opening matching user examples
     openings = [
+        f"صيدة صيدة صيدة 🤯🔥\n\n{name}",
+        f"وش هاذي الاسعاار بالله\n\n{name}",
+        f"🚨 صيييييدة {detected_brand.upper() if detected_brand else ''} 🔥😱\n\n{name}",
+        f"👟 صيييييدة 🔥\n\n{name}",
         f"💥 انفجار سعر على {name} 🤯🔥",
         f"🎯 غنيمة العمر وصلت! {name} ⚡️",
         f"💰 صفقة تاريخية: {name} 🚀",
@@ -1177,17 +1149,15 @@ def generate_fallback_post(
     ]
     parts.append(random.choice(openings))
     
-    # Price info
+    # Price info matching user style
     price_lines = []
-    if old_price:
-        price_lines.append(f"❌ كان بـ {old_price}")
-    if list_price and list_price != old_price:
-        price_lines.append(f"📊 السعر الأساسي: {list_price}")
-    
     if official_brand_price and official_brand_domain:
-        price_lines.append(f"🏪 على موقع {official_brand_domain}: {official_brand_price}")
+        price_lines.append(f"السعر الاساسي على موقع {official_brand_domain} {official_brand_price}")
     
-    price_lines.append(f"✅ الحين على أمازون بـ {current_price}")
+    if old_price:
+        price_lines.append(f"💸 كانت بـ {old_price} ❌")
+    
+    price_lines.append(f"🔥 وصارت بـ {current_price}")
     
     if discount_percent > 0:
         price_lines.append(f"💥 خصم {discount_percent}%")
@@ -1200,8 +1170,12 @@ def generate_fallback_post(
         if best["final_price"] > 0:
             parts.append(f"🎟️ مع كود {best['code']} (خصم {best['percent']}%) يصير بـ {best['final_price']} ريال 🔥")
     
+    # Urgency
+    urgency = ["⏳ المقاسات محدودة", "⏳ الكمية محدودة", "🔥 العرض ينتهي قريب", "⚡️ بسرعة قبل ينتهي"]
+    parts.append(random.choice(urgency))
+    
     # URL
-    parts.append(f"👇🏻 رابط الشراء\n{url}")
+    parts.append(f"🛒\n{url}")
     
     return "\n\n".join(parts)
 
