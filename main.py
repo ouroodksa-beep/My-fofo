@@ -66,7 +66,6 @@ BRAND_NAMES = {
     "energy": "Energy",
 }
 
-# Official brand websites for Saudi Arabia / Middle East
 BRAND_OFFICIAL_SITES = {
     "nike": {
         "search_url": "https://www.nike.com/sa/search?q={query}",
@@ -244,7 +243,6 @@ def protect_brands(text):
 
 
 def detect_brand_from_title(title):
-    """Detect brand name from product title"""
     title_lower = title.lower()
     for brand_key in sorted(BRAND_NAMES.keys(), key=len, reverse=True):
         if brand_key in title_lower:
@@ -253,16 +251,12 @@ def detect_brand_from_title(title):
 
 
 def get_official_brand_price(brand, product_name):
-    """Try to get price from official brand website"""
     if not brand or brand not in BRAND_OFFICIAL_SITES:
         return None, None
     
     brand_info = BRAND_OFFICIAL_SITES[brand]
-    
-    # Clean product name for search
     search_query = re.sub(r'[^\w\s]', '', product_name)
     search_query = search_query.replace('  ', ' ').strip()
-    # Limit to first 3-4 words for better search
     words = search_query.split()
     if len(words) > 4:
         search_query = ' '.join(words[:4])
@@ -291,26 +285,22 @@ def get_official_brand_price(brand, product_name):
         if r.status_code == 200 and len(r.text) > 1000:
             soup = BeautifulSoup(r.text, "html.parser")
             
-            # Try all price selectors
             for selector in brand_info["price_selectors"]:
                 elems = soup.select(selector)
                 for elem in elems:
                     text = elem.get_text(strip=True)
-                    # Extract price from text
                     price_match = re.search(r'([\d,]+(?:\.\d+)?)\s*(?:SAR|ريال|ر\.س|SR)?', text)
                     if price_match:
                         price_num = float(price_match.group(1).replace(',', ''))
-                        if price_num > 10:  # Reasonable price filter
+                        if price_num > 10:
                             return f"{int(price_num)} ريال", brand_info["domain"]
                     
-                    # Try without currency symbol
                     price_match = re.search(r'([\d,]+(?:\.\d+)?)', text)
                     if price_match:
                         price_num = float(price_match.group(1).replace(',', ''))
-                        if 10 < price_num < 50000:  # Reasonable range
+                        if 10 < price_num < 50000:
                             return f"{int(price_num)} ريال", brand_info["domain"]
             
-            # Try to find any price pattern in page
             page_text = soup.get_text()
             price_patterns = [
                 r'(\d[\d,]*)\s*SAR',
@@ -834,7 +824,6 @@ def get_product(asin):
             current_price_num = extract_number(price) if price else 0
             all_coupons = get_all_coupons(soup, current_price_num)
             
-            # Try to get official brand price
             detected_brand = detect_brand_from_title(full_title)
             official_price, official_domain = None, None
             if detected_brand:
@@ -892,7 +881,6 @@ def generate_post(product_data, original_url):
     old_num = extract_number(old_price) if old_price else 0
     list_num = extract_number(list_price) if list_price else 0
     
-    # Build context for AI with ALL available data
     context_parts = []
     
     if clean_old and old_num > current_price_num:
@@ -904,7 +892,6 @@ def generate_post(product_data, original_url):
     if discount_percent > 0:
         context_parts.append(f"نسبة الخصم على أمازون {discount_percent}%")
     
-    # Official brand price comparison
     if official_brand_price and official_brand_domain:
         official_num = extract_number(official_brand_price)
         if official_num > current_price_num:
@@ -947,7 +934,7 @@ def generate_ai_post(
     detected_brand, official_brand_price, official_brand_domain,
     url
 ):
-    """AI generates complete post in Saudi marketing style based on examples"""
+    """AI generates complete post - NO TEMPLATES, pure creative freedom"""
     
     gender_hint = ""
     if gender == "women":
@@ -975,9 +962,35 @@ def generate_ai_post(
         "url": url
     }
     
+    # Random seed for variety - different angle each time
+    angles = [
+        "افتتح بسؤال صادم يشد العين فوراً",
+        "افتتح بتهويل وصدمة وإيموجي نار",
+        "افتتح بأسلوب غنيمة/هجمة/صفقة",
+        "افتتح بأسلوب فزعة وإلحاح 'بسرعة قبل ينتهي'",
+        "افتتح بتحدي 'جرب تصدق'",
+        "افتتح بأسلوب شخصية العلامة التجارية تتكلم",
+        "افتتح بمقارنة سعر مباشرة وصادمة",
+        "افتتح بأسلوب 'قبل لا تشتري من الموقع الرسمي شوف هنا'",
+        "افتتح بأسلوب كنز/ذهب/ثروة",
+        "افتتح بأسلوب 'أنا صدمت لما شفت السعر'",
+    ]
+    chosen_angle = random.choice(angles)
+    
+    # Random structure
+    structures = [
+        "افتتاحية صادمة → اسم المنتج → مقارنة الأسعار → كوبون → إلحاح → رابط",
+        "سؤال صادم → المنتج → السعر القديم بإكس → السعر الجديد بنار → رابط",
+        "تهويل → منتج → مقارنة موقع رسمي vs أمازون → توفير بالريال → رابط",
+        "فزعة → منتج → سعر → كوبون → 'المقاسات محدودة' → رابط",
+        "شخصية البراند تتكلم → سعرها القديم → سعر أمازون → نصيحة → رابط",
+        "تحدي → المنتج → كل التفاصيل → السعر الصاروخي → رابط",
+    ]
+    chosen_structure = random.choice(structures)
+    
     prompt = f"""أنت كاتب محتوى سعودي خليجي محترف في قناة تليجرام "صيدات وصفقات" للتسويق بالعمولة.
 
-🔹 مهمتك: اكتب منشور تسويقي كامل ومقنع باللهجة السعودية الخليجية، بناءً على البيانات التالية.
+🔹 مهمتك: اكتب منشور تسويقي كامل ومقنع باللهجة السعودية الخليجية.
 
 🔹 البيانات المتاحة:
 {json.dumps(structured_data, ensure_ascii=False, indent=2)}
@@ -988,30 +1001,81 @@ def generate_ai_post(
 
 ---
 
-🔹 أنماط المنشورات المطلوبة (اقرأها كوصف للأسلوب، لا تنسخها حرفياً):
+🔹 الزاوية المطلوبة لهذا المنشور (استخدمها فقط كإلهام، لا تنسخها حرفياً):
+{chosen_angle}
 
-النمط 1 - التهويل المتكرر:
-افتتح بكلمة "صيدة" متكررة مع إيموجي صدمة ونار. اعرض المنتج بإيموجي مناسب. اذكر خصم متراكم (خصم + كوبون) مع السعر النهائي الصاروخي. اختتم برابط.
+🔹 الهيكل المقترح (استخدمه كإرشاد مرن، ليس قالب ثابت):
+{chosen_structure}
 
-النمط 2 - السؤال الصادم:
-افتتح بسؤال بلهجة سعودية صادمة مثل "وش هاذي الأسعار بالله". قارن السعر على الموقع الرسمي للعلامة التجارية بالسعر على أمازون. اختتم برابط.
+---
 
-النمط 3 - شخصية العلامة التجارية:
-اجعل أمازون أو العلامة التجارية تتكلم مباشرة للجمهور. اذكر السعر القديم بإيموجي فلوس وإكس. اذكر السعر الجديد بعد الخصم + الكوبون بإيموجي نار. اذكر نصيحة ذكية: "قبل الشراء ابحث بالمواقع ممكن تحصل سعر أقل". اختتم برابط.
+🔹 أمثلة للأسلوب المطلوب (استلهم الأسلوب والطاقة فقط، لا تنسخها):
 
-النمط 4 - الخصم الإضافي + المقارنة الخارجية:
-اذكر خصم إضافي محدد. اذكر سعر الكمية (مثل: إذا أخذت 2). قارن بسعر خارجي من متجر معروف (صيدلية، سوق، إلخ). اختتم برابط.
+مثال 1:
+صيدة صيدة صيدة 🤯🔥
 
-النمط 5 - الصيدة + العلامة التجارية:
-افتتح بـ "صيييييدة" + اسم العلامة التجارية + إيموجي إنذار ونار. اذكر المنتج بالتفصيل (مقاسات، ألوان). اذكر نسبة الخصم. اذكر السعر القديم بإيموجي فلوس. اذكر السعر الجديد بإيموجي نار. أضف عربة تسوق 🛒 ثم رابط. اختتم بعبارة إلحاحية مثل "المقاسات محدودة" أو "الكمية محدودة".
+لحاف فندقي مبطن 🛌
 
-النمط 6 - الفرصة المحددة:
-اذكر أن كل المقاسات بسعر معين، لكن مقاس محدد بسعر أقل بكثير (صفقة خاصة). اختتم برابط.
+خصم 62٪+ كوبون 15٪ 
+بسعر 32 ريال فقط 😱🤑
+
+الرابط
+
+مثال 2:
+وش هاذي الاسعاار بالله
+
+السعر الاساسي لهذا الحذاء على موقع نايكي بـ 450 ريال
+
+الان على أمازون فقط بـ 194 ريال
+الرابط
+
+مثال 3:
+أمازون يقولكم هوفر منظف السجاد
+كانت بـ 999 ريال 💸❌
+
+ونزل عليها خصم + كوبون
+وصارت بـ 340 ريال فقط 🤯🔥
+
+قبل الشــراء ابحث بالمواقع ممكن تحصل سعــر اقــل
+الرابط
+
+مثال 4:
+🔥 خصم إضافي 30٪ على الشــفرات
+
+إذا أخذت (2) بتدفع 58 ريال فقط ✅
+
+في صيدلية الدواء
+نفس الكمية بـ 140 ريال ❌💸
+
+الرابط
+
+مثال 5:
+🚨 صيييييدة أديداس 🔥😱
+
+👟 جراند كورت لمقاس 44 و 45
+
+💥 خصم 73٪
+
+💸 كانت بـ 493 ريال
+🔥 وصارت بـ 135 ريال
+
+🛒
+الرابط
+
+⏳ المقاسات محدودة
+
+مثال 6:
+👟 صيييييدة 🔥
+
+💸 كل المقاسات 280 ريال
+😱 مقاس 43 بـ 151 ريال فقط
+
+الرابط
 
 ---
 
 🔹 قواعد صارمة:
-1. اكتب المنشور كاملاً (3-7 أسطر قصيرة)
+1. اكتب منشور فريد وغير مكرر (3-7 أسطر قصيرة)
 2. كل سطر يحتوي على إيموجي مناسب (2-4 إيموجي في السطر الواحد)
 3. استخدم لهجة سعودية خليجية أصيلة (وش، هاذي، بالله، بتدفع، صارت، يستاهل، فرصة، صفقة، غنيمة، هجمة، صطولة)
 4. مدح الأحرف للتأكيد: صيييييدة، الشــراء، السعــر، اقــل
@@ -1024,9 +1088,11 @@ def generate_ai_post(
 11. إذا البائع تقييمه عالي (>90%)، اذكر اسم البائع
 12. اختتم دائماً برابط + إيموجي سهم/عربة
 13. ❌ ممنوع: "ياجدعان", "ياجماعة", "يالله يا شباب", "حياكم", "يالا"
-14. ❌ ممنوع كلمة "صيدة" في بداية كل منشور - غيّر الأسلوب
-15. ❌ ممنوع نسخ الأمثلة حرفياً - استلهم الأسلوب فقط
+14. ❌ ممنوع تكرار نفس الأسلوب أو نفس الجملة في منشورات مختلفة
+15. ❌ ممنوع نسخ الأمثلة حرفياً - استلهم الأسلوب والطاقة فقط
 16. اكتب منشور واحد فقط بدون أي مقدمة أو شرح
+
+🔹 تذكر: كل منتج يستحق منشور بأسلوب مختلف تماماً. لا تكرر نفسك. كن مبدعاً وصادماً.
 
 اكتب المنشور الآن:"""
 
@@ -1038,10 +1104,10 @@ def generate_ai_post(
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
-                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب منشورات تسويقية قصيرة بأسلوب صادم وحماسي. أسلوبك: صدمة، انفجار، غنيمة، صفقة خرافية، توفير جنوني. بلهجة سعودية خليجية. كل مرة تكتب منشور مختلف تماماً. ممنوع الأمثلة الجاهزة. ممنوع التكرار."},
+                {"role": "system", "content": "أنت كاتب محتوى سعودي خليجي في قناة 'صيدات وصفقات'. تكتب منشورات تسويقية قصيرة بأسلوب صادم وحماسي. أسلوبك: صدمة، انفجار، غنيمة، صفقة خرافية، توفير جنوني. بلهجة سعودية خليجية. كل مرة تكتب منشور مختلف تماماً. ممنوع الأمثلة الجاهزة. ممنوع التكرار. ممنوع القوالب الثابتة."},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.95,
+            "temperature": 0.98,
             "max_tokens": 250
         }
         
@@ -1088,16 +1154,26 @@ def generate_fallback_post(
     discount_percent, all_coupons, detected_brand, 
     official_brand_price, official_brand_domain, url
 ):
-    """Fallback post if AI fails"""
+    """Fallback post - also randomized"""
     parts = []
     
-    # Random opening
+    # Random opening from many options
     openings = [
         f"💥 انفجار سعر على {name} 🤯🔥",
         f"🎯 غنيمة العمر وصلت! {name} ⚡️",
         f"💰 صفقة تاريخية: {name} 🚀",
         f"🔥 صدمة سعر لا تُصدق! {name} 💎",
         f"⚡️ فرصة مجنونة: {name} 💸",
+        f"🚨 {name} بسعر مجنون! 😱",
+        f"💎 كنز ببلاش تقريباً: {name} 🏆",
+        f"🚀 هجمة أسعار لا تُفوت! {name} 🔥",
+        f"💸 توفير جنوني على {name}! ⚡️",
+        f"🔥 مستحيل تلقى مثل {name}! 💰",
+        f"⚡️ عاجل! صفقة صطورة! {name} 🎯",
+        f"🎯 وش هاذي الأسعار بالله! {name} 🤯",
+        f"💥 {name} بسعر يخرب البيت! 🔥",
+        f"🏆 غنيمة العمر: {name} ⚡️",
+        f"😱 صدمووو! {name} بـ {current_price} 💸",
     ]
     parts.append(random.choice(openings))
     
@@ -1108,7 +1184,6 @@ def generate_fallback_post(
     if list_price and list_price != old_price:
         price_lines.append(f"📊 السعر الأساسي: {list_price}")
     
-    # Official brand comparison
     if official_brand_price and official_brand_domain:
         price_lines.append(f"🏪 على موقع {official_brand_domain}: {official_brand_price}")
     
