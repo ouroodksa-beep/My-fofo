@@ -527,18 +527,12 @@ def get_product(asin):
 
 
 def generate_post(product_data, original_url):
-    """Generate full Telegram post in the X-Zone channel style"""
+    """Generate post in exact X-Zone Telegram channel style"""
     name = product_data["name"]
-    full_title = product_data.get("full_title", name)
     price = product_data["price"]
     old_price = product_data["old_price"]
     all_coupons = product_data["all_coupons"]
     current_price_num = product_data["current_price_num"]
-    seller_name = product_data.get("seller_name")
-    seller_rating = product_data.get("seller_rating")
-    rating = product_data.get("rating")
-    review_count = product_data.get("review_count")
-    stock_info = product_data.get("stock_info")
 
     category = detect_product_category(name)
     gender = detect_product_gender(name)
@@ -548,134 +542,118 @@ def generate_post(product_data, original_url):
     clean_old = clean_price(old_price) if old_price else None
     old_num = extract_number(old_price) if old_price else 0
 
-    # Calculate discount percentage
     discount_pct = 0
     if old_num > current_price_num and old_num > 0:
         discount_pct = int(((old_num - current_price_num) / old_num) * 100)
 
-    # Build context for AI headline
+    # Context for AI
     context_parts = []
     if clean_old and old_num > current_price_num:
-        context_parts.append(f"السعر كان {clean_old} والآن {clean_current}")
+        context_parts.append(f"كان {clean_old} والحين {clean_current}")
     if discount_pct > 0:
         context_parts.append(f"خصم {discount_pct}%")
     if all_coupons:
-        best = all_coupons[0]
-        context_parts.append(f"كوبون إضافي {best['percent']}%")
+        context_parts.append(f"كوبون {all_coupons[0]['percent']}%")
     context = " | ".join(context_parts)
 
-    # --- AI generates the headline (line 1) ---
+    # AI generates the opening line
     headline = generate_ai_headline(name, category, gender, context, discount_pct)
 
-    parts = []
+    lines = []
 
-    # 1. Headline
-    parts.append(headline)
+    # السطر الأول: العنوان الجذاب (AI)
+    lines.append(headline)
+    lines.append("")
 
-    # 2. Product name with category emoji
-    parts.append(f"{category_emoji} {name}")
+    # اسم المنتج
+    lines.append(f"{category_emoji} {name}")
+    lines.append("")
 
-    # 3. Prices block
-    price_block = []
+    # كتلة الأسعار — بأسلوب X-Zone القصير المباشر
     if clean_old and old_num > current_price_num:
-        price_block.append(f"❌ السعر السابق: {clean_old}")
+        lines.append(f"❌ كان بـ {clean_old}")
         if discount_pct > 0:
-            price_block.append(f"💥 السعر الآن: {clean_current} (خصم {discount_pct}%)")
-        else:
-            price_block.append(f"💥 السعر الآن: {clean_current}")
+            lines.append(f"💥 خصم {discount_pct}%")
+        lines.append(f"🔥 تاخذه بـ {clean_current} فقط 😱")
     else:
-        price_block.append(f"💰 السعر: {clean_current}")
-    parts.append("\n".join(price_block))
+        lines.append(f"🔥 بـ {clean_current} فقط 😱")
+    lines.append("")
 
-    # 4. Coupons block
+    # كوبون (إن وجد)
     if all_coupons:
         best = all_coupons[0]
-        final_after_coupon = best["final_price"]
-        coupon_block = []
-        coupon_block.append(
-            f"🎟️ كوبون إضافي {best['percent']}% ← يصير بـ {final_after_coupon} ريال فقط! 🔥"
-        )
-        # Extra coupons
-        if len(all_coupons) > 1:
-            coupon_block.append("💡 كوبونات إضافية:")
-            for c in all_coupons[1:3]:
-                coupon_block.append(f"   • {c['code']} — خصم {c['percent']}%")
-        parts.append("\n".join(coupon_block))
+        final = best["final_price"]
+        lines.append(f"🎟️ فعّل كوبون {best['percent']}%")
+        lines.append(f"💸 يصير بـ {final} ريال فقط!")
+        lines.append("")
 
-    # 5. Buy link
-    parts.append(f"🛒 رابط الشراء:\n{original_url}")
+    # الرابط
+    lines.append(f"🔗 {original_url}")
 
-    return "\n\n".join(parts)
+    return "\n".join(lines)
 
 
 def generate_ai_headline(product_name, category, gender, context, discount_pct):
     """
-    AI generates a creative multi-line opening block in pure Saudi dialect.
-    Highly varied — never repeats the same pattern twice.
+    AI generates opening line in exact X-Zone Telegram channel style.
+    Fed with 20+ real examples from the channel for few-shot learning.
     """
     gender_hint = ""
     if gender == "women":
-        gender_hint = "المنتج نسائي — اكتب بأسلوب يخاطب البنات والنساء السعوديات."
+        gender_hint = "المنتج نسائي — خاطب البنات مباشرة (مثال: يا بناااات ✨)"
     elif gender == "men":
-        gender_hint = "المنتج رجالي — اكتب بأسلوب يخاطب الشباب والرجال السعوديين."
+        gender_hint = "المنتج رجالي — خاطب الشباب مباشرة"
     else:
-        gender_hint = "المنتج للجنسين — اكتب بأسلوب عام."
+        gender_hint = "المنتج للجنسين"
 
-    discount_hint = f"الخصم {discount_pct}% — ركّز عليه في الجملة." if discount_pct > 0 else ""
+    discount_hint = f"الخصم {discount_pct}%" if discount_pct > 0 else ""
 
-    # Rich pool of styles — one picked randomly each call
-    styles = [
-        'افتح بـ "🚨 صيدة" + اسم المنتج المختصر + جملة صدمة عن السعر',
-        'افتح بـ "🔥" + جملة تهويل عن الخصم + "ما يطيح مرتين!"',
-        'افتح بـ "😱 والله؟!" + اسم المنتج + "بهالسعر؟!"',
-        'افتح بأسلوب الصياد: "🎯 لحقوا!" + اسم المنتج + "قبل ما يخلص!"',
-        'افتح بأسلوب الصدمة: "💥 كذب؟!" + اسم المنتج + وصف السعر المجنون',
-        'افتح بـ "⚡️ عاجل!" + جملة فزعة عن الكمية المحدودة والسعر',
-        'افتح بأسلوب الغنيمة: "💰 غنيمة العمر!" + اسم المنتج',
-        'افتح بأسلوب التحدي: "🏆 جربوا تلقون مثلها!" + اسم المنتج + السعر',
-        'افتح بـ "🔥 انفجار!" + اسم المنتج + "بسعر جنوني!"',
-        'افتح بأسلوب الخبر العاجل: "📢 بشارة!" + اسم المنتج + وصف العرض',
-        'افتح بـ "😤 مو معقول!" + اسم المنتج + "بهالحق؟!"',
-        'افتح بأسلوب النادر: "💎 نادر يصير!" + اسم المنتج + "بهالسعر"',
-        'افتح بـ "🚀 طار السعر!" + اسم المنتج + "لتحت!"',
-        'افتح بأسلوب الهجمة: "🛒 هجوم!" + "اشتروا" + اسم المنتج + "قبل ما ترجع الأسعار"',
-        'افتح بـ "👀 شوفوا!" + اسم المنتج + جملة وصف مختصرة للعرض',
-    ]
-    chosen_style = random.choice(styles)
+    # X-Zone real examples for few-shot
+    examples = random.sample([
+        "🚨 صـيدة سكيتشرز 👟🔥",
+        "🚨 شاحن تايب C من Belkin 🔌🔥\n🏷️ ماركة معروفة وجودة مضمونة",
+        "🔥🔥 الحقووووووو 🔥🔥\nمن اندر ارمر 👟🔥",
+        "🚨 صيييييدة أديداس 🔥😱",
+        "🚨 مستحييييل تحصل أرخص من كذا 🔥",
+        "😱\n4 لتر بـ 15 ريال بس!!",
+        "🚨 صيييييدة 🔥😱\n🧴 فازلين بهذا الحجم بالصيدلية يوصل 30 ريال",
+        "🔥 خصم إضافي 30٪ على الشــفرات",
+        "🚨 رز الوليمة 5 كيلو 🍚🔥",
+        "حررررررق اسعـار 🔥\n🚨 اكسترا 10 كيلو",
+        "كلوركس 🚨 5 لتر بـ 11 ريال 😱🔥",
+        "يا بـنااااااات ✨\n👟 العرض على مقاس 40 و 41",
+        "🫖 إبريق مغربي نحاسي 600 مل\n📉 خصم 69%",
+        "⌨️ كيبورد ألعاب ميكانيكي YZ98 RGB 🎮\n💸 قيمته 368 ريال",
+        "صيدة صيدة صيدة 🤯🔥\n🛌 لحاف فندقي مبطن",
+        "🧺 برسيل بالسوق يوصل لـ 75 ريال 💸\n💥 جبته لكم بـ 40 ريال فقط!",
+        "🔥 ما يطيح مرتين — لحقووووو 😱",
+        "😱 لاحظ فرق الحجم وفرق السعر",
+        "⚠️ حريص جداً إني أبحث عن أفضل سعر",
+        "🚨 صـيدة 🔥🔥\n🔥 الشحن من المانيا",
+    ], k=5)
+    examples_text = "\n---\n".join(examples)
 
-    # Extra spice words to encourage variety
-    saudi_words = random.sample([
-        "صطولة", "صيدة", "غنيمة", "هجمة", "لحقوا", "شفتوا", "ما يصدق",
-        "والله العظيم", "بالحق", "زبالة السعر", "تهبيلة", "مستحيل", "ما يطيح",
-        "طار السعر", "دفعة واحدة", "قبل ما يخلص", "اللي فاته فاته",
-    ], k=3)
+    prompt = f"""أنت كاتب محتوى قناة تلغرام "صيدات وصفقات" على غرار قناة X-Zone السعودية.
 
-    prompt = f"""أنت كاتب محتوى سعودي خليجي لقناة تلغرام "صيدات وصفقات".
+📌 أمثلة حقيقية من القناة — قلّد نفس الأسلوب:
+---
+{examples_text}
+---
 
-مهمتك: اكتب جملة افتتاحية واحدة فقط، قصيرة (6-14 كلمة)، باللهجة السعودية الخالصة، حماسية وتهويلية تشد العين فوراً.
-
-🎯 الأسلوب المطلوب لهذه المرة:
-{chosen_style}
-
-🌶️ كلمات سعودية تقدر تستخدمها (اختر منها أو اخترع غيرها):
-{' — '.join(saudi_words)}
-
-📌 قواعد صارمة:
-- اللهجة سعودية خليجية 100% (مو مصرية، مو شامية)
-- استخدم 2-3 إيموجي داخل الجملة
-- جملة واحدة فقط، بدون نقطة في النهاية
-- ❌ ممنوع: "ياجدعان"، "ياجماعة"، "يالا"، "حياكم"، "يسلموا"
-- ❌ ممنوع تكرار نفس البداية مرتين
-- ✅ كل مرة أسلوب مختلف تماماً بناءً على المنتج
+✏️ مهمتك:
+اكتب سطر افتتاحي واحد أو سطرين MAX للمنتج أدناه.
+بنفس روح الأمثلة — قصير، صادم، سعودي خالص، إيموجي مناسب.
+لا تكرر نفس الجملة من الأمثلة، لكن قلّد الأسلوب.
 
 {gender_hint}
-{discount_hint}
-
 المنتج: {product_name}
 الفئة: {category}
-السياق: {context}
+السياق: {context} {discount_hint}
 
-اكتب الجملة مباشرة الآن بدون أي مقدمة أو تفسير:"""
+❌ ممنوع: "ياجدعان" / "ياجماعة" / "يالا" / "حياكم"
+✅ مطلوب: لهجة سعودية خليجية، حماسية، مباشرة
+
+اكتب الآن بدون أي مقدمة:"""
 
     try:
         headers = {
@@ -688,10 +666,10 @@ def generate_ai_headline(product_name, category, gender, context, discount_pct):
                 {
                     "role": "system",
                     "content": (
-                        "أنت كاتب محتوى سعودي خليجي محترف متخصص في التسويق بالعمولة على تلغرام. "
-                        "أسلوبك: صدمة، تهويل، حماس شديد، لهجة سعودية خالصة. "
-                        "كل جملة تكتبها مختلفة تماماً عن السابقة. "
-                        "ممنوع التكرار، ممنوع اللهجات الأخرى، ممنوع الكلمات المبتذلة."
+                        "أنت كاتب محتوى قناة X-Zone على تلغرام. "
+                        "أسلوبك: قصير، صادم، سعودي خالص، إيموجي بكثافة. "
+                        "تكتب سطر أو سطرين فقط في كل مرة. "
+                        "كل مرة مختلف عن السابق. ممنوع التكرار والحشو."
                     )
                 },
                 {"role": "user", "content": prompt}
