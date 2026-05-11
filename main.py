@@ -573,8 +573,9 @@ def generate_post(product_data, original_url):
     if clean_old and old_num > current_price_num:
         lines.append(f"❌ كان بـ {clean_old}")
         if discount_pct > 0:
-            lines.append(f"💥 خصم {discount_pct}%")
-        lines.append(f"🔥 تاخذه بـ {clean_current} فقط 😱")
+            lines.append(f"🔥 تاخذه بـ {clean_current} فقط 😱 (خصم {discount_pct}%)")
+        else:
+            lines.append(f"🔥 تاخذه بـ {clean_current} فقط 😱")
     else:
         lines.append(f"🔥 بـ {clean_current} فقط 😱")
     lines.append("")
