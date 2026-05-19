@@ -323,10 +323,8 @@ def get_seller_info(soup):
 
 
 def get_product_rating(soup):
-    """Extract product star rating and review count"""
     rating = None
     review_count = None
-
     rating_elem = soup.select_one("#acrPopover .a-icon-alt")
     if not rating_elem:
         rating_elem = soup.select_one("[data-hook='rating-out-of-text']")
@@ -335,7 +333,6 @@ def get_product_rating(soup):
         m = re.search(r'([\d.]+)', text)
         if m:
             rating = m.group(1)
-
     review_elem = soup.select_one("#acrCustomerReviewText")
     if not review_elem:
         review_elem = soup.select_one("[data-hook='total-review-count']")
@@ -344,12 +341,10 @@ def get_product_rating(soup):
         m = re.search(r'([\d,]+)', text)
         if m:
             review_count = m.group(1).replace(",", "")
-
     return rating, review_count
 
 
 def get_stock_info(soup):
-    """Check if stock is limited"""
     stock_text = None
     selectors = [
         "#availability span",
@@ -526,86 +521,241 @@ def get_product(asin):
     return None
 
 
-def generate_post(product_data, original_url):
-    """Generate full Telegram post in the X-Zone channel style"""
-    name = product_data["name"]
-    full_title = product_data.get("full_title", name)
-    price = product_data["price"]
-    old_price = product_data["old_price"]
-    all_coupons = product_data["all_coupons"]
-    current_price_num = product_data["current_price_num"]
-    seller_name = product_data.get("seller_name")
-    seller_rating = product_data.get("seller_rating")
-    rating = product_data.get("rating")
-    review_count = product_data.get("review_count")
-    stock_info = product_data.get("stock_info")
+# ========== قوالب الجمل الافتتاحية المربوطة بالمنتج ==========
+HEADLINE_TEMPLATES = {
+    "electronics": [
+        "🚨 {product} وصل! سعره {price} وما يتكرر 🔥",
+        "😱 {product} بهالسعر؟! والله صدمة {discount}% 💥",
+        "⚡️ {product} نزل سعره! لحق قبل يرجع 🚀",
+        "📱 {product} — صفقة تاريخية بـ {price} 🎯",
+        "🔥 {product} بـ {price}؟! يا كثر خيرهم 😤",
+        "💻 {product} — اللي يدوره من زمان، جاء وقتك ⚡️",
+        "📷 {product} بـ {price}؟! كذب ولا صدق؟! 💥",
+        "🖥️ {product} — شاشة/جهاز يستاهل كل ريال 🔥",
+        "⌚ {product} — ساعة ذكية بسعر ما يتخيله عقل ⚡️",
+        "🎧 {product} — سماعة تغنيك عن الغالي 💥",
+        "📡 {product} — راوتر/مودم يشبكك بالتوفير 🔥",
+        "🔋 {product} — بطارية تشحن فلوسك {discount}% ⚡️",
+        "💾 {product} — تخزين بسعر يتسع لميزانيتك 💥",
+        "🖱️ {product} — ماوس/كيبورد بـ {price}؟! يا سلام 🔥",
+        "🎮 {product} — جهاز ألعاب يلعب في صفقاتك ⚡️",
+        "📺 {product} — تلفزيون يعرض لك التوفير {discount}% 💥",
+        "📱 {product} — آيفون/جوال بسعر يتصل بالعقل 🔥",
+        "💡 {product} — لمبة ذكية تنور بيتك بسعر ينور وجهك ⚡️",
+        "🔌 {product} — شاحن سريع يشحن رصيدك {discount}% 💥",
+    ],
+    
+    "fashion_men": [
+        "👔 {product} — رجولي ونص ونص بـ {price} 🔥",
+        "🕶️ {product} — طلّة شباب بسعر ما يطيح مرتين 💥",
+        "👞 {product} — حذاء رسمي بـ {price}؟! صطولة 😎",
+        "⌚ {product} — ساعة ترفع هامتك بسعر ينزلها 🚨",
+        "👖 {product} — جينز يستاهل كل ريال فيه ⚡️",
+        "🧥 {product} — جاكيت شتوي بسعر صيفي! {discount}% 🔥",
+        "👟 {product} — سنيكرز يجري بعيد عن الغلاء 💥",
+        "🎒 {product} — شنطة ظهر للشباب الطايشين 🎯",
+        "👔 {product} — قميص يليق بالرجال الكبار 🔥",
+        "🧢 {product} — كاب يغطي راسك من الشمس والغلاء ⚡️",
+        "👜 {product} — محفظة جلد بسعر يحفظ فلوسك 💥",
+        "🧣 {product} — كشمير/وشاح بـ {price}؟! يا عيني 🔥",
+        "👖 {product} — بنطلون رياضي للجيم والتوفير 🚨",
+        "🥾 {product} — بوت يدوس على الأسعار {discount}% 💥",
+        "🕴️ {product} — طقم كامل بسعر نص الطقم ⚡️",
+        "👕 {product} — تيشيرت يسترك ويستر ميزانيتك 🔥",
+        "🧦 {product} — شرابات بسعر يدفي قلبك ورجلك 💥",
+        "🎩 {product} — طاقية/قبعة رسمية بـ {price}؟! يا جلال 🚨",
+    ],
+    
+    "fashion_women": [
+        "👗 {product} — فستان يلبسك العيد بـ {price} 🔥",
+        "👜 {product} — شنطة نسائية بسعر يخجل المنافسين 💥",
+        "💄 {product} — مكياج يزين وجهك ويخفض ميزانيتك 🚨",
+        "👠 {product} — كعب يعليك وفوق السعر ينزل ⚡️",
+        "🧕 {product} — عباية/شيلة بسعر يسترك ويستر ميزانيتك 🔥",
+        "👡 {product} — صندل صيفي بـ {price}؟! يا سلام 💥",
+        "💍 {product} — اكسسوار يلمع زي السعر اللي نزل 🚨",
+        "🎀 {product} — تسريحة/إكسسوار شعر بسعر يرضيك ⚡️",
+        "👛 {product} — محفظة صغيرة وكبيرة في التوفير 🔥",
+        "🧥 {product} — كوت نسائي شتوي بسعر يدفي القلب 💥",
+        "👖 {product} — بنطلون يبرر خطك ويخفض سعرك 🚨",
+        "💃 {product} — تنورة ترقص من فرحة السعر ⚡️",
+        "🧴 {product} — عطر نسائي يفوح بـ {price} 🔥",
+        "👙 {product} — لانجري/ملابس داخلية بسعر يخجل 💥",
+        "🎒 {product} — حقيبة يد للسيدات الأنيقة 🚨",
+        "👚 {product} — بلوزة نسائية بسعر يبهر ⚡️",
+        "🧣 {product} — شال/طرحة بـ {price}؟! يا رقي 💥",
+        "👗 {product} — فستان سهرة بسعر يضيء ليلتك 🔥",
+    ],
+    
+    "beauty_men": [
+        "🧔 {product} — للرجال اللي يعرفون قيمة نظافتهم 🔥",
+        "💈 {product} — منتج حلاقة بسعر يحلق الغلاء {discount}% 💥",
+        "🧴 {product} — لوشن رجالي بـ {price}؟! صطولة 😎",
+        "🪒 {product} — ماكينة حلاقة تفصلك من الغلاء 🚨",
+        "👔 {product} — عطر رجالي يثبت حضورك بسعر معقول ⚡️",
+        "🧼 {product} — صابون/شامبو رجالي ينظف ويوفر 🔥",
+        "💪 {product} — منتج عناية بالبشرة للشباب الطموح 💥",
+        "🌿 {product} — زيت/منتج طبيعي للرجال الكرام 🚨",
+        "🎩 {product} — كريم ترتيب بسعر يرتب ميزانيتك ⚡️",
+        "🧊 {product} — مزيل عرق يبردك والسعر يبرد جيبك 🔥",
+        "🪒 {product} — شفرة حلاقة بـ {price}؟! يا نعومة 💥",
+        "🧴 {product} — جل استحمام رجالي بسعر يدللك 🚨",
+        "🌱 {product} — شامبو طبيعي للرجل المهتم ⚡️",
+        "💈 {product} — زيت ذقن يكثف ويوفر {discount}% 🔥",
+    ],
+    
+    "beauty_women": [
+        "💅 {product} — طلاء أظافر بسعر يلمع زي لونه 🔥",
+        "🧖‍♀️ {product} — كريم بشرة يخلي بشرتك ومحفظتك حلوين 💥",
+        "💋 {product} — أحمر شفاه بـ {price}؟! يا عيني 🚨",
+        "🌸 {product} — عطر نسائي يفوح والسعر يبهج ⚡️",
+        "🧴 {product} — شامبو/بلسم يقوي شعرك ويخفض سعرك 🔥",
+        "✨ {product} — سيروم يبرق وجهك بسعر يبرق عينك 💥",
+        "🎀 {product} — ماسك وجه بـ {price}؟! يستاهل التجربة 🚨",
+        "🌺 {product} — زيت عطري نسائي يهدي أعصابك ⚡️",
+        "💄 {product} — مجموعة مكياج بسعر قطعة واحدة 🔥",
+        "🛁 {product} — منتج استحمام يدللك والسعر يدللك 💥",
+        "👁️ {product} — ماسكرا/آيلاينر يكحل عينك ويسعد جيبك 🚨",
+        "🧼 {product} — غسول وجه نسائي بسعر يغسل همومك ⚡️",
+        "💆‍♀️ {product} — كريم ليلي يشتغل وأنت نايمة 🔥",
+        "🌙 {product} — عطر ليلي نسائي بـ {price}؟! يا سحر 💥",
+        "✨ {product} — بودرة تثبت المكياج والسعر ثابت 🚨",
+        "🌹 {product} — روز واتر/ماء ورد بسعر يورد خدودك ⚡️",
+        "💇‍♀️ {product} — مصفف شعر يصفف ويوفر {discount}% 🔥",
+    ],
+    
+    "home": [
+        "🏠 {product} — للبيت اللي يستاهل الأفضل بـ {price} 🔥",
+        "🛋️ {product} — كنبة/أثاث بسعر يخجل السوق 💥",
+        "🍳 {product} — جهاز مطبخ يطبخ لك وفلوسك {discount}% 🚨",
+        "❄️ {product} — مكيف/ثلاجة يبردك والسعر يبرد جيبك ⚡️",
+        "🧹 {product} — مكنسة/غسالة تنظف بيتك وتمسح الغلاء 🔥",
+        "🛏️ {product} — سرير/مرتبة بسعر ينومك مرتاح 💥",
+        "💡 {product} — لمبة/إضاءة تنوّر بيتك بسعر ينوّر وجهك 🚨",
+        "🚿 {product} — سخان/دش يدفيك والسعر يدفي محفظتك ⚡️",
+        "🍽️ {product} — طقم مطبخ/أواني بـ {price}؟! يا هلا 🔥",
+        "🪴 {product} — ديكور/نبتة تزين بيتك بسعر يزين يومك 💥",
+        "🧺 {product} — منظم/خزانة يرتب بيتك ويرتب ميزانيتك 🚨",
+        "🔥 {product} — مدفأة/فرن يدفيك بسعر يحرق المنافسين ⚡️",
+        "🚪 {product} — باب/ستارة يسترك ويستر سعرك 🔥",
+        "🪑 {product} — كرسي/طاولة بـ {price}؟! يجلسك على التوفير 💥",
+        "🌡️ {product} — مكيف/دفاية بسعر يوازن حرارة ميزانيتك 🚨",
+        "🍵 {product} — غلاية/ماكينة قهوة تسعد صباحك ⚡️",
+        "🧽 {product} — منظف/ممسحة بسعر يلمع بيتك {discount}% 🔥",
+        "📺 {product} — تلفزيون يعرض لك الأفلام والتوفير 💥",
+    ],
+    
+    "sports": [
+        "💪 {product} — للي يبي يقوي جسمه ويخفض ميزانيته 🔥",
+        "🏋️ {product} — دامبل/جهاز رياضي بسعر يرفعك فوق 💥",
+        "🏃 {product} — حذاء رياضي يجري بعيد عن الغلاء {discount}% 🚨",
+        "🧘 {product} — حصيرة يوغا تريحك والسعر يريح جيبك ⚡️",
+        "🚴 {product} — دراجة/جهاز كارديو بـ {price}؟! يا حركة 🔥",
+        "⚽ {product} — كرة/معدات رياضية بسعر يسجل هدف في التوفير 💥",
+        "🥊 {product} — قفازات/جهاز ملاكمة تضرب الغلاء ضربة قاضية 🚨",
+        "🏊 {product} — معدات سباحة بسعر يغوص في التوفير ⚡️",
+        "🎽 {product} — ملابس رياضية تتعبك والسعر يريحك 🔥",
+        "🥤 {product} — شيكر/زجاجة رياضية بـ {price}؟! يا عافية 💥",
+        "🏸 {product} — مضرب رياضي يرد كرة السعر الغالي 🚨",
+        "🧗 {product} — معدات تسلق بسعر يصعد بك للقمة ⚡️",
+        "🏆 {product} — جهاز تمرين منزلي بسعر بطولة 🔥",
+        "⛹️ {product} — كرة سلة/قدم بـ {price}؟! يلا نلعب 💥",
+        "🤸 {product} — إكسسوار رياضي يطوّيك والسعر يطيح 🚨",
+        "🥇 {product} — حزام رياضي/داعم بسعر يدعم ميزانيتك ⚡️",
+        "🏃‍♀️ {product} — ساعة رياضية تعد خطواتك وخطوات التوفير 🔥",
+    ],
+    
+    "general": [
+        "🚨 {product} — صيدة اليوم! {discount}% خصم 🔥",
+        "😱 {product} بـ {price}؟! والله ما يصدق العقل 💥",
+        "🔥 {product} — غنيمة العمر ما تفوتها {discount}% 🚨",
+        "⚡️ {product} نزل سعره! لحق قبل ما يرجع 💥",
+        "🎯 {product} — صفقة محترفين بسعر يهبل 🔥",
+        "💥 {product} — انفجار سعر! {price} بس؟! 😤",
+        "🚀 {product} — طار السعر لتحت! {discount}% تهبيلة ⚡️",
+        "💎 {product} — نادر يصير بهالسعر! يا غنيمة 🔥",
+        "🛒 {product} — هجمة شرائية! {price} تستاهل 💥",
+        "👀 {product} — شوفوا بأعينكم! {discount}% خصم 🚨",
+        "🏆 {product} — بطولة تسوق! {price} تكفيك ⚡️",
+        "😤 {product} — مو معقول! بهالحق؟! {price} 🔥",
+        "🌟 {product} — نجم الصفقات بـ {price}؟! يا سلام 💥",
+        "💰 {product} — غنيمة بلا مجهود! {discount}% تلقاها 🚨",
+        "🎁 {product} — هدية السنة بـ {price}؟! يا كثر خيرهم ⚡️",
+        "🔥 {product} — حريق سعر! اطفيه بشراء سريع 🔥",
+        "⚡️ {product} — صاعقة! {discount}% والله عاجل 💥",
+        "🎯 {product} — لحقوا! {price} قبل ما يخلص 🚨",
+        "💣 {product} — قنبلة! {price} تفجّر المنافسين ⚡️",
+        "🌊 {product} — تسونامي خصومات! {discount}% جايتك 🔥",
+        "🍀 {product} — حظك اليوم! {price} يثبت كلامي 💥",
+        "🎉 {product} — يا هلا! {price} يسعد القلب 🚨",
+        "🦁 {product} — أسد الصفقات بـ {price}؟! يا جلال ⚡️",
+        "🚗 {product} — وصل بسرعة! {discount}% خصم فوري 🔥",
+        "🎵 {product} — لحن التوفير! {price} يطرب 💥",
+        "🏠 {product} — للبيت اللي يستاهل! {price} 🚨",
+        "💪 {product} — قوية! {discount}% ترفع الراس ⚡️",
+        "🎮 {product} — جيم أوفر للغلاء! {price} 🔥",
+        "🌙 {product} — ليلة صفقات! {price} ينورها 💥",
+        "🧠 {product} — ذكية! {discount}% تثبت ذكائك 🚨",
+        "🎓 {product} — درس في التوفير! {price} يعلّم ⚡️",
+        "🌍 {product} — من كل العالم بـ {price}؟! يا سلام 🔥",
+        "🎨 {product} — فن التسوق! {price} يبدع 💥",
+        "🍔 {product} — شبعان توفير! {discount}% زيادة 🚨",
+        "🚁 {product} — وصل بالهليكوبتر! {price} سريع ⚡️",
+        "🎪 {product} — سيرك الأسعار! {price} يبهج 🔥",
+        "🌈 {product} — قوس قزح خصومات! {discount}% ملونة 💥",
+        "🎭 {product} — مسرحية! {price} يستاهل التصفيق 🚨",
+        "🎰 {product} — جاكبوت! {price} ربح كبير ⚡️",
+        "🎳 {product} — strike! {discount}% ضربة مباشرة 🔥",
+    ],
+}
 
-    category = detect_product_category(name)
-    gender = detect_product_gender(name)
-    category_emoji = get_category_emoji(category)
 
-    clean_current = clean_price(price)
-    clean_old = clean_price(old_price) if old_price else None
-    old_num = extract_number(old_price) if old_price else 0
-
-    # Calculate discount percentage
-    discount_pct = 0
-    if old_num > current_price_num and old_num > 0:
-        discount_pct = int(((old_num - current_price_num) / old_num) * 100)
-
-    # Build context for AI headline
-    context_parts = []
-    if clean_old and old_num > current_price_num:
-        context_parts.append(f"السعر كان {clean_old} والآن {clean_current}")
-    if discount_pct > 0:
-        context_parts.append(f"خصم {discount_pct}%")
-    if all_coupons:
-        best = all_coupons[0]
-        context_parts.append(f"كوبون إضافي {best['percent']}%")
-    context = " | ".join(context_parts)
-
-    # --- AI generates the headline (line 1) ---
-    headline = generate_ai_headline(name, category, gender, context, discount_pct)
-
-    parts = []
-
-    # 1. Headline
-    parts.append(headline)
-
-    # 2. Product name with category emoji
-    parts.append(f"{category_emoji} {name}")
-
-    # 3. Prices block
-    price_block = []
-    if clean_old and old_num > current_price_num:
-        price_block.append(f"❌ السعر السابق: {clean_old}")
-        if discount_pct > 0:
-            price_block.append(f"💥 السعر الآن: {clean_current} (خصم {discount_pct}%)")
-        else:
-            price_block.append(f"💥 السعر الآن: {clean_current}")
+def generate_contextual_headline(product_name, category, gender, context, discount_pct):
+    """
+    تبني جملة افتتاحية مربوطة بالمنتج نفسه، باللهجة السعودية الخليجية
+    """
+    # تحديد الفئة الفرعية
+    if category == "fashion":
+        subcategory = f"fashion_{gender}" if gender in ["men", "women"] else "general"
+    elif category == "beauty":
+        subcategory = f"beauty_{gender}" if gender in ["men", "women"] else "general"
     else:
-        price_block.append(f"💰 السعر: {clean_current}")
-    parts.append("\n".join(price_block))
-
-    # 4. Coupons block
-    if all_coupons:
-        best = all_coupons[0]
-        final_after_coupon = best["final_price"]
-        coupon_block = []
-        coupon_block.append(
-            f"🎟️ كوبون إضافي {best['percent']}% ← يصير بـ {final_after_coupon} ريال فقط! 🔥"
+        subcategory = category if category in HEADLINE_TEMPLATES else "general"
+    
+    # اختيار قائمة القوالب
+    templates = HEADLINE_TEMPLATES.get(subcategory, HEADLINE_TEMPLATES["general"])
+    
+    # اختيار قالب عشوائي
+    template = random.choice(templates)
+    
+    # استخراج السعر من السياق
+    price_match = re.search(r'(\d+)\s*ريال', context)
+    price = price_match.group(1) + " ريال" if price_match else "رخيص"
+    
+    # تجهيز اسم المنتج (نختصر لو طويل)
+    words = product_name.split()
+    if len(words) > 4:
+        short_product = " ".join(words[:4])
+    else:
+        short_product = product_name
+    
+    # ملء القالب
+    headline = template.format(
+        product=short_product,
+        discount=discount_pct,
+        price=price
+    )
+    
+    # التأكد من الطول
+    if len(headline) > 90:
+        shorter_product = " ".join(words[:2]) if len(words) > 2 else product_name[:20]
+        headline = template.format(
+            product=shorter_product,
+            discount=discount_pct,
+            price=price
         )
-        # Extra coupons
-        if len(all_coupons) > 1:
-            coupon_block.append("💡 كوبونات إضافية:")
-            for c in all_coupons[1:3]:
-                coupon_block.append(f"   • {c['code']} — خصم {c['percent']}%")
-        parts.append("\n".join(coupon_block))
-
-    # 5. Buy link
-    parts.append(f"🛒 رابط الشراء:\n{original_url}")
-
-    return "\n\n".join(parts)
+    
+    return headline
 
 
 def generate_ai_headline(product_name, category, gender, context, discount_pct):
@@ -716,32 +866,106 @@ def generate_ai_headline(product_name, category, gender, context, discount_pct):
             forbidden = ["ياجدعان", "ياجماعه", "ياجماعة", "يالله يا", "حياكم", "يالا"]
             for f in forbidden:
                 if f in sentence.replace(" ", ""):
-                    return _fallback_headline(category)
+                    return generate_contextual_headline(product_name, category, gender, context, discount_pct)
 
             return sentence
 
     except Exception as e:
         print(f"Groq error: {e}")
 
-    return _fallback_headline(category)
+    # لو فشل Groq، نرجع للجملة المربوطة بالمنتج
+    return generate_contextual_headline(product_name, category, gender, context, discount_pct)
 
 
 def _fallback_headline(category):
-    fallbacks = [
-        "🚨 صيدة اليوم! سعر ما يطيح مرتين 🔥",
-        "😱 والله؟! بهالسعر؟! لحقوا قبل ما يخلص 💥",
-        "🔥 انفجار سعر! غنيمة ما تفوت ⚡️",
-        "💥 كذب؟! أرخص سعر شفناه من زمان 🎯",
-        "🚀 طار السعر لتحت! اشتروا الحين 🔥",
-        "😤 مو معقول! بهالحق؟! صطولة والله 💎",
-        "⚡️ عاجل! هجمة قبل ما ترجع الأسعار 🛒",
-        "🎯 لحقوا! هالصفقة ما تنطر أحد 🔥",
-        "💰 غنيمة العمر! ما يجي مثلها 😱",
-        "🔥 ما يصدق! سعر تهبيلة الحين الحين ⚡️",
-        "🚨 بشارة! نزل السعر بشكل جنوني 💥",
-        "👀 شوفوا! اللي فاته فاته 🔥",
-    ]
-    return random.choice(fallbacks)
+    """احتياطي فقط — نادراً ما يستخدم"""
+    general = HEADLINE_TEMPLATES.get("general", [])
+    if general:
+        template = random.choice(general)
+        return template.format(product="هالمنتج", discount="🔥", price="رخيص")
+    return "🚨 صيدة اليوم! سعر ما يطيح مرتين 🔥"
+
+
+def generate_post(product_data, original_url):
+    """Generate full Telegram post in the X-Zone channel style"""
+    name = product_data["name"]
+    full_title = product_data.get("full_title", name)
+    price = product_data["price"]
+    old_price = product_data["old_price"]
+    all_coupons = product_data["all_coupons"]
+    current_price_num = product_data["current_price_num"]
+    seller_name = product_data.get("seller_name")
+    seller_rating = product_data.get("seller_rating")
+    rating = product_data.get("rating")
+    review_count = product_data.get("review_count")
+    stock_info = product_data.get("stock_info")
+
+    category = detect_product_category(name)
+    gender = detect_product_gender(name)
+    category_emoji = get_category_emoji(category)
+
+    clean_current = clean_price(price)
+    clean_old = clean_price(old_price) if old_price else None
+    old_num = extract_number(old_price) if old_price else 0
+
+    # Calculate discount percentage
+    discount_pct = 0
+    if old_num > current_price_num and old_num > 0:
+        discount_pct = int(((old_num - current_price_num) / old_num) * 100)
+
+    # Build context for AI headline
+    context_parts = []
+    if clean_old and old_num > current_price_num:
+        context_parts.append(f"السعر كان {clean_old} والآن {clean_current}")
+    if discount_pct > 0:
+        context_parts.append(f"خصم {discount_pct}%")
+    if all_coupons:
+        best = all_coupons[0]
+        context_parts.append(f"كوبون إضافي {best['percent']}%")
+    context = " | ".join(context_parts)
+
+    # --- AI generates the headline (line 1) ---
+    headline = generate_ai_headline(name, category, gender, context, discount_pct)
+
+    parts = []
+
+    # 1. Headline
+    parts.append(headline)
+
+    # 2. Product name with category emoji
+    parts.append(f"{category_emoji} {name}")
+
+    # 3. Prices block
+    price_block = []
+    if clean_old and old_num > current_price_num:
+        price_block.append(f"❌ السعر السابق: {clean_old}")
+        if discount_pct > 0:
+            price_block.append(f"💥 السعر الآن: {clean_current} (خصم {discount_pct}%)")
+        else:
+            price_block.append(f"💥 السعر الآن: {clean_current}")
+    else:
+        price_block.append(f"💰 السعر: {clean_current}")
+    parts.append("\n".join(price_block))
+
+    # 4. Coupons block
+    if all_coupons:
+        best = all_coupons[0]
+        final_after_coupon = best["final_price"]
+        coupon_block = []
+        coupon_block.append(
+            f"🎟️ كوبون إضافي {best['percent']}% ← يصير بـ {final_after_coupon} ريال فقط! 🔥"
+        )
+        # Extra coupons
+        if len(all_coupons) > 1:
+            coupon_block.append("💡 كوبونات إضافية:")
+            for c in all_coupons[1:3]:
+                coupon_block.append(f"   • {c['code']} — خصم {c['percent']}%")
+        parts.append("\n".join(coupon_block))
+
+    # 5. Buy link
+    parts.append(f"🛒 رابط الشراء:\n{original_url}")
+
+    return "\n\n".join(parts)
 
 
 @bot.message_handler(func=lambda m: True)
