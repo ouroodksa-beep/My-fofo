@@ -75,23 +75,75 @@ def resolve_amazon_url(url):
             print(f"Redirect error: {e}")
     return url
 
+# ========== FIXED: Enhanced ASIN extraction with all Amazon URL patterns ==========
 def get_asin(url):
-    """Extract ASIN from any Amazon URL format"""
+    """Extract ASIN from any Amazon URL format - covers ALL possible patterns"""
+    
+    # Clean URL first - decode URL-encoded characters
+    decoded = requests.utils.unquote(url)
+    
     patterns = [
+        # Standard product pages
         r'/dp/([A-Z0-9]{10})',
         r'/gp/product/([A-Z0-9]{10})',
         r'/product/([A-Z0-9]{10})',
-        r'/([A-Z0-9]{10})/?$',
+        r'/products/([A-Z0-9]{10})',
+        r'/ASIN/([A-Z0-9]{10})',
+        
+        # Mobile app / share links
+        r'/([A-Z0-9]{10})/ref=',           # /ASIN/ref=...
+        r'/([A-Z0-9]{10})/\?',             # /ASIN?...
+        r'/([A-Z0-9]{10})/?$',             # /ASIN at end of path
+        
+        # Query parameters
         r'[?&]asin=([A-Z0-9]{10})',
         r'[?&]dp=([A-Z0-9]{10})',
         r'[?&]productId=([A-Z0-9]{10})',
+        r'[?&]id=([A-Z0-9]{10})',
+        r'[?&]itemId=([A-Z0-9]{10})',
+        r'[?&]sku=([A-Z0-9]{10})',
+        
+        # URL-encoded patterns
         r'%2Fdp%2F([A-Z0-9]{10})',
+        r'%2Fgp%2Fproduct%2F([A-Z0-9]{10})',
+        r'%2Fproduct%2F([A-Z0-9]{10})',
         r'[?&]url=.*%2Fdp%2F([A-Z0-9]{10})',
+        r'[?&]url=.*%2Fgp%2Fproduct%2F([A-Z0-9]{10})',
+        
+        # Affiliate / redirect links
+        r'[?&]creativeASIN=([A-Z0-9]{10})',
+        r'[?&]linkId=.*[?&]asin=([A-Z0-9]{10})',
+        
+        # Short URL patterns (amzn.to, a.co)
+        r'amzn\.to/[a-zA-Z0-9]+.*?([A-Z0-9]{10})',
+        r'a\.co/[a-zA-Z0-9]+.*?([A-Z0-9]{10})',
+        
+        # Generic fallback - any 10-char alphanumeric that looks like ASIN
+        # ASINs typically start with B followed by digits, or are all alphanumeric
+        r'/(B0[A-Z0-9]{8})/',              # Modern ASIN format B0...
+        r'/(B[A-Z0-9]{9})/',               # Older ASIN format B...
+        r'/(0[0-9]{9})/',                  # ISBN-10 format
     ]
+    
     for p in patterns:
-        m = re.search(p, url, re.I)
+        m = re.search(p, decoded, re.I)
         if m:
-            return m.group(1)
+            asin = m.group(1).upper()
+            # Validate ASIN format
+            if len(asin) == 10 and asin.isalnum():
+                return asin
+    
+    # Last resort: find any 10-char sequence that looks like ASIN in the URL path
+    path = re.search(r'https?://[^/]+(/.*)', decoded)
+    if path:
+        path = path.group(1)
+        # Look for ASIN-like pattern in path segments
+        segments = path.split('/')
+        for seg in segments:
+            seg = seg.split('?')[0].split('&')[0]  # Remove query params
+            if len(seg) == 10 and seg.isalnum() and seg.upper() not in ['HTTPS', 'HTTP', 'WWW', 'AMAZON']:
+                return seg.upper()
+    
     return None
 
 def get_amazon_domain(url):
@@ -343,7 +395,7 @@ def generate_post(data, url):
         if len(data["coupons"]) > 1:
             parts.append("💡 كوبونات إضافية:\n" + "\n".join(f"   • `{c['code']}` — **{c['percent']}%**" for c in data["coupons"][1:3]))
     
-    # ========== تعديل: الرابط ظاهر تحت كلمة رابط الشراء ==========
+    # الرابط ظاهر تحت كلمة رابط الشراء
     parts.append(f"🛒 رابط الشراء:\n{url}")
     
     return "\n\n".join(parts)
@@ -355,7 +407,7 @@ def handler(msg):
         return bot.reply_to(msg, "❌ أرسل رابط أمازون")
 
     for u in urls:
-        # ========== NEW: Check any Amazon link ==========
+        # Check any Amazon link
         if not is_amazon_link(u):
             bot.reply_to(msg, "❌ يرجى إرسال رابط أمازون فقط (أي دولة)")
             continue
@@ -365,12 +417,12 @@ def handler(msg):
 
         asin = get_asin(resolved_url)
         if not asin:
-            bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج (ASIN) من الرابط\nجرب رابط مباشر من صفحة المنتج")
+            bot.reply_to(msg, f"❌ تعذر استخراج رقم المنتج (ASIN) من الرابط:\n`{u}`\n\nجرب رابط مباشر من صفحة المنتج يحتوي على `/dp/` أو `/gp/product/`")
             continue
 
         domain = get_amazon_domain(resolved_url)
 
-        wait = bot.reply_to(msg, "⏳ جاري التحليل...")
+        wait = bot.reply_to(msg, f"⏳ جاري التحليل... (ASIN: {asin})")
         p = get_product(asin, domain)
 
         if not p:
