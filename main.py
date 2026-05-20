@@ -5,8 +5,22 @@ TOKEN = "7956075348:AAEYTL28GKeMN7TXyVeGM69iUcfg5ZwOSIk"
 bot = telebot.TeleBot(TOKEN)
 GROQ_API_KEY = "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"
 
-BRAND_NAMES = {"nespresso": "Nespresso", "nescafe": "Nescafé", "nescafé": "Nescafé", "iphone": "iPhone", "ipad": "iPad", "macbook": "MacBook", "airpods": "AirPods", "samsung": "Samsung", "sony": "Sony", "lg": "LG", "dyson": "Dyson", "philips": "Philips", "bosch": "Bosch", "adidas": "Adidas", "nike": "Nike", "puma": "Puma", "gucci": "Gucci", "prada": "Prada", "dior": "Dior", "chanel": "Chanel", "loreal": "L'Oréal", "l'oreal": "L'Oréal", "l'oréal": "L'Oréal"}
-CATEGORY_KEYWORDS = {"electronics": ["phone", "laptop", "ipad", "airpods", "headphones", "camera", "tv", "screen", "watch", "speaker", "router"], "fashion": ["shirt", "pants", "jeans", "jacket", "dress", "shoes", "sneakers", "boots", "bag", "wallet", "belt"], "beauty": ["perfume", "cream", "shampoo", "makeup", "lipstick", "serum", "oud"], "home": ["fridge", "washing", "vacuum", "ac", "heater", "blender", "oven", "sofa", "bed", "lamp"], "sports": ["treadmill", "dumbbell", "yoga", "bicycle", "gym", "fitness"]}
+BRAND_NAMES = {
+    "nespresso": "Nespresso", "nescafe": "Nescafé", "nescafé": "Nescafé",
+    "iphone": "iPhone", "ipad": "iPad", "macbook": "MacBook", "airpods": "AirPods",
+    "samsung": "Samsung", "sony": "Sony", "lg": "LG", "dyson": "Dyson",
+    "philips": "Philips", "bosch": "Bosch", "adidas": "Adidas", "nike": "Nike",
+    "puma": "Puma", "gucci": "Gucci", "prada": "Prada", "dior": "Dior",
+    "chanel": "Chanel", "loreal": "L'Oréal", "loreal": "L'Oréal", "loreal": "L'Oréal"
+}
+
+CATEGORY_KEYWORDS = {
+    "electronics": ["phone", "laptop", "ipad", "airpods", "headphones", "camera", "tv", "screen", "watch", "speaker", "router"],
+    "fashion": ["shirt", "pants", "jeans", "jacket", "dress", "shoes", "sneakers", "boots", "bag", "wallet", "belt"],
+    "beauty": ["perfume", "cream", "shampoo", "makeup", "lipstick", "serum", "oud"],
+    "home": ["fridge", "washing", "vacuum", "ac", "heater", "blender", "oven", "sofa", "bed", "lamp"],
+    "sports": ["treadmill", "dumbbell", "yoga", "bicycle", "gym", "fitness"]
+}
 
 def protect_brands(t):
     for k, v in sorted(BRAND_NAMES.items(), key=lambda x: -len(x[0])):
@@ -16,34 +30,43 @@ def protect_brands(t):
 def detect_category(n):
     n = n.lower()
     for c, kws in CATEGORY_KEYWORDS.items():
-        if any(k in n for k in kws): return c
+        if any(k in n for k in kws):
+            return c
     return "general"
 
 def detect_gender(n):
     n = n.lower()
-    if any(w in n for w in ['women', 'lady', 'female', 'نسائي', 'فستان', 'dress', 'skirt', 'makeup', 'lipstick']): return 'women'
-    if any(w in n for w in ['men', 'male',male', 'رmale', 'رجالي', 'عطر رجالي']): return 'men'
+    if any(w in n for w in ['women', 'lady', 'female', 'نسائي', 'فستان', 'dress', 'skirt', 'makeup', 'lipstick']):
+        return 'women'
+    if any(w in n for w in ['men', 'male', 'رجالي', 'عطر رجالي']):
+        return 'men'
     return 'neutral'
 
-def get_emoji(c): return {"electronics": "📱", "fashion": "👕", "beauty": "💄", "home": "🏠", "sports": "💪"}.get(c, "📦")
+def get_emoji(c):
+    return {"electronics": "📱", "fashion": "👕", "beauty": "💄", "home": "🏠", "sports": "💪"}.get(c, "📦")
 
-def is_sa(url): return "amazon.sa" in url.lower()
+def is_sa(url):
+    return "amazon.sa" in url.lower()
 
 def get_asin(url):
     for p in [r'/dp/([A-Z0-9]{10})', r'/gp/product/([A-Z0-9]{10})', r'/product/([A-Z0-9]{10})', r'([A-Z0-9]{10})/?$']:
         m = re.search(p, url)
-        if m: return m.group(1)
+        if m:
+            return m.group(1)
     return None
 
 def clean_price(t):
     try:
         n = re.findall(r'[\d,]+(?:\.\d+)?', t)[0].replace(",", "")
         return f"{int(float(n))} ريال"
-    except: return t
+    except:
+        return t
 
 def extract_num(t):
-    try: return float(re.findall(r'[\d,]+(?:\.\d+)?', t)[0].replace(",", ""))
-    except: return 0
+    try:
+        return float(re.findall(r'[\d,]+(?:\.\d+)?', t)[0].replace(",", ""))
+    except:
+        return 0
 
 def get_image(soup):
     img = soup.select_one("#landingImage")
@@ -53,8 +76,10 @@ def get_image(soup):
             try:
                 d = json.loads(img.get("data-a-dynamic-image", "{}"))
                 url = sorted(d.keys(), key=lambda x: d[x][0]*d[x][1], reverse=True)[0] if d else None
-            except: pass
-        if url: return re.sub(r'_SX\d+_SY\d+_|_SX\d+_|_SY\d+_|_CR\d+,\d+,\d+,\d+_|_AC_SL\d+_|_SCLZZZZZZZ_|_FMwebp_|_QL\d+_', '_', url).split('?')[0]
+            except:
+                pass
+        if url:
+            return re.sub(r'_SX\d+_SY\d+_|_SX\d+_|_SY\d+_|_CR\d+,\d+,\d+,\d+_|_AC_SL\d+_|_SCLZZZZZZZ_|_FMwebp_|_QL\d+_', '_', url).split('?')[0]
     og = soup.select_one('meta[property="og:image"]')
     return og.get("content") if og else None
 
@@ -63,7 +88,8 @@ def get_seller(soup):
         el = soup.select_one(sel)
         if el:
             t = el.get_text(strip=True)
-            if len(t) > 2: return t
+            if len(t) > 2:
+                return t
     return None
 
 def get_rating(soup):
@@ -96,7 +122,9 @@ def get_coupons(soup, price):
     uniq = []
     for c in found:
         k = c["code"].upper()
-        if k not in seen: seen[k] = True; uniq.append(c)
+        if k not in seen:
+            seen[k] = True
+            uniq.append(c)
     uniq.sort(key=lambda x: x["percent"], reverse=True)
     return uniq
 
@@ -105,47 +133,115 @@ def get_product(asin):
     for ua in ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36"]:
         try:
             r = requests.get(url, headers={"User-Agent": ua, "Accept-Language": "ar-SA,ar;q=0.9", "Referer": "https://www.google.com/"}, timeout=30)
-            if r.status_code != 200 or len(r.text) < 5000: continue
+            if r.status_code != 200 or len(r.text) < 5000:
+                continue
             soup = BeautifulSoup(r.text, "html.parser")
             title = soup.select_one("#productTitle")
-            if not title: continue
+            if not title:
+                continue
             full = title.text.strip()
             price = None
             for sel in [".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen", ".a-price .a-offscreen", ".a-price-whole"]:
                 el = soup.select_one(sel)
                 if el and el.text and any(c.isdigit() for c in el.text):
-                    price = el.text.strip(); break
-            if not price: continue
+                    price = el.text.strip()
+                    break
+            if not price:
+                continue
             old = None
             for sel in [".a-price.a-text-price[data-a-color='secondary'] .a-offscreen", ".basisPrice .a-offscreen"]:
                 el = soup.select_one(sel)
                 if el and el.text != price and any(c.isdigit() for c in el.text):
-                    old = el.text.strip(); break
+                    old = el.text.strip()
+                    break
             img = get_image(soup)
             seller = get_seller(soup)
             rating, reviews = get_rating(soup)
             stock = get_stock(soup)
             cur = extract_num(price)
             coupons = get_coupons(soup, cur)
-            return {"name": protect_brands(full[:80]), "full_title": full, "price": price, "old_price": old, "image": img, "seller": seller, "rating": rating, "reviews": reviews, "stock": stock, "coupons": coupons, "current_num": cur}
-        except Exception as e: print(f"Error: {e}")
+            return {
+                "name": protect_brands(full[:80]),
+                "full_title": full,
+                "price": price,
+                "old_price": old,
+                "image": img,
+                "seller": seller,
+                "rating": rating,
+                "reviews": reviews,
+                "stock": stock,
+                "coupons": coupons,
+                "current_num": cur
+            }
+        except Exception as e:
+            print(f"Error: {e}")
     return None
 
 HEADLINES = {
-    "electronics": ["✨ من بين آلاف الخيارات،\nهالصفقة تبرق وتلمع\n— سعر **{price}** يخليك تتوقف\nوتفكر: وش يمنعك الحين؟ 🔥", "🌟 يا هلا بالصفقة اللي تستاهل\nكل ثانية تفكير\n**{discount}%** خصم حقيقي 💎", "⚡️ تقنية بمواصفات عالية\nوسعر **{price}** معقول\nنادر تلقى مثله 🎯", "🔥 فرصة ما تتكرر\nجهاز بـ **{price}** يستاهل\nكل قرش فيه 🚀", "💡 ذكاء الاختيار في التوقيت\n— والحين يصرخ: اشتري!\n**{discount}%** خصم ⚡️"],
-    "fashion_men": ["👔 أناقة رجالية بثقة\n— هالطقم بـ **{price}**\nيمنحك الاثنين 🔥", "🕶️ طلّة تفرض احترامك\nبسعر **{price}** يفرض تقديرك 💎", "⌚ وقتك ثمين\nوساعتك بـ **{price}** تستاهله ⚡️", "👟 حذاء يركض بك للأهداف\nوسعر **{price}** يركض بالتوفير 🌟", "🧥 جاكيت شتوي بخفة سعر\n**{price}** مع **{discount}%** يدفي القلب 🔥"],
-    "fashion_women": ["👗 فستان يحكي قصة\nبـ **{price}** يحكي ذكاء اختيارك 🔥", "👜 شنطة تكمل إطلالتك\nوسعر **{price}** يكمل فرحتك 💎", "💄 مكياج يزين وجهك\nوسعر **{price}** يزين يومك ⚡️", "👠 كعب يرفعك فوق\nوسعر **{price}** يرفعك أعلى 🌟", "🧕 عباية تسترك وتزينك\nبـ **{price}** تستر ميزانيتك 🔥"],
-    "beauty_men": ["🧔 رجل مهتم بنظافته\n— هالمنتج بـ **{price}** يهتم بميزانيتك 🔥", "💈 حلاقة نظيفة بمنتج نظيف\nوسعر **{price}** ينظف الغلاء 💎", "👔 عطر يثبت حضورك\nبسعر **{price}** يثبت ذكاءك ⚡️", "🧴 لوشن يترطب بشرتك\nوسعر **{price}** يترطب قلبك 🌟", "🪒 ماكينة تفصلك عن الباهت\nوسعر **{price}** يفصلك عن الباهظ 🔥"],
-    "beauty_women": ["💅 طلاء يلمع زي عينك\nلما تشوفين **{price}** ⚡️", "🧖‍♀️ كريم يخليك تتأملين\nبمرآتك ومحفظتك بـ **{price}** 🌟", "💋 أحمر شفاه بـ **{price}**؟\nيا ليت كل القرارات الحلوة تجي كذا 🔥", "🌸 عطر يفوح بأريج الأناقة\nوسعر **{price}** يفوح بالذكاء 💎", "✨ سيروم يبرق وجهك\nوسعر **{price}** يبرق يومك ⚡️"],
-    "home": ["🏠 بيت يعكس ذوقك\nيبدأ بـ **{price}** يعكس ذكاءك 🔥", "🛋️ أثاث يستقبل ضيوفك\nبكرامة وسعر **{price}** بترحيب 💎", "🍳 جهاز يختصر وقتك\nوخصم **{discount}%** يختصر قلقك ⚡️", "❄️ مكيف يبرد حر الصيف\nوسعر **{price}** يبرد قلقك 🌟", "🧹 مكنسة تنظف بيتك\nوسعر **{price}** ينظف ميزانيتك 🔥"],
-    "sports": ["💪 قوة تبدأ بقرار\n— قرار بـ **{price}** يبدأ بذكاء 🔥", "🏋️ جهاز يرفعك فوق\nوسعر **{price}** يرفع ميزانيتك 💎", "🏃 حذاء يجري بك للأهداف\nوخصم **{discount}%** يجري بالتوفير ⚡️", "🧘 يوغا تريح جسمك\nوسعر **{price}** تريح محفظتك 🌟", "🚴 دراجة تقوي قلبك\nوسعر **{price}** يقوي قرارك 🔥"],
-    "general": ["✨ من بين كل الخيارات\nوقف عند هالصفقة\n— **{price}** تستاهل التفكير 🔥", "🌟 ذهب يلمع دائماً\nبس هالصفقة بـ **{price}** تلمع أكثر 💎", "⚡️ في زحمة العروض\nنادر تلقى صفقة حقيقية\nهذي واحدة منهم ⚡️", "🔥 فرصة ما تجي مرتين\nهذي المرة الأولى بـ **{price}** 🌟", "💎 جودة وسعر معقول\nيجتمعون في صفقة بـ **{price}** 🔥"]
+    "electronics": [
+        "✨ من بين آلاف الخيارات،\nهالصفقة تبرق وتلمع\n— سعر **{price}** يخليك تتوقف\nوتفكر: وش يمنعك الحين؟ 🔥",
+        "🌟 يا هلا بالصفقة اللي تستاهل\nكل ثانية تفكير\n**{discount}%** خصم حقيقي 💎",
+        "⚡️ تقنية بمواصفات عالية\nوسعر **{price}** معقول\nنادر تلقى مثله 🎯",
+        "🔥 فرصة ما تتكرر\nجهاز بـ **{price}** يستاهل\nكل قرش فيه 🚀",
+        "💡 ذكاء الاختيار في التوقيت\n— والحين يصرخ: اشتري!\n**{discount}%** خصم ⚡️"
+    ],
+    "fashion_men": [
+        "👔 أناقة رجالية بثقة\n— هالطقم بـ **{price}**\nيمنحك الاثنين 🔥",
+        "🕶️ طلّة تفرض احترامك\nبسعر **{price}** يفرض تقديرك 💎",
+        "⌚ وقتك ثمين\nوساعتك بـ **{price}** تستاهله ⚡️",
+        "👟 حذاء يركض بك للأهداف\nوسعر **{price}** يركض بالتوفير 🌟",
+        "🧥 جاكيت شتوي بخفة سعر\n**{price}** مع **{discount}%** يدفي القلب 🔥"
+    ],
+    "fashion_women": [
+        "👗 فستان يحكي قصة\nبـ **{price}** يحكي ذكاء اختيارك 🔥",
+        "👜 شنطة تكمل إطلالتك\nوسعر **{price}** يكمل فرحتك 💎",
+        "💄 مكياج يزين وجهك\nوسعر **{price}** يزين يومك ⚡️",
+        "👠 كعب يرفعك فوق\nوسعر **{price}** يرفعك أعلى 🌟",
+        "🧕 عباية تسترك وتزينك\nبـ **{price}** تستر ميزانيتك 🔥"
+    ],
+    "beauty_men": [
+        "🧔 رجل مهتم بنظافته\n— هالمنتج بـ **{price}** يهتم بميزانيتك 🔥",
+        "💈 حلاقة نظيفة بمنتج نظيف\nوسعر **{price}** ينظف الغلاء 💎",
+        "👔 عطر يثبت حضورك\nبسعر **{price}** يثبت ذكاءك ⚡️",
+        "🧴 لوشن يترطب بشرتك\nوسعر **{price}** يترطب قلبك 🌟",
+        "🪒 ماكينة تفصلك عن الباهت\nوسعر **{price}** يفصلك عن الباهظ 🔥"
+    ],
+    "beauty_women": [
+        "💅 طلاء يلمع زي عينك\nلما تشوفين **{price}** ⚡️",
+        "🧖‍♀️ كريم يخليك تتأملين\nبمرآتك ومحفظتك بـ **{price}** 🌟",
+        "💋 أحمر شفاه بـ **{price}**؟\nيا ليت كل القرارات الحلوة تجي كذا 🔥",
+        "🌸 عطر يفوح بأريج الأناقة\nوسعر **{price}** يفوح بالذكاء 💎",
+        "✨ سيروم يبرق وجهك\nوسعر **{price}** يبرق يومك ⚡️"
+    ],
+    "home": [
+        "🏠 بيت يعكس ذوقك\nيبدأ بـ **{price}** يعكس ذكاءك 🔥",
+        "🛋️ أثاث يستقبل ضيوفك\nبكرامة وسعر **{price}** بترحيب 💎",
+        "🍳 جهاز يختصر وقتك\nوخصم **{discount}%** يختصر قلقك ⚡️",
+        "❄️ مكيف يبرد حر الصيف\nوسعر **{price}** يبرد قلقك 🌟",
+        "🧹 مكنسة تنظف بيتك\nوسعر **{price}** ينظف ميزانيتك 🔥"
+    ],
+    "sports": [
+        "💪 قوة تبدأ بقرار\n— قرار بـ **{price}** يبدأ بذكاء 🔥",
+        "🏋️ جهاز يرفعك فوق\nوسعر **{price}** يرفع ميزانيتك 💎",
+        "🏃 حذاء يجري بك للأهداف\nوخصم **{discount}%** يجري بالتوفير ⚡️",
+        "🧘 يوغا تريح جسمك\nوسعر **{price}** تريح محفظتك 🌟",
+        "🚴 دراجة تقوي قلبك\nوسعر **{price}** يقوي قرارك 🔥"
+    ],
+    "general": [
+        "✨ من بين كل الخيارات\nوقف عند هالصفقة\n— **{price}** تستاهل التفكير 🔥",
+        "🌟 ذهب يلمع دائماً\nبس هالصفقة بـ **{price}** تلمع أكثر 💎",
+        "⚡️ في زحمة العروض\nنادر تلقى صفقة حقيقية\nهذي واحدة منهم ⚡️",
+        "🔥 فرصة ما تجي مرتين\nهذي المرة الأولى بـ **{price}** 🌟",
+        "💎 جودة وسعر معقول\nيجتمعون في صفقة بـ **{price}** 🔥"
+    ]
 }
 
 def get_headline(name, cat, gender, price, discount):
     sub = cat
-    if cat == "fashion": sub = f"fashion_{gender}" if gender in ["men", "women"] else "general"
-    elif cat == "beauty": sub = f"beauty_{gender}" if gender in ["men", "women"] else "general"
+    if cat == "fashion":
+        sub = f"fashion_{gender}" if gender in ["men", "women"] else "general"
+    elif cat == "beauty":
+        sub = f"beauty_{gender}" if gender in ["men", "women"] else "general"
     templates = HEADLINES.get(sub, HEADLINES["general"])
     h = random.choice(templates).format(price=price, discount=discount)
     price_digits = re.sub(r'[^\d]', '', price)
