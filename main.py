@@ -22,17 +22,10 @@ def detect_category(n):
 def detect_gender(n):
     n = n.lower()
     if any(w in n for w in ['women', 'lady', 'female', 'نسائي', 'فستان', 'dress', 'skirt', 'makeup', 'lipstick']): return 'women'
-    if any(w in n for w in ['men', 'male', 'رجالي', 'عطر رجالي']): return 'men'
+    if any(w in n for w in ['men', 'male',male', 'رmale', 'رجالي', 'عطر رجالي']): return 'men'
     return 'neutral'
 
 def get_emoji(c): return {"electronics": "📱", "fashion": "👕", "beauty": "💄", "home": "🏠", "sports": "💪"}.get(c, "📦")
-
-def expand_url(url):
-    try:
-        if any(s in url.lower() for s in ['amzn.to', 'bit.ly', 'tinyurl']):
-            return requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, allow_redirects=True, timeout=20).url
-    except: pass
-    return url
 
 def is_sa(url): return "amazon.sa" in url.lower()
 
@@ -139,14 +132,14 @@ def get_product(asin):
     return None
 
 HEADLINES = {
-    "electronics": ["✨ من بين آلاف الخيارات،\nهالصفقة تبرق وتلمع\n— سعر {price} يخليك تتوقف\nوتفكر: وش يمنعك الحين؟ 🔥", "🌟 يا هلا بالصفقة اللي تستاهل\nكل ثانية تفكير\n{discount}% خصم حقيقي 💎", "⚡️ تقنية بمواصفات عالية\nوسعر {price} معقول\nنادر تلقى مثله 🎯", "🔥 فرصة ما تتكرر\nجهاز بـ {price} يستاهل\nكل قرش فيه 🚀", "💡 ذكاء الاختيار في التوقيت\n— والحين يصرخ: اشتري!\n{discount}% خصم ⚡️"],
-    "fashion_men": ["👔 أناقة رجالية بثقة\n— هالطقم بـ {price}\nيمنحك الاثنين 🔥", "🕶️ طلّة تفرض احترامك\nبسعر {price} يفرض تقديرك 💎", "⌚ وقتك ثمين\nوساعتك بـ {price} تستاهله ⚡️", "👟 حذاء يركض بك للأهداف\nوسعر {price} يركض بالتوفير 🌟", "🧥 جاكيت شتوي بخفة سعر\n{price} مع {discount}% يدفي القلب 🔥"],
-    "fashion_women": ["👗 فستان يحكي قصة\nبـ {price} يحكي ذكاء اختيارك 🔥", "👜 شنطة تكمل إطلالتك\nوسعر {price} يكمل فرحتك 💎", "💄 مكياج يزين وجهك\nوسعر {price} يزين يومك ⚡️", "👠 كعب يرفعك فوق\nوسعر {price} يرفعك أعلى 🌟", "🧕 عباية تسترك وتزينك\nبـ {price} تستر ميزانيتك 🔥"],
-    "beauty_men": ["🧔 رجل مهتم بنظافته\n— هالمنتج بـ {price} يهتم بميزانيتك 🔥", "💈 حلاقة نظيفة بمنتج نظيف\nوسعر {price} ينظف الغلاء 💎", "👔 عطر يثبت حضورك\nبسعر {price} يثبت ذكاءك ⚡️", "🧴 لوشن يترطب بشرتك\nوسعر {price} يترطب قلبك 🌟", "🪒 ماكينة تفصلك عن الباهت\nوسعر {price} يفصلك عن الباهظ 🔥"],
-    "beauty_women": ["💅 طلاء يلمع زي عينك\nلما تشوفين {price} ⚡️", "🧖‍♀️ كريم يخليك تتأملين\nبمرآتك ومحفظتك بـ {price} 🌟", "💋 أحمر شفاه بـ {price}؟\nيا ليت كل القرارات الحلوة تجي كذا 🔥", "🌸 عطر يفوح بأريج الأناقة\nوسعر {price} يفوح بالذكاء 💎", "✨ سيروم يبرق وجهك\nوسعر {price} يبرق يومك ⚡️"],
-    "home": ["🏠 بيت يعكس ذوقك\nيبدأ بـ {price} يعكس ذكاءك 🔥", "🛋️ أثاث يستقبل ضيوفك\nبكرامة وسعر {price} بترحيب 💎", "🍳 جهاز يختصر وقتك\nوخصم {discount}% يختصر قلقك ⚡️", "❄️ مكيف يبرد حر الصيف\nوسعر {price} يبرد قلقك 🌟", "🧹 مكنسة تنظف بيتك\nوسعر {price} ينظف ميزانيتك 🔥"],
-    "sports": ["💪 قوة تبدأ بقرار\n— قرار بـ {price} يبدأ بذكاء 🔥", "🏋️ جهاز يرفعك فوق\nوسعر {price} يرفع ميزانيتك 💎", "🏃 حذاء يجري بك للأهداف\nوخصم {discount}% يجري بالتوفير ⚡️", "🧘 يوغا تريح جسمك\nوسعر {price} تريح محفظتك 🌟", "🚴 دراجة تقوي قلبك\nوسعر {price} يقوي قرارك 🔥"],
-    "general": ["✨ من بين كل الخيارات\nوقف عند هالصفقة\n— {price} تستاهل التفكير 🔥", "🌟 ذهب يلمع دائماً\nبس هالصفقة بـ {price} تلمع أكثر 💎", "⚡️ في زحمة العروض\nنادر تلقى صفقة حقيقية\nهذي واحدة منهم ⚡️", "🔥 فرصة ما تجي مرتين\nهذي المرة الأولى بـ {price} 🌟", "💎 جودة وسعر معقول\nيجتمعون في صفقة بـ {price} 🔥"]
+    "electronics": ["✨ من بين آلاف الخيارات،\nهالصفقة تبرق وتلمع\n— سعر **{price}** يخليك تتوقف\nوتفكر: وش يمنعك الحين؟ 🔥", "🌟 يا هلا بالصفقة اللي تستاهل\nكل ثانية تفكير\n**{discount}%** خصم حقيقي 💎", "⚡️ تقنية بمواصفات عالية\nوسعر **{price}** معقول\nنادر تلقى مثله 🎯", "🔥 فرصة ما تتكرر\nجهاز بـ **{price}** يستاهل\nكل قرش فيه 🚀", "💡 ذكاء الاختيار في التوقيت\n— والحين يصرخ: اشتري!\n**{discount}%** خصم ⚡️"],
+    "fashion_men": ["👔 أناقة رجالية بثقة\n— هالطقم بـ **{price}**\nيمنحك الاثنين 🔥", "🕶️ طلّة تفرض احترامك\nبسعر **{price}** يفرض تقديرك 💎", "⌚ وقتك ثمين\nوساعتك بـ **{price}** تستاهله ⚡️", "👟 حذاء يركض بك للأهداف\nوسعر **{price}** يركض بالتوفير 🌟", "🧥 جاكيت شتوي بخفة سعر\n**{price}** مع **{discount}%** يدفي القلب 🔥"],
+    "fashion_women": ["👗 فستان يحكي قصة\nبـ **{price}** يحكي ذكاء اختيارك 🔥", "👜 شنطة تكمل إطلالتك\nوسعر **{price}** يكمل فرحتك 💎", "💄 مكياج يزين وجهك\nوسعر **{price}** يزين يومك ⚡️", "👠 كعب يرفعك فوق\nوسعر **{price}** يرفعك أعلى 🌟", "🧕 عباية تسترك وتزينك\nبـ **{price}** تستر ميزانيتك 🔥"],
+    "beauty_men": ["🧔 رجل مهتم بنظافته\n— هالمنتج بـ **{price}** يهتم بميزانيتك 🔥", "💈 حلاقة نظيفة بمنتج نظيف\nوسعر **{price}** ينظف الغلاء 💎", "👔 عطر يثبت حضورك\nبسعر **{price}** يثبت ذكاءك ⚡️", "🧴 لوشن يترطب بشرتك\nوسعر **{price}** يترطب قلبك 🌟", "🪒 ماكينة تفصلك عن الباهت\nوسعر **{price}** يفصلك عن الباهظ 🔥"],
+    "beauty_women": ["💅 طلاء يلمع زي عينك\nلما تشوفين **{price}** ⚡️", "🧖‍♀️ كريم يخليك تتأملين\nبمرآتك ومحفظتك بـ **{price}** 🌟", "💋 أحمر شفاه بـ **{price}**؟\nيا ليت كل القرارات الحلوة تجي كذا 🔥", "🌸 عطر يفوح بأريج الأناقة\nوسعر **{price}** يفوح بالذكاء 💎", "✨ سيروم يبرق وجهك\nوسعر **{price}** يبرق يومك ⚡️"],
+    "home": ["🏠 بيت يعكس ذوقك\nيبدأ بـ **{price}** يعكس ذكاءك 🔥", "🛋️ أثاث يستقبل ضيوفك\nبكرامة وسعر **{price}** بترحيب 💎", "🍳 جهاز يختصر وقتك\nوخصم **{discount}%** يختصر قلقك ⚡️", "❄️ مكيف يبرد حر الصيف\nوسعر **{price}** يبرد قلقك 🌟", "🧹 مكنسة تنظف بيتك\nوسعر **{price}** ينظف ميزانيتك 🔥"],
+    "sports": ["💪 قوة تبدأ بقرار\n— قرار بـ **{price}** يبدأ بذكاء 🔥", "🏋️ جهاز يرفعك فوق\nوسعر **{price}** يرفع ميزانيتك 💎", "🏃 حذاء يجري بك للأهداف\nوخصم **{discount}%** يجري بالتوفير ⚡️", "🧘 يوغا تريح جسمك\nوسعر **{price}** تريح محفظتك 🌟", "🚴 دراجة تقوي قلبك\nوسعر **{price}** يقوي قرارك 🔥"],
+    "general": ["✨ من بين كل الخيارات\nوقف عند هالصفقة\n— **{price}** تستاهل التفكير 🔥", "🌟 ذهب يلمع دائماً\nبس هالصفقة بـ **{price}** تلمع أكثر 💎", "⚡️ في زحمة العروض\nنادر تلقى صفقة حقيقية\nهذي واحدة منهم ⚡️", "🔥 فرصة ما تجي مرتين\nهذي المرة الأولى بـ **{price}** 🌟", "💎 جودة وسعر معقول\nيجتمعون في صفقة بـ **{price}** 🔥"]
 }
 
 def get_headline(name, cat, gender, price, discount):
@@ -175,15 +168,15 @@ def generate_post(data, url):
         parts.append(f"{get_emoji(cat)} {name}")
     if not has_price:
         if old and old_num > cur_num:
-            parts.append(f"❌ السعر السابق: {old}\n💥 السعر الآن: {price} (خصم {discount}%)")
+            parts.append(f"❌ السعر السابق: ~~{old}~~\n💥 السعر الآن: **{price}** (خصم {discount}%)")
         else:
-            parts.append(f"💰 السعر: {price}")
+            parts.append(f"💰 السعر: **{price}**")
     if data["coupons"]:
         b = data["coupons"][0]
-        parts.append(f"🎟️ كوبون {b['percent']}% ← يصير بـ {b['final_price']} ريال! 🔥")
+        parts.append(f"🎟️ كوبون **{b['percent']}%** ← يصير بـ **{b['final_price']} ريال**! 🔥")
         if len(data["coupons"]) > 1:
-            parts.append("💡 كوبونات إضافية:\n" + "\n".join(f"   • {c['code']} — {c['percent']}%" for c in data["coupons"][1:3]))
-    parts.append(f"🛒 رابط الشراء:\n{url}")
+            parts.append("💡 كوبونات إضافية:\n" + "\n".join(f"   • `{c['code']}` — **{c['percent']}%**" for c in data["coupons"][1:3]))
+    parts.append(f"🛒 [رابط الشراء]({url})")
     return "\n\n".join(parts)
 
 @bot.message_handler(func=lambda m: True)
@@ -192,7 +185,6 @@ def handler(msg):
     if not urls:
         return bot.reply_to(msg, "❌ أرسل رابط amazon.sa")
     for u in urls:
-        u = expand_url(u)
         if not is_sa(u):
             bot.reply_to(msg, "❌ رابط amazon.sa بس")
             continue
@@ -208,15 +200,17 @@ def handler(msg):
         post = generate_post(p, u)
         try:
             if p["image"]:
-                bot.send_photo(msg.chat.id, p["image"], caption=post)
+                bot.send_photo(msg.chat.id, p["image"], caption=post, parse_mode="Markdown")
             else:
-                bot.send_message(msg.chat.id, post)
+                bot.send_message(msg.chat.id, post, parse_mode="Markdown", disable_web_page_preview=True)
             bot.delete_message(msg.chat.id, wait.message_id)
         except Exception as e:
             print(f"Error: {e}")
-            bot.send_message(msg.chat.id, post)
-            try: bot.delete_message(msg.chat.id, wait.message_id)
-            except: bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
+            try:
+                bot.send_message(msg.chat.id, post, parse_mode="Markdown", disable_web_page_preview=True)
+                bot.delete_message(msg.chat.id, wait.message_id)
+            except:
+                bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
 
 print("🤖 البوت يعمل — صيدات وصفقات 🔥")
 bot.infinity_polling()
