@@ -58,29 +58,65 @@ def is_amazon_link(url):
     url_lower = url.lower()
     return any(domain in url_lower for domain in amazon_domains)
 
+# ========== FIXED: Enhanced URL resolver with multiple methods ==========
 def resolve_amazon_url(url):
     """Follow redirects to get real Amazon URL from affiliate/short links"""
-    # Handle amzn.to and other short links
-    short_domains = ['amzn.to', 'a.co']
-    if any(domain in url.lower() for domain in short_domains):
-        try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-                "Accept-Language": "en-US,en;q=0.9"
-            }
-            resp = requests.head(url, headers=headers, allow_redirects=True, timeout=15)
-            if resp.status_code in [200, 301, 302] and resp.url != url:
-                return resp.url
-        except Exception as e:
-            print(f"Redirect error: {e}")
+    short_domains = ['amzn.to', 'a.co', 'amzn.com', 'z.cn']
+    
+    if not any(domain in url.lower() for domain in short_domains):
+        return url
+    
+    # Method 1: Try direct request with GET (some servers block HEAD)
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+        resp = requests.get(url, headers=headers, allow_redirects=True, timeout=10)
+        if resp.status_code in [200, 301, 302, 307, 308] and resp.url != url:
+            return resp.url
+    except Exception as e:
+        print(f"Direct redirect error: {e}")
+    
+    # Method 2: Try unshorten.me API (free, no auth required)
+    try:
+        api_url = f"https://unshorten.me/json/{url}"
+        resp = requests.get(api_url, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('resolved_url') and data['resolved_url'] != url:
+                return data['resolved_url']
+    except Exception as e:
+        print(f"unshorten.me error: {e}")
+    
+    # Method 3: Try urlexpand library approach (manual implementation)
+    try:
+        # For amzn.to, try to construct potential Amazon URL
+        # amzn.to links usually redirect to amazon.com/dp/ASIN or similar
+        headers = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+        session = requests.Session()
+        session.max_redirects = 10
+        resp = session.get(url, headers=headers, allow_redirects=True, timeout=15)
+        if resp.url != url and 'amazon' in resp.url.lower():
+            return resp.url
+    except Exception as e:
+        print(f"Session redirect error: {e}")
+    
     return url
 
-# ========== FIXED: Enhanced ASIN extraction with all Amazon URL patterns ==========
+# ========== FIXED: Enhanced ASIN extraction ==========
 def get_asin(url):
     """Extract ASIN from any Amazon URL format - covers ALL possible patterns"""
     
     # Clean URL first - decode URL-encoded characters
-    decoded = requests.utils.unquote(url)
+    try:
+        decoded = requests.utils.unquote(url)
+    except:
+        decoded = url
     
     patterns = [
         # Standard product pages
@@ -91,9 +127,9 @@ def get_asin(url):
         r'/ASIN/([A-Z0-9]{10})',
         
         # Mobile app / share links
-        r'/([A-Z0-9]{10})/ref=',           # /ASIN/ref=...
-        r'/([A-Z0-9]{10})/\?',             # /ASIN?...
-        r'/([A-Z0-9]{10})/?$',             # /ASIN at end of path
+        r'/([A-Z0-9]{10})/ref=',           
+        r'/([A-Z0-9]{10})/\?',             
+        r'/([A-Z0-9]{10})/?$',             
         
         # Query parameters
         r'[?&]asin=([A-Z0-9]{10})',
@@ -114,22 +150,16 @@ def get_asin(url):
         r'[?&]creativeASIN=([A-Z0-9]{10})',
         r'[?&]linkId=.*[?&]asin=([A-Z0-9]{10})',
         
-        # Short URL patterns (amzn.to, a.co)
-        r'amzn\.to/[a-zA-Z0-9]+.*?([A-Z0-9]{10})',
-        r'a\.co/[a-zA-Z0-9]+.*?([A-Z0-9]{10})',
-        
         # Generic fallback - any 10-char alphanumeric that looks like ASIN
-        # ASINs typically start with B followed by digits, or are all alphanumeric
-        r'/(B0[A-Z0-9]{8})/',              # Modern ASIN format B0...
-        r'/(B[A-Z0-9]{9})/',               # Older ASIN format B...
-        r'/(0[0-9]{9})/',                  # ISBN-10 format
+        r'/(B0[A-Z0-9]{8})/',              
+        r'/(B[A-Z0-9]{9})/',               
+        r'/(0[0-9]{9})/',                  
     ]
     
     for p in patterns:
         m = re.search(p, decoded, re.I)
         if m:
             asin = m.group(1).upper()
-            # Validate ASIN format
             if len(asin) == 10 and asin.isalnum():
                 return asin
     
@@ -137,10 +167,9 @@ def get_asin(url):
     path = re.search(r'https?://[^/]+(/.*)', decoded)
     if path:
         path = path.group(1)
-        # Look for ASIN-like pattern in path segments
         segments = path.split('/')
         for seg in segments:
-            seg = seg.split('?')[0].split('&')[0]  # Remove query params
+            seg = seg.split('?')[0].split('&')[0]
             if len(seg) == 10 and seg.isalnum() and seg.upper() not in ['HTTPS', 'HTTP', 'WWW', 'AMAZON']:
                 return seg.upper()
     
@@ -151,7 +180,6 @@ def get_amazon_domain(url):
     m = re.search(r'(amazon\.[a-z.]+)', url.lower())
     if m:
         return m.group(1)
-    # Default to amazon.com if can't detect
     return "amazon.com"
 
 # ========== END NEW ==========
@@ -233,7 +261,6 @@ def get_product(asin, domain="amazon.sa"):
     """Fetch product from any Amazon domain"""
     url = f"https://www.{domain}/dp/{asin}"
 
-    # Try multiple user agents and domains
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36",
@@ -412,15 +439,21 @@ def handler(msg):
             bot.reply_to(msg, "❌ يرجى إرسال رابط أمازون فقط (أي دولة)")
             continue
 
-        # Resolve affiliate/short links
+        # Resolve affiliate/short links with enhanced methods
         resolved_url = resolve_amazon_url(u)
 
         asin = get_asin(resolved_url)
         if not asin:
-            bot.reply_to(msg, f"❌ تعذر استخراج رقم المنتج (ASIN) من الرابط:\n`{u}`\n\nجرب رابط مباشر من صفحة المنتج يحتوي على `/dp/` أو `/gp/product/`")
+            # Try one more time with original URL if resolved failed
+            asin = get_asin(u)
+        
+        if not asin:
+            bot.reply_to(msg, f"❌ تعذر استخراج رقم المنتج (ASIN) من الرابط:\n`{u}`\n\n💡 الحلول:\n1️⃣ أرسل رابط مباشر يحتوي على `/dp/XXXXXXXXXX`\n2️⃣ أو جرب رابط طويل من المتصفح")
             continue
 
         domain = get_amazon_domain(resolved_url)
+        if domain == "amazon.com" and 'amazon.sa' in u:
+            domain = "amazon.sa"
 
         wait = bot.reply_to(msg, f"⏳ جاري التحليل... (ASIN: {asin})")
         p = get_product(asin, domain)
