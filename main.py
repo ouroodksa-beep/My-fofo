@@ -45,15 +45,64 @@ def detect_gender(n):
 def get_emoji(c):
     return {"electronics": "📱", "fashion": "👕", "beauty": "💄", "home": "🏠", "sports": "💪"}.get(c, "📦")
 
-def is_sa(url):
-    return "amazon.sa" in url.lower()
+# ========== NEW: Support all Amazon domains + affiliate links ==========
+
+def is_amazon_link(url):
+    """Check if URL is any Amazon or affiliate link"""
+    amazon_domains = [
+        'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es',
+        'amazon.ca', 'amazon.com.au', 'amazon.in', 'amazon.jp', 'amazon.cn',
+        'amazon.sa', 'amazon.ae', 'amazon.com.tr', 'amazon.com.br', 'amazon.com.mx',
+        'amzn.to', 'amzn.com', 'a.co', 'z.cn'
+    ]
+    url_lower = url.lower()
+    return any(domain in url_lower for domain in amazon_domains)
+
+def resolve_amazon_url(url):
+    """Follow redirects to get real Amazon URL from affiliate/short links"""
+    # Handle amzn.to and other short links
+    short_domains = ['amzn.to', 'a.co']
+    if any(domain in url.lower() for domain in short_domains):
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9"
+            }
+            resp = requests.head(url, headers=headers, allow_redirects=True, timeout=15)
+            if resp.status_code in [200, 301, 302] and resp.url != url:
+                return resp.url
+        except Exception as e:
+            print(f"Redirect error: {e}")
+    return url
 
 def get_asin(url):
-    for p in [r'/dp/([A-Z0-9]{10})', r'/gp/product/([A-Z0-9]{10})', r'/product/([A-Z0-9]{10})', r'([A-Z0-9]{10})/?$']:
-        m = re.search(p, url)
+    """Extract ASIN from any Amazon URL format"""
+    patterns = [
+        r'/dp/([A-Z0-9]{10})',
+        r'/gp/product/([A-Z0-9]{10})',
+        r'/product/([A-Z0-9]{10})',
+        r'/([A-Z0-9]{10})/?$',
+        r'[?&]asin=([A-Z0-9]{10})',
+        r'[?&]dp=([A-Z0-9]{10})',
+        r'[?&]productId=([A-Z0-9]{10})',
+        r'%2Fdp%2F([A-Z0-9]{10})',
+        r'[?&]url=.*%2Fdp%2F([A-Z0-9]{10})',
+    ]
+    for p in patterns:
+        m = re.search(p, url, re.I)
         if m:
             return m.group(1)
     return None
+
+def get_amazon_domain(url):
+    """Extract Amazon domain from URL"""
+    m = re.search(r'(amazon\.[a-z.]+)', url.lower())
+    if m:
+        return m.group(1)
+    # Default to amazon.com if can't detect
+    return "amazon.com"
+
+# ========== END NEW ==========
 
 def clean_price(t):
     try:
@@ -115,7 +164,7 @@ def get_coupons(soup, price):
                 p = re.search(r'(\d+)%', txt)
                 if p:
                     pct = int(p.group(1))
-                    code = re.search(r'\b([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,}|[A-Z]{4,})\b', txt)
+                    code = re.search(r'([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,}|[A-Z]{4,})', txt)
                     code = code.group(1) if code else f"خصم {pct}%"
                     found.append({"code": code, "percent": pct, "final_price": int(price - price * pct / 100), "text": txt})
     seen = {}
@@ -128,17 +177,34 @@ def get_coupons(soup, price):
     uniq.sort(key=lambda x: x["percent"], reverse=True)
     return uniq
 
-def get_product(asin):
-    url = f"https://www.amazon.sa/dp/{asin}"
-    for ua in ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36"]:
+def get_product(asin, domain="amazon.sa"):
+    """Fetch product from any Amazon domain"""
+    url = f"https://www.{domain}/dp/{asin}"
+
+    # Try multiple user agents and domains
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/118.0.0.0 Safari/537.36"
+    ]
+
+    for ua in user_agents:
         try:
-            r = requests.get(url, headers={"User-Agent": ua, "Accept-Language": "ar-SA,ar;q=0.9", "Referer": "https://www.google.com/"}, timeout=30)
+            r = requests.get(url, headers={
+                "User-Agent": ua,
+                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
+                "Referer": "https://www.google.com/",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            }, timeout=30)
+
             if r.status_code != 200 or len(r.text) < 5000:
                 continue
+
             soup = BeautifulSoup(r.text, "html.parser")
             title = soup.select_one("#productTitle")
             if not title:
                 continue
+
             full = title.text.strip()
             price = None
             for sel in [".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen", ".a-price .a-offscreen", ".a-price-whole"]:
@@ -148,18 +214,21 @@ def get_product(asin):
                     break
             if not price:
                 continue
+
             old = None
             for sel in [".a-price.a-text-price[data-a-color='secondary'] .a-offscreen", ".basisPrice .a-offscreen"]:
                 el = soup.select_one(sel)
                 if el and el.text != price and any(c.isdigit() for c in el.text):
                     old = el.text.strip()
                     break
+
             img = get_image(soup)
             seller = get_seller(soup)
             rating, reviews = get_rating(soup)
             stock = get_stock(soup)
             cur = extract_num(price)
             coupons = get_coupons(soup, cur)
+
             return {
                 "name": protect_brands(full[:80]),
                 "full_title": full,
@@ -171,7 +240,8 @@ def get_product(asin):
                 "reviews": reviews,
                 "stock": stock,
                 "coupons": coupons,
-                "current_num": cur
+                "current_num": cur,
+                "domain": domain
             }
         except Exception as e:
             print(f"Error: {e}")
@@ -279,21 +349,34 @@ def generate_post(data, url):
 def handler(msg):
     urls = re.findall(r'https?://\S+', msg.text.strip())
     if not urls:
-        return bot.reply_to(msg, "❌ أرسل رابط amazon.sa")
+        return bot.reply_to(msg, "❌ أرسل رابط أمازون")
+
     for u in urls:
-        if not is_sa(u):
-            bot.reply_to(msg, "❌ رابط amazon.sa بس")
+        # ========== NEW: Check any Amazon link ==========
+        if not is_amazon_link(u):
+            bot.reply_to(msg, "❌ يرجى إرسال رابط أمازون فقط (أي دولة)")
             continue
-        asin = get_asin(u)
+
+        # Resolve affiliate/short links
+        resolved_url = resolve_amazon_url(u)
+
+        asin = get_asin(resolved_url)
         if not asin:
-            bot.reply_to(msg, "❌ تعذر استخراج المنتج")
+            bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج (ASIN) من الرابط\nجرب رابط مباشر من صفحة المنتج")
             continue
+
+        domain = get_amazon_domain(resolved_url)
+
         wait = bot.reply_to(msg, "⏳ جاري التحليل...")
-        p = get_product(asin)
+        p = get_product(asin, domain)
+
         if not p:
-            bot.edit_message_text("❌ تعذر قراءة البيانات", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج\nقد يكون المنتج غير متوفر أو محمي", msg.chat.id, wait.message_id)
             continue
+
+        # Use original URL (affiliate link) in the post to preserve commissions
         post = generate_post(p, u)
+
         try:
             if p["image"]:
                 bot.send_photo(msg.chat.id, p["image"], caption=post, parse_mode="Markdown")
@@ -308,5 +391,5 @@ def handler(msg):
             except:
                 bot.edit_message_text("❌ خطأ في الإرسال", msg.chat.id, wait.message_id)
 
-print("🤖 البوت يعمل — صيدات وصفقات 🔥")
+print("🤖 البوت يعمل — يقبل أي رابط أمازون + أفيلييت 🔥")
 bot.infinity_polling()
