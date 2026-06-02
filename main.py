@@ -765,10 +765,5 @@ def handler(msg):
 
 print("🤖 البوت يعمل — صيدات وصفقات 🔥")
 bot.infinity_polling()
-'''
 
-with open('/mnt/agents/output/bot_final.py', 'w', encoding='utf-8') as f:
-    f.write(updated_code)
 
-print("✅ File saved successfully!")
-print("File size:", len(updated_code), "characters")
