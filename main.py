@@ -108,13 +108,13 @@ def translate_to_arabic(text):
     words = text_lower.split()
     translated_words = []
     for word in words:
-        clean_word = re.sub(r'[^\w\s]', '', word)
+        clean_word = re.sub(r'[^\\w\\s]', '', word)
         if clean_word in TRANSLATION_DICT:
             translated_words.append(TRANSLATION_DICT[clean_word])
         else:
             translated_words.append(word)
     result = " ".join(translated_words)
-    result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
+    result = re.sub(r'\\b(\\w+)\\s+\\1\\b', r'\\1', result)
     return result
 
 
@@ -168,7 +168,7 @@ def extract_asin(url):
     patterns = [
         r'/dp/([A-Z0-9]{10})', r'/gp/product/([A-Z0-9]{10})',
         r'/product/([A-Z0-9]{10})', r'([A-Z0-9]{10})/?$',
-        r'([A-Z0-9]{10})(?:[/?]|\b)'
+        r'([A-Z0-9]{10})(?:[/?]|\\b)'
     ]
     for p in patterns:
         m = re.search(p, url)
@@ -179,7 +179,7 @@ def extract_asin(url):
 
 def clean_price(price_text):
     try:
-        nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
+        nums = re.findall(r'[\\d,]+(?:.\\d+)?', price_text)
         if nums:
             num_str = nums[0].replace(",", "")
             num_float = float(num_str)
@@ -192,7 +192,7 @@ def clean_price(price_text):
 
 def extract_number(price_text):
     try:
-        nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
+        nums = re.findall(r'[\\d,]+(?:.\\d+)?', price_text)
         if nums:
             return float(nums[0].replace(",", ""))
     except:
@@ -234,15 +234,15 @@ def clean_image_url(url):
     if not url:
         return None
     patterns_to_remove = [
-        r'_SX\d+_SY\d+_', r'_SX\d+_', r'_SY\d+_',
-        r'_CR\d+,\d+,\d+,\d+_', r'_AC_SL\d+_',
-        r'_SCLZZZZZZZ_', r'_FMwebp_', r'_QL\d+_',
+        r'_SX\\d+_SY\\d+_', r'_SX\\d+_', r'_SY\\d+_',
+        r'_CR\\d+,\\d+,\\d+,\\d+_', r'_AC_SL\\d+_',
+        r'_SCLZZZZZZZ_', r'_FMwebp_', r'_QL\\d+_',
     ]
     cleaned = url
     for pattern in patterns_to_remove:
         cleaned = re.sub(pattern, '_', cleaned)
     if '_SL' not in cleaned and 'amazon' in cleaned:
-        cleaned = re.sub(r'(\.[a-zA-Z]+)(\?.*)?$', r'_SL1500\1', cleaned)
+        cleaned = re.sub(r'(\\.[a-zA-Z]+)(\\?.*)?$', r'_SL1500\\1', cleaned)
     cleaned = cleaned.split('?')[0]
     return cleaned
 
@@ -266,7 +266,7 @@ def get_seller_info(soup):
     rating_elem = soup.select_one("[data-feature-name='merchant'] .a-icon-alt")
     if rating_elem:
         text = rating_elem.get_text(strip=True)
-        match = re.search(r'(\d+)%', text)
+        match = re.search(r'(\\d+)%', text)
         if match:
             seller_rating = int(match.group(1))
     return seller_name, seller_rating
@@ -282,7 +282,7 @@ def get_product_rating(soup):
         rating_elem = soup.select_one("[data-hook='rating-out-of-text']")
     if rating_elem:
         text = rating_elem.get_text(strip=True)
-        m = re.search(r'([\d.]+)', text)
+        m = re.search(r'([\\d.]+)', text)
         if m:
             rating = m.group(1)
 
@@ -291,7 +291,7 @@ def get_product_rating(soup):
         review_elem = soup.select_one("[data-hook='total-review-count']")
     if review_elem:
         text = review_elem.get_text(strip=True)
-        m = re.search(r'([\d,]+)', text)
+        m = re.search(r'([\\d,]+)', text)
         if m:
             review_count = m.group(1).replace(",", "")
 
@@ -321,11 +321,11 @@ def extract_coupon_info(text):
     if not text:
         return None, 0
     percent = 0
-    percent_match = re.search(r'(\d+)%', text)
+    percent_match = re.search(r'(\\d+)%', text)
     if percent_match:
         percent = int(percent_match.group(1))
     code = None
-    code_match = re.search(r'\b([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,}|[A-Z]{4,})\b', text)
+    code_match = re.search(r'\\b([A-Z]{3,}\\d{2,}|\\d{2,}[A-Z]{3,}|[A-Z]{4,})\\b', text)
     if code_match:
         candidate = code_match.group(1)
         if len(candidate) >= 4 and len(candidate) <= 15 and re.search(r'[A-Z]', candidate):
@@ -355,10 +355,10 @@ def get_all_coupons(soup, current_price_num):
 
     page_text = soup.get_text()
     explicit_patterns = [
-        r'(?:apply|clip|use|enter|استخدم|طبّق)\s+([A-Z0-9]{4,12})\s*(?:to save|للحصول|for)\s*(\d+)%',
-        r'([A-Z]{3,}\d{2,})\s*[-–]\s*save\s*(\d+)%',
-        r'([A-Z]{3,}\d{2,})\s*[-–]\s*(\d+)%\s*off',
-        r'(?:promo\s*code|كود\s*الخصم|كوبون)[\s:]+([A-Z0-9]{4,12})',
+        r'(?:apply|clip|use|enter|استخدم|طبّق)\\s+([A-Z0-9]{4,12})\\s*(?:to save|للحصول|for)\\s*(\\d+)%',
+        r'([A-Z]{3,}\\d{2,})\\s*[-–]\\s*save\\s*(\\d+)%',
+        r'([A-Z]{3,}\\d{2,})\\s*[-–]\\s*(\\d+)%\\s*off',
+        r'(?:promo\\s*code|كود\\s*الخصم|كوبون)[\\s:]+([A-Z0-9]{4,12})',
     ]
     for pattern in explicit_patterns:
         matches = re.findall(pattern, page_text, re.IGNORECASE)
@@ -535,7 +535,7 @@ def generate_post(product_data, original_url):
             price_block.append(f"💥 السعر الآن: {clean_current}")
     else:
         price_block.append(f"💰 السعر: {clean_current}")
-    parts.append("\n".join(price_block))
+    parts.append("\\n".join(price_block))
 
     # 4. Coupons block
     if all_coupons:
@@ -550,12 +550,12 @@ def generate_post(product_data, original_url):
             coupon_block.append("💡 كوبونات إضافية:")
             for c in all_coupons[1:3]:
                 coupon_block.append(f"   • {c['code']} — خصم {c['percent']}%")
-        parts.append("\n".join(coupon_block))
+        parts.append("\\n".join(coupon_block))
 
     # 5. Buy link
-    parts.append(f"🛒 رابط الشراء:\n{original_url}")
+    parts.append(f"🛒 رابط الشراء:\\n{original_url}")
 
-    return "\n\n".join(parts)
+    return "\\n\\n".join(parts)
 
 
 def generate_ai_headline(product_name, category, gender, context, discount_pct, price, old_price, all_coupons):
@@ -684,7 +684,7 @@ def generate_ai_headline(product_name, category, gender, context, discount_pct, 
             result = r.json()
             sentence = result["choices"][0]["message"]["content"].strip()
             sentence = sentence.replace('"', '').replace("'", "").strip()
-            sentence = re.sub(r'^[ـ\s]+', '', sentence)
+            sentence = re.sub(r'^[ـ\\s]+', '', sentence)
 
             forbidden = ["ياجدعان", "ياجماعه", "ياجماعة", "يالله يا", "حياكم", "يالا"]
             for f in forbidden:
@@ -720,7 +720,7 @@ def _fallback_headline(category):
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
     text = msg.text.strip()
-    urls = re.findall(r'https?://\S+', text)
+    urls = re.findall(r'https?://\\S+', text)
 
     if not urls:
         bot.reply_to(msg, "❌ يرجى إرسال رابط المنتج من أمازون السعودية")
@@ -765,3 +765,10 @@ def handler(msg):
 
 print("🤖 البوت يعمل — صيدات وصفقات 🔥")
 bot.infinity_polling()
+'''
+
+with open('/mnt/agents/output/bot_final.py', 'w', encoding='utf-8') as f:
+    f.write(updated_code)
+
+print("✅ File saved successfully!")
+print("File size:", len(updated_code), "characters")
