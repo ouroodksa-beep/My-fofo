@@ -11,12 +11,8 @@ bot = telebot.TeleBot(TOKEN)
 
 GROQ_API_KEY = "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"
 
-# Test mode - set to True to test without Telegram
-TEST_MODE = False
-
 
 def protect_brands(text):
-    """Pass-through - AI handles brands naturally"""
     return text
 
 
@@ -147,45 +143,18 @@ def get_category_emoji(category):
 
 
 def expand_url(url):
-    """Expand short URLs with better handling for amzn.to links"""
     try:
-        # Check if it's a short URL
-        short_domains = ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'short.link', 'ow.ly', 'buff.ly']
-        is_short = any(short in url.lower() for short in short_domains)
-
-        if not is_short:
-            return url
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "DNT": "1",
-            "Connection": "keep-alive",
-        }
-
-        # First try with HEAD request (faster)
-        try:
-            r = requests.head(url, headers=headers, allow_redirects=True, timeout=15)
-            if r.status_code in [200, 301, 302] and r.url != url:
-                return r.url
-        except:
-            pass
-
-        # Fallback to GET request
-        r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
-        return r.url
-
-    except Exception as e:
-        print(f"Error expanding URL {url}: {e}")
+        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl']):
+            headers = {"User-Agent": "Mozilla/5.0"}
+            r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
+            return r.url
+        return url
+    except:
         return url
 
 
 def is_saudi_amazon(url):
-    """Check if URL is from Amazon Saudi Arabia"""
-    url_lower = url.lower()
-    return "amazon.sa" in url_lower or "saudi.amazon" in url_lower
+    return "amazon.sa" in url.lower()
 
 
 def extract_asin(url):
@@ -586,7 +555,6 @@ def generate_ai_headline(product_name, category, gender, context, discount_pct, 
     """
     AI generates a creative multi-line opening block in pure Saudi dialect.
     Highly varied — never repeats the same pattern twice.
-    The AI is now responsible for detecting brand names from the product title.
     """
     gender_hint = ""
     if gender == "women":
@@ -630,7 +598,7 @@ def generate_ai_headline(product_name, category, gender, context, discount_pct, 
 اكتب بوست بالضبط زي الأمثلة دي:
 
 مثال 1:
-ممتاااازه وسعرها يابلاااش 
+ممتااااازه وسعرها يابلاااش 
 منظم خشبي مع سلتين غسيل 🧺🪵
 بسعر 94 ريال فقط مع الكوبون
 
@@ -661,8 +629,6 @@ def generate_ai_headline(product_name, category, gender, context, discount_pct, 
 - ممنوع: "عزيزي المتابع"، "لا تفوت الفرصة"، "تسوق الآن"
 - ممنوع تنسيق رسمي أو نقاط أو أرقام
 - ما تشرحش كتير — خلي فيه غموض يخلي الواحد يضغط الرابط
-- اكتشف اسم البراند من عنوان المنتج واستخدمه بشكل طبيعي في البوست
-- لا تكتب اسم البراند بالإنجليزي إلا لو كان معروف (مثل Nike, Apple, Adidas) — خلي الباقي بالعربي أو مختصر
 
 المنتج: {product_name}
 السعر القديم: {old_price if old_price else 'غير محدد'}
@@ -686,9 +652,7 @@ def generate_ai_headline(product_name, category, gender, context, discount_pct, 
                         "أنت كاتب محتوى سعودي خليجي محترف متخصص في التسويق بالعمولة على تلغرام. "
                         "أسلوبك: صدمة، تهويل، حماس شديد، لهجة سعودية خالصة. "
                         "كل جملة تكتبها مختلفة تماماً عن السابقة. "
-                        "ممنوع التكرار، ممنوع اللهجات الأخرى، ممنوع الكلمات المبتذلة. "
-                        "أنت تكتشف اسم البراند تلقائياً من عنوان المنتج وتستخدمه بشكل طبيعي في البوست. "
-                        "لا تعتمد على قائمة براندات جاهزة — استخدم ذكائك في التعرف على البراند."
+                        "ممنوع التكرار، ممنوع اللهجات الأخرى، ممنوع الكلمات المبتذلة."
                     )
                 },
                 {"role": "user", "content": prompt}
@@ -741,28 +705,6 @@ def _fallback_headline(category):
     return random.choice(fallbacks)
 
 
-def process_url(original_url):
-    """Process a single URL and return the post text"""
-    expanded = expand_url(original_url)
-    print(f"Expanded URL: {expanded}")
-
-    if not is_saudi_amazon(expanded):
-        return "❌ الرابط يجب أن يكون من amazon.sa"
-
-    asin = extract_asin(expanded)
-    if not asin:
-        return "❌ تعذر استخراج رقم المنتج"
-
-    print(f"ASIN: {asin}")
-    product = get_product(asin)
-
-    if not product:
-        return "❌ تعذر قراءة بيانات المنتج"
-
-    post = generate_post(product, original_url)
-    return post
-
-
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
     text = msg.text.strip()
@@ -809,21 +751,5 @@ def handler(msg):
                 bot.edit_message_text("❌ حدث خطأ في الإرسال", msg.chat.id, wait.message_id)
 
 
-if __name__ == "__main__":
-    # Test mode - process URL directly without Telegram
-    test_url = "https://amzn.to/4v3anoL"
-
-    print("=" * 60)
-    print("🔧 TEST MODE - Processing URL directly")
-    print("=" * 60)
-    print(f"Original URL: {test_url}")
-    print()
-
-    result = process_url(test_url)
-    print(result)
-    print()
-    print("=" * 60)
-
-    # Uncomment below to run the actual bot
-    # print("🤖 البوت يعمل — صيدات وصفقات 🔥")
-    # bot.infinity_polling()
+print("🤖 البوت يعمل — صيدات وصفقات 🔥")
+bot.infinity_polling()
