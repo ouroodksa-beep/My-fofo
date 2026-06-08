@@ -6,7 +6,7 @@ import time
 import json
 import random
 
-TOKEN = "7956075348:AAEYTL28GKeMN7TXyVeGM69iUcfg5ZwOSIk"
+TOKEN = "7956075348:AAGhje5ywzVq1ktdWIQ-7KOeisWbje9amf0"
 bot = telebot.TeleBot(TOKEN)
 
 GROQ_API_KEY = "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"
