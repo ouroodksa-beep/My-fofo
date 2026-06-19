@@ -142,18 +142,15 @@ def get_category_emoji(category):
     return emojis.get(category, "📦")
 
 
-# ============ FIXED: expand_url with better link.amazon handling ============
 def expand_url(url):
     try:
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
 
-            # Handle link.amazon redirect pages with buttons
             if r.status_code == 200 and 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
 
-                # Try multiple selectors to find the redirect URL
                 redirect_selectors = [
                     'a[href*="amazon.sa"]',
                     'a[href*="amazon.com"]',
@@ -173,14 +170,12 @@ def expand_url(url):
                         if href and len(href) > 10:
                             return href
 
-                # Check for meta refresh
                 meta_refresh = soup.select_one('meta[http-equiv="refresh"]')
                 if meta_refresh:
                     content = meta_refresh.get('content', '')
                     if 'url=' in content:
                         return content.split('url=')[1].strip()
 
-                # Check for any link containing amazon
                 all_links = soup.find_all('a', href=True)
                 for link in all_links:
                     href = link.get('href', '')
@@ -200,19 +195,18 @@ def is_saudi_amazon(url):
     return "amazon.sa" in url.lower()
 
 
-# ============ FIXED: extract_asin with case-insensitive ASIN matching ============
+# ============ FIXED: extract_asin accepts 9-10 character ASINs ============
 def extract_asin(url):
-    # Handle link.amazon/B09dnAbRR format (mixed case ASINs)
+    # Handle link.amazon/XXXXXXXXX format (9-10 chars, mixed case)
     if 'link.amazon' in url.lower():
-        match = re.search(r'link\.amazon/([A-Za-z0-9]{10})', url, re.IGNORECASE)
+        match = re.search(r'link\.amazon/([A-Za-z0-9]{9,10})', url, re.IGNORECASE)
         if match:
-            return match.group(1).upper()  # Normalize to uppercase
+            return match.group(1).upper()
 
-    # Also try to extract from expanded amazon.sa URLs
     patterns = [
-        r'/dp/([A-Z0-9]{10})', r'/gp/product/([A-Z0-9]{10})',
-        r'/product/([A-Z0-9]{10})', r'([A-Z0-9]{10})/?$',
-        r'([A-Z0-9]{10})(?:[/?]|\b)'
+        r'/dp/([A-Z0-9]{9,10})', r'/gp/product/([A-Z0-9]{9,10})',
+        r'/product/([A-Z0-9]{9,10})', r'([A-Z0-9]{9,10})/?$',
+        r'([A-Z0-9]{9,10})(?:[/?]|\b)'
     ]
     for p in patterns:
         m = re.search(p, url)
@@ -535,7 +529,7 @@ def generate_post(product_data, original_url):
     # Build the FULL Amazon link from ASIN
     asin = extract_asin(original_url)
     if not asin:
-        asin_match = re.search(r'/dp/([A-Z0-9]{10})', original_url)
+        asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', original_url)
         if asin_match:
             asin = asin_match.group(1)
     full_link = f"https://www.amazon.sa/dp/{asin}" if asin else original_url
