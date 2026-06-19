@@ -142,49 +142,73 @@ def get_category_emoji(category):
     return emojis.get(category, "📦")
 
 
-# ============ MODIFIED: expand_url ============
+# ============ FIXED: expand_url with better link.amazon handling ============
 def expand_url(url):
     try:
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
 
-            # If it's a redirect page with a button (like link.amazon), extract the real URL
+            # Handle link.amazon redirect pages with buttons
             if r.status_code == 200 and 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
-                # Look for the redirect link/button
-                redirect_link = soup.select_one('a[href*="amazon.sa"]') or soup.select_one('a[href*="amazon.com"]')
-                if redirect_link:
-                    return redirect_link.get('href')
-                # Also check for meta refresh
+
+                # Try multiple selectors to find the redirect URL
+                redirect_selectors = [
+                    'a[href*="amazon.sa"]',
+                    'a[href*="amazon.com"]',
+                    'a[href*="/dp/"]',
+                    'a[href*="/gp/product/"]',
+                    '.redirect-button',
+                    'a.button',
+                    'a.btn',
+                    'a[href^="https://www.amazon"]',
+                    'a[href^="https://amazon"]',
+                ]
+
+                for selector in redirect_selectors:
+                    redirect_link = soup.select_one(selector)
+                    if redirect_link:
+                        href = redirect_link.get('href')
+                        if href and len(href) > 10:
+                            return href
+
+                # Check for meta refresh
                 meta_refresh = soup.select_one('meta[http-equiv="refresh"]')
                 if meta_refresh:
                     content = meta_refresh.get('content', '')
                     if 'url=' in content:
                         return content.split('url=')[1].strip()
 
+                # Check for any link containing amazon
+                all_links = soup.find_all('a', href=True)
+                for link in all_links:
+                    href = link.get('href', '')
+                    if 'amazon' in href.lower() and len(href) > 15:
+                        return href
+
             return r.url
         return url
-    except:
+    except Exception as e:
+        print(f"expand_url error: {e}")
         return url
 
 
-# ============ MODIFIED: is_saudi_amazon ============
 def is_saudi_amazon(url):
-    # Accept link.amazon short URLs (they redirect to amazon.sa)
     if "link.amazon" in url.lower():
         return True
     return "amazon.sa" in url.lower()
 
 
-# ============ MODIFIED: extract_asin ============
+# ============ FIXED: extract_asin with case-insensitive ASIN matching ============
 def extract_asin(url):
-    # Handle link.amazon/B02sgu1P5 format directly
+    # Handle link.amazon/B09dnAbRR format (mixed case ASINs)
     if 'link.amazon' in url.lower():
-        match = re.search(r'link\.amazon/([A-Z0-9]{10})', url, re.IGNORECASE)
+        match = re.search(r'link\.amazon/([A-Za-z0-9]{10})', url, re.IGNORECASE)
         if match:
-            return match.group(1)
+            return match.group(1).upper()  # Normalize to uppercase
 
+    # Also try to extract from expanded amazon.sa URLs
     patterns = [
         r'/dp/([A-Z0-9]{10})', r'/gp/product/([A-Z0-9]{10})',
         r'/product/([A-Z0-9]{10})', r'([A-Z0-9]{10})/?$',
@@ -293,10 +317,8 @@ def get_seller_info(soup):
 
 
 def get_product_rating(soup):
-    """Extract product star rating and review count"""
     rating = None
     review_count = None
-
     rating_elem = soup.select_one("#acrPopover .a-icon-alt")
     if not rating_elem:
         rating_elem = soup.select_one("[data-hook='rating-out-of-text']")
@@ -305,7 +327,6 @@ def get_product_rating(soup):
         m = re.search(r'([\d.]+)', text)
         if m:
             rating = m.group(1)
-
     review_elem = soup.select_one("#acrCustomerReviewText")
     if not review_elem:
         review_elem = soup.select_one("[data-hook='total-review-count']")
@@ -314,12 +335,10 @@ def get_product_rating(soup):
         m = re.search(r'([\d,]+)', text)
         if m:
             review_count = m.group(1).replace(",", "")
-
     return rating, review_count
 
 
 def get_stock_info(soup):
-    """Check if stock is limited"""
     stock_text = None
     selectors = [
         "#availability span",
@@ -372,7 +391,6 @@ def get_all_coupons(soup, current_price_num):
                 if code and percent > 0:
                     final_price = int(current_price_num - (current_price_num * percent / 100))
                     found_coupons.append({"code": code, "percent": percent, "final_price": final_price, "text": text})
-
     page_text = soup.get_text()
     explicit_patterns = [
         r'(?:apply|clip|use|enter|استخدم|طبّق)\s+([A-Z0-9]{4,12})\s*(?:to save|للحصول|for)\s*(\d+)%',
@@ -390,7 +408,6 @@ def get_all_coupons(soup, current_price_num):
             if code and len(code) >= 4 and percent > 0:
                 final_price = int(current_price_num - (current_price_num * percent / 100))
                 found_coupons.append({"code": code.upper(), "percent": percent, "final_price": final_price, "text": f"{code} خصم {percent}%"})
-
     seen = {}
     unique = []
     for c in found_coupons:
@@ -409,7 +426,6 @@ def get_product(asin):
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
     ]
-
     for attempt, ua in enumerate(user_agents):
         try:
             if attempt > 0:
@@ -428,13 +444,11 @@ def get_product(asin):
             r = requests.get(url, headers=headers, timeout=30)
             if r.status_code != 200 or len(r.text) < 5000:
                 continue
-
             soup = BeautifulSoup(r.text, "html.parser")
             title_elem = soup.select_one("#productTitle")
             if not title_elem:
                 continue
             full_title = title_elem.text.strip()
-
             price = None
             price_selectors = [
                 ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
@@ -450,7 +464,6 @@ def get_product(asin):
                     price = elem.text.strip()
                     if any(c.isdigit() for c in price):
                         break
-
             old_price = None
             old_selectors = [
                 ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
@@ -464,14 +477,12 @@ def get_product(asin):
                     if text != price and any(c.isdigit() for c in text):
                         old_price = text
                         break
-
             image = get_high_quality_image(soup)
             seller_name, seller_rating = get_seller_info(soup)
             rating, review_count = get_product_rating(soup)
             stock_info = get_stock_info(soup)
             current_price_num = extract_number(price) if price else 0
             all_coupons = get_all_coupons(soup, current_price_num)
-
             if price:
                 arabic_title = smart_arabic_title(full_title)
                 return {
@@ -488,16 +499,14 @@ def get_product(asin):
                     "all_coupons": all_coupons,
                     "current_price_num": current_price_num,
                 }
-
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
             continue
-
     return None
 
 
 def generate_post(product_data, original_url):
-    """Generate full Telegram post in the X-Zone channel style"""
+    """Generate full Telegram post WITHOUT headline - using full Amazon link"""
     name = product_data["name"]
     full_title = product_data.get("full_title", name)
     price = product_data["price"]
@@ -523,29 +532,20 @@ def generate_post(product_data, original_url):
     if old_num > current_price_num and old_num > 0:
         discount_pct = int(((old_num - current_price_num) / old_num) * 100)
 
-    # Build context for AI headline
-    context_parts = []
-    if clean_old and old_num > current_price_num:
-        context_parts.append(f"السعر كان {clean_old} والآن {clean_current}")
-    if discount_pct > 0:
-        context_parts.append(f"خصم {discount_pct}%")
-    if all_coupons:
-        best = all_coupons[0]
-        context_parts.append(f"كوبون إضافي {best['percent']}%")
-    context = " | ".join(context_parts)
-
-    # --- AI generates the headline (line 1) ---
-    headline = generate_ai_headline(name, category, gender, context, discount_pct, price, old_price, all_coupons)
+    # Build the FULL Amazon link from ASIN
+    asin = extract_asin(original_url)
+    if not asin:
+        asin_match = re.search(r'/dp/([A-Z0-9]{10})', original_url)
+        if asin_match:
+            asin = asin_match.group(1)
+    full_link = f"https://www.amazon.sa/dp/{asin}" if asin else original_url
 
     parts = []
 
-    # 1. Headline
-    parts.append(headline)
-
-    # 2. Product name with category emoji
+    # 1. Product name with category emoji (NO headline)
     parts.append(f"{category_emoji} {name}")
 
-    # 3. Prices block
+    # 2. Prices block
     price_block = []
     if clean_old and old_num > current_price_num:
         price_block.append(f"❌ السعر السابق: {clean_old}")
@@ -557,7 +557,7 @@ def generate_post(product_data, original_url):
         price_block.append(f"💰 السعر: {clean_current}")
     parts.append("\n".join(price_block))
 
-    # 4. Coupons block
+    # 3. Coupons block
     if all_coupons:
         best = all_coupons[0]
         final_after_coupon = best["final_price"]
@@ -565,148 +565,16 @@ def generate_post(product_data, original_url):
         coupon_block.append(
             f"🎟️ كوبون إضافي {best['percent']}% ← يصير بـ {final_after_coupon} ريال فقط! 🔥"
         )
-        # Extra coupons
         if len(all_coupons) > 1:
             coupon_block.append("💡 كوبونات إضافية:")
             for c in all_coupons[1:3]:
                 coupon_block.append(f"   • {c['code']} — خصم {c['percent']}%")
         parts.append("\n".join(coupon_block))
 
-    # 5. Buy link
-    parts.append(f"🛒 رابط الشراء:\n{original_url}")
+    # 4. Buy link (FULL Amazon link, not shortened)
+    parts.append(f"🛒 رابط الشراء:\n{full_link}")
 
     return "\n\n".join(parts)
-
-
-def generate_ai_headline(product_name, category, gender, context, discount_pct, price, old_price, all_coupons):
-    """
-    AI generates a creative multi-line opening block in pure Saudi dialect.
-    Highly varied — never repeats the same pattern twice.
-    """
-    gender_hint = ""
-    if gender == "women":
-        gender_hint = "المنتج نسائي — اكتب بأسلوب يخاطب البنات والنساء السعوديات."
-    elif gender == "men":
-        gender_hint = "المنتج رجالي — اكتب بأسلوب يخاطب الشباب والرجال السعوديين."
-    else:
-        gender_hint = "المنتج للجنسين — اكتب بأسلوب عام."
-
-    discount_hint = f"الخصم {discount_pct}% — ركّز عليه في الجملة." if discount_pct > 0 else ""
-
-    # Rich pool of styles — one picked randomly each call
-    styles = [
-        'افتح بـ "🚨 صيدة" + اسم المنتج المختصر + جملة صدمة عن السعر',
-        'افتح بـ "🔥" + جملة تهويل عن الخصم + "ما يطيح مرتين!"',
-        'افتح بـ "😱 والله؟!" + اسم المنتج + "بهالسعر؟!"',
-        'افتح بأسلوب الصياد: "🎯 لحقوا!" + اسم المنتج + "قبل ما يخلص!"',
-        'افتح بأسلوب الصدمة: "💥 كذب؟!" + اسم المنتج + وصف السعر المجنون',
-        'افتح بـ "⚡️ عاجل!" + جملة فزعة عن الكمية المحدودة والسعر',
-        'افتح بأسلوب الغنيمة: "💰 غنيمة العمر!" + اسم المنتج',
-        'افتح بأسلوب التحدي: "🏆 جربوا تلقون مثلها!" + اسم المنتج + السعر',
-        'افتح بـ "🔥 انفجار!" + اسم المنتج + "بسعر جنوني!"',
-        'افتح بأسلوب الخبر العاجل: "📢 بشارة!" + اسم المنتج + وصف العرض',
-        'افتح بـ "😤 مو معقول!" + اسم المنتج + "بهالحق؟!"',
-        'افتح بأسلوب النادر: "💎 نادر يصير!" + اسم المنتج + "بهالسعر"',
-        'افتح بـ "🚀 طار السعر!" + اسم المنتج + "لتحت!"',
-        'افتح بأسلوب الهجمة: "🛒 هجوم!" + "اشتروا" + اسم المنتج + "قبل ما ترجع الأسعار"',
-        'افتح بـ "👀 شوفوا!" + اسم المنتج + جملة وصف مختصرة للعرض',
-    ]
-    chosen_style = random.choice(styles)
-
-    # Extra spice words to encourage variety
-    saudi_words = random.sample([
-        "صطولة", "صيدة", "غنيمة", "هجمة", "لحقوا", "شفتوا", "ما يصدق",
-        "والله العظيم", "بالحق", "زبالة السعر", "تهبيلة", "مستحيل", "ما يطيح",
-        "طار السعر", "دفعة واحدة", "قبل ما يخلص", "اللي فاته فاته",
-    ], k=3)
-
-    prompt = f"""أنت شخص سعودي عادي بيدير قناة تلغرام للصيدات.
-
-اكتب بوست بالضبط زي الأمثلة دي:
-
----
-قواعد صارمة:
-- مد الحروف أحياناً: صيييييده، ممتاااازه، يابلاااش
-- جمل قصيرة ومباشرة بدون فصحى
-- الإيموجي جنب الكلام مش سطر لوحده
-- ❌ و ✅ للمقارنة بين السعرين
-- ممنوع: "عزيزي المتابع"، "لا تفوت الفرصة"، "تسوق الآن"
-- ممنوع تنسيق رسمي أو نقاط أو أرقام
-- ما تشرحش كتير — خلي فيه غموض يخلي الواحد يضغط الرابط
-
-المنتج: {product_name}
-السعر القديم: {old_price if old_price else 'غير محدد'}
-السعر الجديد: {price}
-{f'كوبون: {all_coupons[0]["code"]} خصم {all_coupons[0]["percent"]}%' if all_coupons else ''}
-{f'ملاحظة: {context}' if context else ''}
-
-اكتب البوست مباشرة بدون أي مقدمة:"""
-
-    try:
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "llama-3.3-70b-versatile",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "أنت كاتب محتوى سعودي خليجي محترف متخصص في التسويق بالعمولة على تلغرام. "
-                        "أسلوبك: صدمة، تهويل، حماس شديد، لهجة سعودية خالصة. "
-                        "كل جملة تكتبها مختلفة تماماً عن السابقة. "
-                        "ممنوع التكرار، ممنوع اللهجات الأخرى، ممنوع الكلمات المبتذلة."
-                    )
-                },
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 1.0,
-            "max_tokens": 60,
-        }
-
-        r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=data,
-            timeout=20
-        )
-
-        if r.status_code == 200:
-            result = r.json()
-            sentence = result["choices"][0]["message"]["content"].strip()
-            sentence = sentence.replace('"', '').replace("'", "").strip()
-            sentence = re.sub(r'^[ـ\s]+', '', sentence)
-
-            forbidden = ["ياجدعان", "ياجماعه", "ياجماعة", "يالله يا", "حياكم", "يالا"]
-            for f in forbidden:
-                if f in sentence.replace(" ", ""):
-                    return _fallback_headline(category)
-
-            return sentence
-
-    except Exception as e:
-        print(f"Groq error: {e}")
-
-    return _fallback_headline(category)
-
-
-def _fallback_headline(category):
-    fallbacks = [
-        "🚨 صيدة اليوم! سعر ما يطيح مرتين 🔥",
-        "😱 والله؟! بهالسعر؟! لحقوا قبل ما يخلص 💥",
-        "🔥 انفجار سعر! غنيمة ما تفوت ⚡️",
-        "💥 كذب؟! أرخص سعر شفناه من زمان 🎯",
-        "🚀 طار السعر لتحت! اشتروا الحين 🔥",
-        "😤 مو معقول! بهالحق؟! صطولة والله 💎",
-        "⚡️ عاجل! هجمة قبل ما ترجع الأسعار 🛒",
-        "🎯 لحقوا! هالصفقة ما تنطر أحد 🔥",
-        "💰 غنيمة العمر! ما يجي مثلها 😱",
-        "🔥 ما يصدق! سعر تهبيلة الحين الحين ⚡️",
-        "🚨 بشارة! نزل السعر بشكل جنوني 💥",
-        "👀 شوفوا! اللي فاته فاته 🔥",
-    ]
-    return random.choice(fallbacks)
 
 
 @bot.message_handler(func=lambda m: True)
