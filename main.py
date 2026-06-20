@@ -5,11 +5,16 @@ import re
 import time
 import json
 import random
+import os
 
 TOKEN = "7956075348:AAGhje5ywzVq1ktdWIQ-7KOeisWbje9amf0"
 bot = telebot.TeleBot(TOKEN)
 
 GROQ_API_KEY = "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"
+
+# Optional: Set proxy in environment variable
+# PROXY_URL = os.environ.get("PROXY_URL")  # e.g., "http://user:pass@host:port"
+PROXY_URL = None
 
 
 def protect_brands(text):
@@ -142,21 +147,18 @@ def get_category_emoji(category):
     return emojis.get(category, "📦")
 
 
-# ============ FIXED: expand_url with ASIN extraction from HTML ============
+# ============ FIXED: expand_url with better ASIN extraction ============
 def expand_url(url):
     try:
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
 
-            # For link.amazon, try to extract ASIN from the page and build proper URL
             if 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
 
-                # Try to find ASIN in the page content
-                asin = None
-
                 # Method 1: Look for ASIN in product details table
+                asin = None
                 detail_rows = soup.find_all('tr')
                 for row in detail_rows:
                     cells = row.find_all(['td', 'th'])
@@ -168,15 +170,14 @@ def expand_url(url):
                     if asin:
                         break
 
-                # Method 2: Look for ASIN in meta tags or data attributes
+                # Method 2: Look for ASIN in page text
                 if not asin:
-                    # Check for ASIN in any element
                     page_text = soup.get_text()
                     asin_match = re.search(r'ASIN\s*[:\-]?\s*([A-Z0-9]{9,10})', page_text, re.IGNORECASE)
                     if asin_match:
                         asin = asin_match.group(1)
 
-                # Method 3: Try canonical URL or other links
+                # Method 3: Canonical URL
                 if not asin:
                     canonical = soup.select_one('link[rel="canonical"]')
                     if canonical:
@@ -185,7 +186,7 @@ def expand_url(url):
                         if asin_match:
                             asin = asin_match.group(1)
 
-                # Method 4: Look for any /dp/ pattern in all links
+                # Method 4: Any /dp/ link
                 if not asin:
                     all_links = soup.find_all('a', href=True)
                     for link in all_links:
@@ -195,35 +196,10 @@ def expand_url(url):
                             asin = asin_match.group(1)
                             break
 
-                # If we found ASIN, return the proper Amazon URL
                 if asin:
                     return f"https://www.amazon.sa/dp/{asin}"
 
-                # Fallback: try to find any redirect link
-                redirect_selectors = [
-                    'a[href*="amazon.sa"]',
-                    'a[href*="amazon.com"]',
-                    'a[href*="/dp/"]',
-                    'a[href*="/gp/product/"]',
-                    'a[href^="https://www.amazon"]',
-                    'a[href^="https://amazon"]',
-                ]
-
-                for selector in redirect_selectors:
-                    redirect_link = soup.select_one(selector)
-                    if redirect_link:
-                        href = redirect_link.get('href')
-                        if href and len(href) > 10:
-                            return href
-
-                # Check for meta refresh
-                meta_refresh = soup.select_one('meta[http-equiv="refresh"]')
-                if meta_refresh:
-                    content = meta_refresh.get('content', '')
-                    if 'url=' in content:
-                        return content.split('url=')[1].strip()
-
-                # Last resort: return the final URL from requests
+                # Fallback: return final URL
                 return r.url
 
             return r.url
@@ -240,7 +216,6 @@ def is_saudi_amazon(url):
 
 
 def extract_asin(url):
-    # Handle link.amazon/XXXXXXXXX format (9-10 chars, mixed case)
     if 'link.amazon' in url.lower():
         match = re.search(r'link\.amazon/([A-Za-z0-9]{9,10})', url, re.IGNORECASE)
         if match:
@@ -456,36 +431,81 @@ def get_all_coupons(soup, current_price_num):
     return unique
 
 
+# ============ FIXED: get_product with better headers and session support ============
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
+
+    # More realistic browser headers
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
     ]
+
     for attempt, ua in enumerate(user_agents):
         try:
             if attempt > 0:
-                time.sleep(2)
+                time.sleep(2 + attempt)
+
+            # Create session with cookies
+            session = requests.Session()
+
             headers = {
                 "User-Agent": ua,
-                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                 "Accept-Encoding": "gzip, deflate, br",
                 "DNT": "1",
                 "Connection": "keep-alive",
                 "Upgrade-Insecure-Requests": "1",
                 "Cache-Control": "max-age=0",
                 "Referer": "https://www.google.com/",
+                "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": '"Windows"',
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-Fetch-User": "?1",
             }
-            r = requests.get(url, headers=headers, timeout=30)
-            if r.status_code != 200 or len(r.text) < 5000:
+
+            proxies = {}
+            if PROXY_URL:
+                proxies = {
+                    "http": PROXY_URL,
+                    "https": PROXY_URL
+                }
+
+            # First visit Amazon homepage to get cookies
+            try:
+                session.get("https://www.amazon.sa/", headers=headers, timeout=10, proxies=proxies)
+            except:
+                pass
+
+            r = session.get(url, headers=headers, timeout=30, proxies=proxies)
+
+            print(f"Attempt {attempt + 1}: Status {r.status_code}, Length {len(r.text)}")
+
+            if r.status_code != 200:
+                print(f"  Non-200 status: {r.status_code}")
                 continue
+
+            if len(r.text) < 5000:
+                print(f"  Content too short: {len(r.text)} chars")
+                # Check if blocked
+                if "captcha" in r.text.lower() or "robot" in r.text.lower():
+                    print("  CAPTCHA/BOT detected!")
+                continue
+
             soup = BeautifulSoup(r.text, "html.parser")
             title_elem = soup.select_one("#productTitle")
             if not title_elem:
+                print("  Title not found")
                 continue
             full_title = title_elem.text.strip()
+
+            # Try multiple price selectors
             price = None
             price_selectors = [
                 ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
@@ -493,7 +513,9 @@ def get_product(asin):
                 ".a-price.aok-align-center .a-offscreen",
                 ".a-price .a-offscreen",
                 "[data-a-color='price'] .a-offscreen",
-                ".a-price-whole"
+                ".a-price-whole",
+                "span.a-price span.a-offscreen",
+                ".a-price-buy-box .a-offscreen",
             ]
             for selector in price_selectors:
                 elem = soup.select_one(selector)
@@ -501,11 +523,19 @@ def get_product(asin):
                     price = elem.text.strip()
                     if any(c.isdigit() for c in price):
                         break
+
+            # Try to extract price from JSON data if HTML selectors fail
+            if not price:
+                price_match = re.search(r'"displayPrice"\s*:\s*"([^"]+)"', r.text)
+                if price_match:
+                    price = price_match.group(1)
+
             old_price = None
             old_selectors = [
                 ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
                 ".a-price.a-text-price .a-offscreen",
                 ".basisPrice .a-offscreen",
+                ".a-price.a-text-price[data-a-strike='true'] .a-offscreen",
             ]
             for selector in old_selectors:
                 elem = soup.select_one(selector)
@@ -514,31 +544,38 @@ def get_product(asin):
                     if text != price and any(c.isdigit() for c in text):
                         old_price = text
                         break
+
+            if not price:
+                print("  Price not found")
+                continue
+
             image = get_high_quality_image(soup)
             seller_name, seller_rating = get_seller_info(soup)
             rating, review_count = get_product_rating(soup)
             stock_info = get_stock_info(soup)
             current_price_num = extract_number(price) if price else 0
             all_coupons = get_all_coupons(soup, current_price_num)
-            if price:
-                arabic_title = smart_arabic_title(full_title)
-                return {
-                    "name": arabic_title,
-                    "full_title": full_title,
-                    "price": price,
-                    "old_price": old_price,
-                    "image": image,
-                    "seller_name": seller_name,
-                    "seller_rating": seller_rating,
-                    "rating": rating,
-                    "review_count": review_count,
-                    "stock_info": stock_info,
-                    "all_coupons": all_coupons,
-                    "current_price_num": current_price_num,
-                }
+
+            arabic_title = smart_arabic_title(full_title)
+            return {
+                "name": arabic_title,
+                "full_title": full_title,
+                "price": price,
+                "old_price": old_price,
+                "image": image,
+                "seller_name": seller_name,
+                "seller_rating": seller_rating,
+                "rating": rating,
+                "review_count": review_count,
+                "stock_info": stock_info,
+                "all_coupons": all_coupons,
+                "current_price_num": current_price_num,
+            }
+
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
             continue
+
     return None
 
 
@@ -625,12 +662,15 @@ def handler(msg):
 
     for original_url in urls:
         expanded = expand_url(original_url)
+        print(f"Original: {original_url}")
+        print(f"Expanded: {expanded}")
 
         if not is_saudi_amazon(expanded):
             bot.reply_to(msg, "❌ الرابط يجب أن يكون من amazon.sa")
             continue
 
         asin = extract_asin(expanded)
+        print(f"ASIN: {asin}")
         if not asin:
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج")
             continue
