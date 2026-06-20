@@ -13,8 +13,7 @@ bot = telebot.TeleBot(TOKEN)
 GROQ_API_KEY = "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"
 
 # Optional: Set proxy in environment variable
-# PROXY_URL = os.environ.get("PROXY_URL")  # e.g., "http://user:pass@host:port"
-PROXY_URL = None
+PROXY_URL = os.environ.get("PROXY_URL")
 
 
 def protect_brands(text):
@@ -147,7 +146,6 @@ def get_category_emoji(category):
     return emojis.get(category, "📦")
 
 
-# ============ FIXED: expand_url with better ASIN extraction ============
 def expand_url(url):
     try:
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
@@ -157,7 +155,6 @@ def expand_url(url):
             if 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
 
-                # Method 1: Look for ASIN in product details table
                 asin = None
                 detail_rows = soup.find_all('tr')
                 for row in detail_rows:
@@ -170,14 +167,12 @@ def expand_url(url):
                     if asin:
                         break
 
-                # Method 2: Look for ASIN in page text
                 if not asin:
                     page_text = soup.get_text()
                     asin_match = re.search(r'ASIN\s*[:\-]?\s*([A-Z0-9]{9,10})', page_text, re.IGNORECASE)
                     if asin_match:
                         asin = asin_match.group(1)
 
-                # Method 3: Canonical URL
                 if not asin:
                     canonical = soup.select_one('link[rel="canonical"]')
                     if canonical:
@@ -186,7 +181,6 @@ def expand_url(url):
                         if asin_match:
                             asin = asin_match.group(1)
 
-                # Method 4: Any /dp/ link
                 if not asin:
                     all_links = soup.find_all('a', href=True)
                     for link in all_links:
@@ -199,7 +193,6 @@ def expand_url(url):
                 if asin:
                     return f"https://www.amazon.sa/dp/{asin}"
 
-                # Fallback: return final URL
                 return r.url
 
             return r.url
@@ -431,24 +424,26 @@ def get_all_coupons(soup, current_price_num):
     return unique
 
 
-# ============ FIXED: get_product with better headers and session support ============
+# ============ MAJOR FIX: get_product with JSON-LD, better retries, delays ============
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
 
-    # More realistic browser headers
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36 Edg/117.0.2045.47",
     ]
 
     for attempt, ua in enumerate(user_agents):
         try:
+            # Exponential backoff + random delay
+            delay = (2 ** attempt) + random.uniform(0.5, 2.0)
             if attempt > 0:
-                time.sleep(2 + attempt)
+                print(f"  Waiting {delay:.1f}s before retry...")
+                time.sleep(delay)
 
-            # Create session with cookies
             session = requests.Session()
 
             headers = {
@@ -468,74 +463,139 @@ def get_product(asin):
                 "Sec-Fetch-Mode": "navigate",
                 "Sec-Fetch-Site": "cross-site",
                 "Sec-Fetch-User": "?1",
+                "Priority": "u=0, i",
             }
 
             proxies = {}
             if PROXY_URL:
-                proxies = {
-                    "http": PROXY_URL,
-                    "https": PROXY_URL
-                }
+                proxies = {"http": PROXY_URL, "https": PROXY_URL}
 
-            # First visit Amazon homepage to get cookies
+            # Visit homepage first to get cookies
             try:
                 session.get("https://www.amazon.sa/", headers=headers, timeout=10, proxies=proxies)
-            except:
-                pass
+                time.sleep(random.uniform(0.5, 1.5))
+            except Exception as e:
+                print(f"  Homepage visit failed: {e}")
 
             r = session.get(url, headers=headers, timeout=30, proxies=proxies)
 
             print(f"Attempt {attempt + 1}: Status {r.status_code}, Length {len(r.text)}")
 
             if r.status_code != 200:
-                print(f"  Non-200 status: {r.status_code}")
+                print(f"  Non-200 status, skipping...")
                 continue
 
-            if len(r.text) < 5000:
-                print(f"  Content too short: {len(r.text)} chars")
-                # Check if blocked
-                if "captcha" in r.text.lower() or "robot" in r.text.lower():
-                    print("  CAPTCHA/BOT detected!")
+            if len(r.text) < 3000:
+                print(f"  Content too short ({len(r.text)} chars), possible block")
+                if "captcha" in r.text.lower():
+                    print("  CAPTCHA detected!")
                 continue
 
             soup = BeautifulSoup(r.text, "html.parser")
+
+            # ========== TITLE EXTRACTION ==========
+            title = None
             title_elem = soup.select_one("#productTitle")
-            if not title_elem:
+            if title_elem:
+                title = title_elem.text.strip()
+
+            # Fallback: JSON-LD
+            if not title:
+                json_ld = soup.select_one('script[type="application/ld+json"]')
+                if json_ld:
+                    try:
+                        data = json.loads(json_ld.string)
+                        if isinstance(data, dict):
+                            title = data.get('name', '')
+                        elif isinstance(data, list):
+                            for item in data:
+                                if isinstance(item, dict) and item.get('@type') == 'Product':
+                                    title = item.get('name', '')
+                                    break
+                    except:
+                        pass
+
+            if not title:
                 print("  Title not found")
                 continue
-            full_title = title_elem.text.strip()
 
-            # Try multiple price selectors
+            # ========== PRICE EXTRACTION (Multiple methods) ==========
             price = None
+            old_price = None
+
+            # Method 1: Standard selectors
             price_selectors = [
                 ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
                 ".a-price.a-text-price.apexPriceToPay .a-offscreen",
                 ".a-price.aok-align-center .a-offscreen",
                 ".a-price .a-offscreen",
-                "[data-a-color='price'] .a-offscreen",
-                ".a-price-whole",
                 "span.a-price span.a-offscreen",
                 ".a-price-buy-box .a-offscreen",
+                "[data-a-color='price'] .a-offscreen",
+                ".a-price-whole",
+                ".a-price-current .a-offscreen",
+                ".a-price-to-pay .a-offscreen",
             ]
             for selector in price_selectors:
                 elem = soup.select_one(selector)
                 if elem and elem.text:
-                    price = elem.text.strip()
-                    if any(c.isdigit() for c in price):
+                    text = elem.text.strip()
+                    if any(c.isdigit() for c in text):
+                        price = text
                         break
 
-            # Try to extract price from JSON data if HTML selectors fail
+            # Method 2: JSON-LD price
+            if not price:
+                json_ld = soup.select_one('script[type="application/ld+json"]')
+                if json_ld:
+                    try:
+                        data = json.loads(json_ld.string)
+                        if isinstance(data, dict):
+                            offers = data.get('offers', {})
+                            if isinstance(offers, dict):
+                                price = offers.get('price', '')
+                                if price:
+                                    price = f"SAR {price}"
+                        elif isinstance(data, list):
+                            for item in data:
+                                if isinstance(item, dict) and item.get('@type') == 'Product':
+                                    offers = item.get('offers', {})
+                                    if isinstance(offers, dict):
+                                        price = offers.get('price', '')
+                                        if price:
+                                            price = f"SAR {price}"
+                                    break
+                    except:
+                        pass
+
+            # Method 3: Regex from page text
             if not price:
                 price_match = re.search(r'"displayPrice"\s*:\s*"([^"]+)"', r.text)
                 if price_match:
                     price = price_match.group(1)
 
-            old_price = None
+            if not price:
+                price_match = re.search(r'"priceAmount"\s*:\s*([\d.]+)', r.text)
+                if price_match:
+                    price = f"SAR {price_match.group(1)}"
+
+            # Method 4: Look for SAR/ريال in page text
+            if not price:
+                price_match = re.search(r'SAR\s*([\d,]+(?:\.\d+)?)', r.text)
+                if price_match:
+                    price = f"SAR {price_match.group(1)}"
+
+            if not price:
+                print("  Price not found")
+                continue
+
+            # Old price extraction
             old_selectors = [
                 ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
                 ".a-price.a-text-price .a-offscreen",
                 ".basisPrice .a-offscreen",
                 ".a-price.a-text-price[data-a-strike='true'] .a-offscreen",
+                ".a-price[data-a-color='secondary'] .a-offscreen",
             ]
             for selector in old_selectors:
                 elem = soup.select_one(selector)
@@ -545,10 +605,7 @@ def get_product(asin):
                         old_price = text
                         break
 
-            if not price:
-                print("  Price not found")
-                continue
-
+            # ========== OTHER DATA ==========
             image = get_high_quality_image(soup)
             seller_name, seller_rating = get_seller_info(soup)
             rating, review_count = get_product_rating(soup)
@@ -556,10 +613,13 @@ def get_product(asin):
             current_price_num = extract_number(price) if price else 0
             all_coupons = get_all_coupons(soup, current_price_num)
 
-            arabic_title = smart_arabic_title(full_title)
+            arabic_title = smart_arabic_title(title)
+
+            print(f"  SUCCESS: '{arabic_title[:50]}...' at {price}")
+
             return {
                 "name": arabic_title,
-                "full_title": full_title,
+                "full_title": title,
                 "price": price,
                 "old_price": old_price,
                 "image": image,
@@ -576,6 +636,7 @@ def get_product(asin):
             print(f"Attempt {attempt + 1} failed: {e}")
             continue
 
+    print("  All attempts failed")
     return None
 
 
@@ -601,12 +662,10 @@ def generate_post(product_data, original_url):
     clean_old = clean_price(old_price) if old_price else None
     old_num = extract_number(old_price) if old_price else 0
 
-    # Calculate discount percentage
     discount_pct = 0
     if old_num > current_price_num and old_num > 0:
         discount_pct = int(((old_num - current_price_num) / old_num) * 100)
 
-    # Build the FULL Amazon link from ASIN
     asin = extract_asin(original_url)
     if not asin:
         asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', original_url)
@@ -615,11 +674,8 @@ def generate_post(product_data, original_url):
     full_link = f"https://www.amazon.sa/dp/{asin}" if asin else original_url
 
     parts = []
-
-    # 1. Product name with category emoji (NO headline)
     parts.append(f"{category_emoji} {name}")
 
-    # 2. Prices block
     price_block = []
     if clean_old and old_num > current_price_num:
         price_block.append(f"❌ السعر السابق: {clean_old}")
@@ -631,21 +687,17 @@ def generate_post(product_data, original_url):
         price_block.append(f"💰 السعر: {clean_current}")
     parts.append("\n".join(price_block))
 
-    # 3. Coupons block
     if all_coupons:
         best = all_coupons[0]
         final_after_coupon = best["final_price"]
         coupon_block = []
-        coupon_block.append(
-            f"🎟️ كوبون إضافي {best['percent']}% ← يصير بـ {final_after_coupon} ريال فقط! 🔥"
-        )
+        coupon_block.append(f"🎟️ كوبون إضافي {best['percent']}% ← يصير بـ {final_after_coupon} ريال فقط! 🔥")
         if len(all_coupons) > 1:
             coupon_block.append("💡 كوبونات إضافية:")
             for c in all_coupons[1:3]:
                 coupon_block.append(f"   • {c['code']} — خصم {c['percent']}%")
         parts.append("\n".join(coupon_block))
 
-    # 4. Buy link (FULL Amazon link, not shortened)
     parts.append(f"🛒 رابط الشراء:\n{full_link}")
 
     return "\n\n".join(parts)
@@ -661,8 +713,10 @@ def handler(msg):
         return
 
     for original_url in urls:
+        print(f"\n{'='*50}")
+        print(f"Processing: {original_url}")
+
         expanded = expand_url(original_url)
-        print(f"Original: {original_url}")
         print(f"Expanded: {expanded}")
 
         if not is_saudi_amazon(expanded):
