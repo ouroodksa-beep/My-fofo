@@ -924,6 +924,9 @@ def handler(msg):
             continue
 
         post = generate_post(product, original_url)
+        # ============ USE ORIGINAL URL ============
+parts.append(f"🛒 رابط الشراء:\n{original_url}")
+
 
         try:
             if product["image"]:
