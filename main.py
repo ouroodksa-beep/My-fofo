@@ -142,23 +142,69 @@ def get_category_emoji(category):
     return emojis.get(category, "📦")
 
 
+# ============ FIXED: expand_url with ASIN extraction from HTML ============
 def expand_url(url):
     try:
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
 
-            if r.status_code == 200 and 'link.amazon' in url.lower():
+            # For link.amazon, try to extract ASIN from the page and build proper URL
+            if 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
 
+                # Try to find ASIN in the page content
+                asin = None
+
+                # Method 1: Look for ASIN in product details table
+                detail_rows = soup.find_all('tr')
+                for row in detail_rows:
+                    cells = row.find_all(['td', 'th'])
+                    for i, cell in enumerate(cells):
+                        if 'ASIN' in cell.get_text(strip=True) and i + 1 < len(cells):
+                            asin = cells[i + 1].get_text(strip=True)
+                            if asin and len(asin) >= 9:
+                                break
+                    if asin:
+                        break
+
+                # Method 2: Look for ASIN in meta tags or data attributes
+                if not asin:
+                    # Check for ASIN in any element
+                    page_text = soup.get_text()
+                    asin_match = re.search(r'ASIN\s*[:\-]?\s*([A-Z0-9]{9,10})', page_text, re.IGNORECASE)
+                    if asin_match:
+                        asin = asin_match.group(1)
+
+                # Method 3: Try canonical URL or other links
+                if not asin:
+                    canonical = soup.select_one('link[rel="canonical"]')
+                    if canonical:
+                        href = canonical.get('href', '')
+                        asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', href)
+                        if asin_match:
+                            asin = asin_match.group(1)
+
+                # Method 4: Look for any /dp/ pattern in all links
+                if not asin:
+                    all_links = soup.find_all('a', href=True)
+                    for link in all_links:
+                        href = link.get('href', '')
+                        asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', href)
+                        if asin_match:
+                            asin = asin_match.group(1)
+                            break
+
+                # If we found ASIN, return the proper Amazon URL
+                if asin:
+                    return f"https://www.amazon.sa/dp/{asin}"
+
+                # Fallback: try to find any redirect link
                 redirect_selectors = [
                     'a[href*="amazon.sa"]',
                     'a[href*="amazon.com"]',
                     'a[href*="/dp/"]',
                     'a[href*="/gp/product/"]',
-                    '.redirect-button',
-                    'a.button',
-                    'a.btn',
                     'a[href^="https://www.amazon"]',
                     'a[href^="https://amazon"]',
                 ]
@@ -170,17 +216,15 @@ def expand_url(url):
                         if href and len(href) > 10:
                             return href
 
+                # Check for meta refresh
                 meta_refresh = soup.select_one('meta[http-equiv="refresh"]')
                 if meta_refresh:
                     content = meta_refresh.get('content', '')
                     if 'url=' in content:
                         return content.split('url=')[1].strip()
 
-                all_links = soup.find_all('a', href=True)
-                for link in all_links:
-                    href = link.get('href', '')
-                    if 'amazon' in href.lower() and len(href) > 15:
-                        return href
+                # Last resort: return the final URL from requests
+                return r.url
 
             return r.url
         return url
@@ -195,7 +239,6 @@ def is_saudi_amazon(url):
     return "amazon.sa" in url.lower()
 
 
-# ============ FIXED: extract_asin accepts 9-10 character ASINs ============
 def extract_asin(url):
     # Handle link.amazon/XXXXXXXXX format (9-10 chars, mixed case)
     if 'link.amazon' in url.lower():
