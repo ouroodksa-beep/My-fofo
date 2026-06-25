@@ -481,7 +481,7 @@ def get_product(asin):
 
             r = session.get(url, headers=headers, timeout=30, proxies=proxies)
 
-            print(f"Attempt {attempt + 1}: Status {r.status_code}, Length {len(r.text)")
+            print(f"Attempt {attempt + 1}: Status {r.status_code}, Length {len(r.text)}")
 
             if r.status_code != 200:
                 continue
