@@ -6,6 +6,7 @@ import time
 import json
 import random
 import os
+import threading
 
 TOKEN = "7956075348:AAGhje5ywzVq1ktdWIQ-7KOeisWbje9amf0"
 bot = telebot.TeleBot(TOKEN)
@@ -14,6 +15,11 @@ GROQ_API_KEY = "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"
 
 PROXY_URL = os.environ.get("PROXY_URL")
 
+# ============ WEBHOOK CONFIG ============
+WEBHOOK_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")  # Render بيضيفه تلقائي
+WEBHOOK_PORT = int(os.environ.get("PORT", 10000))
+WEBHOOK_URL_BASE = f"https://{WEBHOOK_HOST}" if WEBHOOK_HOST else None
+WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 def protect_brands(text):
     return text
@@ -475,7 +481,7 @@ def get_product(asin):
 
             r = session.get(url, headers=headers, timeout=30, proxies=proxies)
 
-            print(f"Attempt {attempt + 1}: Status {r.status_code}, Length {len(r.text)}")
+            print(f"Attempt {attempt + 1}: Status {r.status_code}, Length {len(r.text)")
 
             if r.status_code != 200:
                 continue
@@ -623,7 +629,6 @@ def get_product(asin):
     return None
 
 
-# ============ FIXED: Use original_url directly ============
 def generate_post(product_data, original_url):
     """Generate full Telegram post - uses the EXACT link the user sent"""
     name = product_data["name"]
@@ -675,7 +680,6 @@ def generate_post(product_data, original_url):
                 coupon_block.append(f"   • {c['code']} — خصم {c['percent']}%")
         parts.append("\n".join(coupon_block))
 
-    # ============ USE ORIGINAL URL ============
     parts.append(f"🛒 رابط الشراء:\n{original_url}")
 
     return "\n\n".join(parts)
@@ -715,7 +719,6 @@ def handler(msg):
             bot.edit_message_text("❌ تعذر قراءة بيانات المنتج", msg.chat.id, wait.message_id)
             continue
 
-        # Pass original_url so the post uses the exact link the user sent
         post = generate_post(product, original_url)
 
         try:
@@ -733,5 +736,36 @@ def handler(msg):
                 bot.edit_message_text("❌ حدث خطأ في الإرسال", msg.chat.id, wait.message_id)
 
 
-print("🤖 البوت يعمل — صيدات وصفقات 🔥")
-bot.infinity_polling()
+# ============ WEBHOOK SERVER ============
+from flask import Flask, request
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "🤖 البوت يعمل — صيدات وصفقات 🔥"
+
+@app.route(WEBHOOK_URL_PATH, methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return ''
+    else:
+        return 'Unsupported Media Type', 415
+
+def start_webhook():
+    if WEBHOOK_HOST:
+        # Delete old webhook first to avoid conflicts
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH)
+        print(f"✅ Webhook set to: {WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}")
+    else:
+        print("⚠️ RENDER_EXTERNAL_HOSTNAME not set, running in local mode...")
+
+    app.run(host='0.0.0.0', port=WEBHOOK_PORT)
+
+if __name__ == '__main__':
+    start_webhook()
