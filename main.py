@@ -115,6 +115,7 @@ def translate_to_arabic(text):
 
 
 def smart_arabic_title(full_title):
+    """Translate title to Arabic without length limit"""
     full_title = protect_brands(full_title)
     arabic_title = translate_to_arabic(full_title)
     words = arabic_title.split()
@@ -124,19 +125,6 @@ def smart_arabic_title(full_title):
             unique_words.append(word)
     result = " ".join(unique_words)
     result = protect_brands(result)
-    if len(result) > 80:
-        for sep in ['،', ',', '-', '|', '/']:
-            if sep in result[:80]:
-                idx = result.rfind(sep, 40, 80)
-                if idx > 0:
-                    result = result[:idx]
-                    break
-        else:
-            idx = result.rfind(' ', 60, 80)
-            if idx > 0:
-                result = result[:idx]
-            else:
-                result = result[:80]
     return result.strip()
 
 
@@ -354,28 +342,18 @@ def get_stock_info(soup):
         elem = soup.select_one(selector)
         if elem:
             text = elem.get_text(strip=True)
-            if text and any(w in text.lower() for w in ['left', 'متبقي', 'stock', 'soon', 'قريباً', 'limited', 'only']):
+            if text and any(w in text.lower() for w in ['left', 'متبقي', 'stock', 'soon', 'قريبا\u00d9\u2021', 'limited', 'only']):
                 stock_text = text
                 break
     return stock_text
 
 
-# ============ ENHANCED: Extract ALL offers and coupons ============
 def extract_all_offers(soup, current_price_num):
-    """
-    Extract ALL types of offers from Amazon product page:
-    1. Promo codes (e.g., SALE50)
-    2. Prime Savings (credit card offers)
-    3. Subscribe & Save
-    4. Multi-buy discounts
-    5. Clip coupons
-    Returns list of dicts with: type, code, percent, discount_amount, final_price, description
-    """
+    """Extract ALL offers from page - internal use only"""
     all_offers = []
     page_text = soup.get_text()
 
     # ===== 1. Promo codes =====
-    # Pattern: "promo code: SALE50" or "Enter code ARB25 at checkout"
     promo_patterns = [
         r'promo\s*code[:\s]+([A-Z0-9]{3,15})',
         r'enter\s+code\s+([A-Z0-9]{3,15})\s+at\s+checkout',
@@ -388,15 +366,12 @@ def extract_all_offers(soup, current_price_num):
         matches = re.finditer(pattern, page_text, re.IGNORECASE)
         for match in matches:
             code = match.group(1).upper() if match.group(1) else None
-            # Try to find percent near this code
             percent = 0
-            # Look for percentage within 100 chars before and after
             context = page_text[max(0, match.start()-100):min(len(page_text), match.end()+100)]
             pct_match = re.search(r'(\d+)%', context)
             if pct_match:
                 percent = int(pct_match.group(1))
 
-            # Check if already added
             if code and not any(o.get('code') == code for o in all_offers):
                 discount = current_price_num * percent / 100 if percent > 0 else 0
                 final = current_price_num - discount
@@ -409,8 +384,7 @@ def extract_all_offers(soup, current_price_num):
                     "description": f"كود خصم: {code}"
                 })
 
-    # ===== 2. Prime Savings / Credit Card offers =====
-    # Pattern: "Prime Savings 25% off up to SAR150 | Rajhi Credit Card"
+    # ===== 2. Prime Savings =====
     prime_patterns = [
         r'Prime\s*Savings\s*(\d+)%\s*off\s*up\s*to\s*SAR([\d,]+)',
         r'(\d+)%\s*OFF\s*SAR([\d,]+)',
@@ -422,7 +396,6 @@ def extract_all_offers(soup, current_price_num):
         for match in matches:
             percent = int(match.group(1))
             max_discount = extract_number(match.group(2))
-            # Find card name near this offer
             context = page_text[max(0, match.start()-150):min(len(page_text), match.end()+150)]
             card_match = re.search(r'(Rajhi|Alinma|SNB|Riyad|Emirates|Visa|Mastercard)', context, re.IGNORECASE)
             card_name = card_match.group(1) if card_match else "بطاقة ائتمان"
@@ -440,7 +413,7 @@ def extract_all_offers(soup, current_price_num):
                     "final_price": int(final),
                     "max_discount": int(max_discount),
                     "card": card_name,
-                    "description": f"Prime Savings {percent}% (بحد أقصى {int(max_discount)} ريال) | {card_name}",
+                    "description": f"Prime Savings {percent}% | {card_name}",
                     "key": offer_key
                 })
 
@@ -462,7 +435,7 @@ def extract_all_offers(soup, current_price_num):
                 "description": f"اشتراك وتوفير {percent}%"
             })
 
-    # ===== 4. Multi-buy (Save 5% on any 5 or more) =====
+    # ===== 4. Multi-buy =====
     multi_patterns = [
         r'Save\s*(\d+)%\s*on\s*any\s*(\d+)\s*or\s*more',
         r'(\d+)%\s*off\s*when\s*you\s*buy\s*(\d+)',
@@ -484,7 +457,7 @@ def extract_all_offers(soup, current_price_num):
                 "description": f"اشتري {qty} واحصل على خصم {percent}%"
             })
 
-    # ===== 5. Clip coupons (green badges) =====
+    # ===== 5. Clip coupons =====
     coupon_selectors = [
         "#couponTextInput", "[data-feature-name='coupon']", ".couponText",
         "#couponContainer", "[id*='coupon']", ".promoPriceBlockMessage",
@@ -507,10 +480,10 @@ def extract_all_offers(soup, current_price_num):
                             "percent": percent,
                             "discount_amount": int(discount),
                             "final_price": int(final),
-                            "description": f"قص الكوبون: خصم {percent}%"
+                            "description": f"خصم {percent}%"
                         })
 
-    # ===== 6. Explicit patterns from page text =====
+    # ===== 6. Explicit patterns =====
     explicit_patterns = [
         r'([A-Z]{3,}\d{2,})\s*[-–]\s*save\s*(\d+)%',
         r'([A-Z]{3,}\d{2,})\s*[-–]\s*(\d+)%\s*off',
@@ -568,7 +541,6 @@ def extract_coupon_info(text):
 
 
 def get_all_coupons(soup, current_price_num):
-    """Legacy function - now redirects to extract_all_offers"""
     return extract_all_offers(soup, current_price_num)
 
 
@@ -745,10 +717,7 @@ def get_product(asin):
             stock_info = get_stock_info(soup)
             current_price_num = extract_number(price) if price else 0
 
-            # ===== ENHANCED: Get ALL offers =====
             all_offers = extract_all_offers(soup, current_price_num)
-
-            # Legacy coupons for backward compatibility
             all_coupons = all_offers
 
             arabic_title = smart_arabic_title(title)
@@ -780,7 +749,7 @@ def get_product(asin):
 
 
 def generate_post(product_data, original_url):
-    """Generate full Telegram post with ALL offers and calculated prices"""
+    """Generate post - only shows best price + what offer gives it"""
     name = product_data["name"]
     full_title = product_data.get("full_title", name)
     price = product_data["price"]
@@ -801,7 +770,6 @@ def generate_post(product_data, original_url):
     clean_old = clean_price(old_price) if old_price else None
     old_num = extract_number(old_price) if old_price else 0
 
-    # Calculate base discount
     discount_pct = 0
     if old_num > current_price_num and old_num > 0:
         discount_pct = int(((old_num - current_price_num) / old_num) * 100)
@@ -821,48 +789,31 @@ def generate_post(product_data, original_url):
         price_block.append(f"💰 السعر: {clean_current}")
     parts.append("\n".join(price_block))
 
-    # ===== ALL OFFERS BLOCK =====
+    # ===== BEST OFFER ONLY =====
     if all_offers:
-        offers_block = []
-        offers_block.append("🎁 العروض المتاحة:")
+        best = all_offers[0]
+        best_final = best.get("final_price", 0)
+        best_type = best.get("type", "")
+        best_code = best.get("code", "")
+        best_percent = best.get("percent", 0)
+        best_card = best.get("card", "")
 
-        for i, offer in enumerate(all_offers[:5], 1):  # Show top 5 offers
-            offer_type = offer.get("type", "")
-            code = offer.get("code")
-            percent = offer.get("percent", 0)
-            final_price = offer.get("final_price", 0)
-            description = offer.get("description", "")
-
-            if offer_type == "promo_code" and code:
-                offers_block.append(f"   {i}. 🎟️ كود: `{code}` — خصم {percent}% → السعر يصير {final_price} ريال")
-            elif offer_type == "prime_savings":
-                card = offer.get("card", "")
-                max_disc = offer.get("max_discount", 0)
-                if max_disc > 0:
-                    offers_block.append(f"   {i}. 💳 Prime Savings {percent}% (بحد أقصى {max_disc} ريال) | {card} → {final_price} ريال")
-                else:
-                    offers_block.append(f"   {i}. 💳 Prime Savings {percent}% | {card} → {final_price} ريال")
-            elif offer_type == "subscribe_save":
-                offers_block.append(f"   {i}. 🔄 اشتراك وتوفير {percent}% → {final_price} ريال")
-            elif offer_type == "multi_buy":
-                qty = offer.get("min_qty", 0)
-                offers_block.append(f"   {i}. 📦 اشتري {qty} ووفر {percent}% → {final_price} ريال للوحدة")
-            elif offer_type == "clip_coupon":
-                offers_block.append(f"   {i}. ✂️ قص الكوبون: خصم {percent}% → {final_price} ريال")
+        if best_type == "promo_code" and best_code:
+            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (بكود `{best_code}` — خصم {best_percent}%)")
+        elif best_type == "prime_savings":
+            if best_card:
+                parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (Prime Savings {best_percent}% | {best_card})")
             else:
-                offers_block.append(f"   {i}. ✅ {description} → {final_price} ريال")
-
-        # Best offer highlight
-        if all_offers:
-            best = all_offers[0]
-            best_final = best.get("final_price", 0)
-            best_code = best.get("code", "")
-            if best_code:
-                offers_block.append(f"\n🔥 أفضل سعر ممكن: {best_final} ريال (باستخدام كود {best_code})")
-            else:
-                offers_block.append(f"\n🔥 أفضل سعر ممكن: {best_final} ريال")
-
-        parts.append("\n".join(offers_block))
+                parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (Prime Savings {best_percent}%)")
+        elif best_type == "subscribe_save":
+            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (اشتراك وتوفير {best_percent}%)")
+        elif best_type == "multi_buy":
+            qty = best.get("min_qty", 0)
+            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (اشتري {qty} ووفر {best_percent}%)")
+        elif best_type == "clip_coupon":
+            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (خصم {best_percent}%)")
+        else:
+            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال")
 
     # ===== BUY LINK =====
     parts.append(f"🛒 رابط الشراء:\n{original_url}")
