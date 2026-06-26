@@ -480,7 +480,7 @@ def extract_all_offers(soup, current_price_num):
                             "percent": percent,
                             "discount_amount": int(discount),
                             "final_price": int(final),
-                            "description": f"خصم {percent}%"
+                            "description": f"كوبون خصم {percent}%"
                         })
 
     # ===== 6. Explicit patterns =====
@@ -789,7 +789,7 @@ def generate_post(product_data, original_url):
         price_block.append(f"💰 السعر: {clean_current}")
     parts.append("\n".join(price_block))
 
-    # ===== BEST OFFER ONLY =====
+    # ===== BEST OFFER ONLY - with offer type BEFORE discount =====
     if all_offers:
         best = all_offers[0]
         best_final = best.get("final_price", 0)
@@ -799,7 +799,8 @@ def generate_post(product_data, original_url):
         best_card = best.get("card", "")
 
         if best_type == "promo_code" and best_code:
-            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (بكود `{best_code}` — خصم {best_percent}%)")
+            # e.g., "🔥 أفضل سعر ممكن: 35 ريال (كود خصم SALE50 — 50%)"
+            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (كود خصم `{best_code}` — {best_percent}%)")
         elif best_type == "prime_savings":
             if best_card:
                 parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (Prime Savings {best_percent}% | {best_card})")
@@ -811,7 +812,8 @@ def generate_post(product_data, original_url):
             qty = best.get("min_qty", 0)
             parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (اشتري {qty} ووفر {best_percent}%)")
         elif best_type == "clip_coupon":
-            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (خصم {best_percent}%)")
+            # e.g., "🔥 أفضل سعر ممكن: 35 ريال (كوبون خصم 5%)"
+            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (كوبون خصم {best_percent}%)")
         else:
             parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال")
 
