@@ -6,11 +6,13 @@ import time
 import json
 import random
 import os
+from groq import Groq
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
 
 GROQ_API_KEY = "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"
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 PROXY_URL = os.environ.get("PROXY_URL")
 
@@ -115,7 +117,6 @@ def translate_to_arabic(text):
 
 
 def smart_arabic_title(full_title):
-    """Translate title to Arabic without length limit"""
     full_title = protect_brands(full_title)
     arabic_title = translate_to_arabic(full_title)
     words = arabic_title.split()
@@ -141,7 +142,6 @@ def expand_url(url):
 
             if 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
-
                 asin = None
                 detail_rows = soup.find_all('tr')
                 for row in detail_rows:
@@ -342,18 +342,16 @@ def get_stock_info(soup):
         elem = soup.select_one(selector)
         if elem:
             text = elem.get_text(strip=True)
-            if text and any(w in text.lower() for w in ['left', 'متبقي', 'stock', 'soon', 'قريبا\u00d9\u2021', 'limited', 'only']):
+            if text and any(w in text.lower() for w in ['left', 'متبقي', 'stock', 'soon', 'قريبا', 'limited', 'only']):
                 stock_text = text
                 break
     return stock_text
 
 
 def extract_all_offers(soup, current_price_num):
-    """Extract ALL offers from page - internal use only"""
     all_offers = []
     page_text = soup.get_text()
 
-    # ===== 1. Promo codes =====
     promo_patterns = [
         r'promo\s*code[:\s]+([A-Z0-9]{3,15})',
         r'enter\s+code\s+([A-Z0-9]{3,15})\s+at\s+checkout',
@@ -384,7 +382,6 @@ def extract_all_offers(soup, current_price_num):
                     "description": f"كود خصم: {code}"
                 })
 
-    # ===== 2. Prime Savings =====
     prime_patterns = [
         r'Prime\s*Savings\s*(\d+)%\s*off\s*up\s*to\s*SAR([\d,]+)',
         r'(\d+)%\s*OFF\s*SAR([\d,]+)',
@@ -417,7 +414,6 @@ def extract_all_offers(soup, current_price_num):
                     "key": offer_key
                 })
 
-    # ===== 3. Subscribe & Save =====
     sub_save = soup.select_one("[data-feature-name='subscribeAndSave']")
     if sub_save:
         text = sub_save.get_text()
@@ -435,7 +431,6 @@ def extract_all_offers(soup, current_price_num):
                 "description": f"اشتراك وتوفير {percent}%"
             })
 
-    # ===== 4. Multi-buy =====
     multi_patterns = [
         r'Save\s*(\d+)%\s*on\s*any\s*(\d+)\s*or\s*more',
         r'(\d+)%\s*off\s*when\s*you\s*buy\s*(\d+)',
@@ -457,7 +452,6 @@ def extract_all_offers(soup, current_price_num):
                 "description": f"اشتري {qty} واحصل على خصم {percent}%"
             })
 
-    # ===== 5. Clip coupons =====
     coupon_selectors = [
         "#couponTextInput", "[data-feature-name='coupon']", ".couponText",
         "#couponContainer", "[id*='coupon']", ".promoPriceBlockMessage",
@@ -483,33 +477,6 @@ def extract_all_offers(soup, current_price_num):
                             "description": f"كوبون خصم {percent}%"
                         })
 
-    # ===== 6. Explicit patterns =====
-    explicit_patterns = [
-        r'([A-Z]{3,}\d{2,})\s*[-–]\s*save\s*(\d+)%',
-        r'([A-Z]{3,}\d{2,})\s*[-–]\s*(\d+)%\s*off',
-        r'(?:promo\s*code|كود\s*الخصم|كوبون)[\s:]+([A-Z0-9]{4,12})',
-    ]
-    for pattern in explicit_patterns:
-        matches = re.findall(pattern, page_text, re.IGNORECASE)
-        for match in matches:
-            if isinstance(match, tuple):
-                code, percent = match[0], int(match[1]) if str(match[1]).isdigit() else 0
-            else:
-                code, percent = match, 0
-            if code and len(code) >= 4 and percent > 0:
-                if not any(o.get('code') == code for o in all_offers):
-                    discount = current_price_num * percent / 100
-                    final = current_price_num - discount
-                    all_offers.append({
-                        "type": "promo_code",
-                        "code": code.upper(),
-                        "percent": percent,
-                        "discount_amount": int(discount),
-                        "final_price": int(final),
-                        "description": f"كود خصم: {code.upper()}"
-                    })
-
-    # Remove duplicates and sort by best discount
     seen = {}
     unique = []
     for o in all_offers:
@@ -749,78 +716,69 @@ def get_product(asin):
 
 
 def generate_post(product_data, original_url):
-    """Generate post - only shows best price + what offer gives it"""
+    """Generate short, spacious, eye-catching Khaleeji marketing posts using Groq AI."""
     name = product_data["name"]
-    full_title = product_data.get("full_title", name)
     price = product_data["price"]
     old_price = product_data["old_price"]
     all_offers = product_data.get("all_offers", [])
     current_price_num = product_data["current_price_num"]
-    seller_name = product_data.get("seller_name")
-    seller_rating = product_data.get("seller_rating")
-    rating = product_data.get("rating")
-    review_count = product_data.get("review_count")
-    stock_info = product_data.get("stock_info")
-
-    category = detect_product_category(name)
-    gender = detect_product_gender(name)
-    category_emoji = get_category_emoji(category)
 
     clean_current = clean_price(price)
-    clean_old = clean_price(old_price) if old_price else None
-    old_num = extract_number(old_price) if old_price else 0
-
+    clean_old = clean_price(old_price) if old_price else "لا يوجد"
+    
     discount_pct = 0
+    old_num = extract_number(old_price) if old_price else 0
     if old_num > current_price_num and old_num > 0:
         discount_pct = int(((old_num - current_price_num) / old_num) * 100)
 
-    parts = []
-    parts.append(f"{category_emoji} {name}")
-
-    # ===== PRICE BLOCK =====
-    price_block = []
-    if clean_old and old_num > current_price_num:
-        price_block.append(f"❌ السعر السابق: {clean_old}")
-        if discount_pct > 0:
-            price_block.append(f"💥 السعر الآن: {clean_current} (خصم {discount_pct}%)")
-        else:
-            price_block.append(f"💥 السعر الآن: {clean_current}")
-    else:
-        price_block.append(f"💰 السعر: {clean_current}")
-    parts.append("\n".join(price_block))
-
-    # ===== BEST OFFER ONLY - with offer type BEFORE discount =====
+    extra_offer_info = ""
     if all_offers:
-        best = all_offers[0]
-        best_final = best.get("final_price", 0)
-        best_type = best.get("type", "")
-        best_code = best.get("code", "")
-        best_percent = best.get("percent", 0)
-        best_card = best.get("card", "")
+        best = all_offers[0] if isinstance(all_offers, list) else {}
+        if best.get("type") == "promo_code" and best.get("code"):
+            extra_offer_info = f"كود الخصم: `{best.get('code')}` ({best.get('percent')}%)"
+        elif best.get("type") == "clip_coupon":
+            extra_offer_info = f"كوبون خصم مفعل: {best.get('percent')}%"
 
-        if best_type == "promo_code" and best_code:
-            # e.g., "🔥 أفضل سعر ممكن: 35 ريال (كود خصم SALE50 — 50%)"
-            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (كود خصم `{best_code}` — {best_percent}%)")
-        elif best_type == "prime_savings":
-            if best_card:
-                parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (Prime Savings {best_percent}% | {best_card})")
-            else:
-                parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (Prime Savings {best_percent}%)")
-        elif best_type == "subscribe_save":
-            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (اشتراك وتوفير {best_percent}%)")
-        elif best_type == "multi_buy":
-            qty = best.get("min_qty", 0)
-            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (اشتري {qty} ووفر {best_percent}%)")
-        elif best_type == "clip_coupon":
-            # e.g., "🔥 أفضل سعر ممكن: 35 ريال (كوبون خصم 5%)"
-            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال (كوبون خصم {best_percent}%)")
-        else:
-            parts.append(f"🔥 أفضل سعر ممكن: {best_final} ريال")
+    prompt = f"""
+أنت مسوق إلكتروني محترف، وتكتب بوست تسويقي قصير جداً لمنتج من أمازون السعودية بلهجة خليجية بحتة ومبسطة.
 
-    # ===== BUY LINK =====
-    parts.append(f"🛒 رابط الشراء:\n{original_url}")
+تفاصيل المنتج:
+- اسم المنتج: {name}
+- السعر الحالي: {clean_current}
+- السعر السابق: {clean_old}
+- نسبة الخصم: {discount_pct}%
+- عروض إضافية: {extra_offer_info}
 
-    return "\n\n".join(parts)
+شروط التنسيق والصياغة الصارمة:
+1. ألا تزيد الإجمالي عن 3 إلى 4 أسطر فقط مقسمة بمسافات فارغة (كل فكرة أو جملة في سطر منفصل مستقل تماماً، وبينهما سطر فاضي).
+2. اجعل الصياغة سريعة وخاطفة، وابدأ بهوك بصري يشد العين فوراً (مثل ذكر السعر المذهل أو الخصم القوي).
+3. لا تضع رابط الشراء في ردك لأنني سأضيفه بنفسي.
+4. اعطني النص مباشرة بدون مقدمات أو شرح أو علامات تنصيص.
+"""
+
+    try:
+        completion = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "أنت صانع محتوى تسويقي مبدع ومنظم باللهجة الخليجية."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.9,
+            max_tokens=250
+        )
+        
+        ai_generated_text = completion.choices[0].message.content.strip()
+        
+    except Exception as e:
+        print(f"Groq API Error: {e}")
+        ai_generated_text = f"يا لبيييه على سعر اليوم! 🔥\n\nوفرنا لك {name} بـ {clean_current} بدل {clean_old}.\n\nالحق الكمية قبل لا تخلص!"
+
+    final_post_parts = [
+        ai_generated_text,
+        f"🛒 **رابط الطلب السريع:**\n{original_url}"
+    ]
+
+    return "\n\n".join(final_post_parts)
 
 
 @bot.message_handler(func=lambda m: True)
