@@ -167,6 +167,29 @@ def get_high_quality_image(soup):
         image = re.sub(r'_SX\d+_SY\d+_', '_', image).split('?')[0]
     return image
 
+def extract_promos_and_discounts(soup):
+    promos = []
+    
+    # البحث عن قسائم أمازون
+    coupon_elems = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon']")
+    for elem in coupon_elems:
+        text = elem.text.strip()
+        if text and text not in promos:
+            promos.append(f"🎟️ **قسيمة توفير:** `{text}`")
+
+    # البحث عن عروض البنوك وبرايم
+    bank_keywords = ["الراجحي", "الأهلي", "الإنماء", "الرياض", "البلاد", "السعودي الفرنسي", "العربي", "stc pay", "Visa", "Mastercard", "Prime", "برايم"]
+    all_text_blocks = soup.find_all(text=True)
+    for text_block in all_text_blocks:
+        block_text = text_block.strip()
+        if any(kw in block_text for kw in bank_keywords) or "خصم" in block_text:
+            if len(block_text) > 10 and len(block_text) < 120:
+                if block_text not in promos:
+                    if any(b in block_text for b in ["بنك", "بطاقة", "برايم", "Prime", "خصم", "كود", "Code"]):
+                        promos.append(f"💡 **عرض خاص:** {block_text}")
+
+    return list(dict.fromkeys(promos))[:3]
+
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
     user_agents = [
@@ -211,6 +234,7 @@ def get_product(asin):
             clean_name = clean_product_title(title)
             category = detect_product_category(title)
             current_price_num = extract_number(price)
+            promos = extract_promos_and_discounts(soup)
 
             return {
                 "full_title": title,
@@ -220,6 +244,7 @@ def get_product(asin):
                 "image": image,
                 "category": category,
                 "current_price_num": current_price_num,
+                "promos": promos
             }
         except:
             continue
@@ -230,6 +255,7 @@ def generate_post(product_data, original_url):
     price = product_data["price"]
     old_price = product_data["old_price"]
     category = product_data["category"]
+    promos = product_data.get("promos", [])
     
     clean_current = clean_price(price)
     clean_old = clean_price(old_price) if old_price else ""
@@ -238,34 +264,44 @@ def generate_post(product_data, original_url):
     old_num = extract_number(old_price) if old_price else 0
     current_num = product_data["current_price_num"]
     
-    # حساب نسبة الخصم والتأكد من منطقيتها (أقل من 95% وأكبر من 0)
     discount_pct = 0
     if old_num > current_num and old_num > 0 and current_num > 0:
         calc_pct = int(((old_num - current_num) / old_num) * 100)
         if calc_pct < 100:
             discount_pct = calc_pct
 
-    # جمل جذابة ومنوعة مع استخدام Bold نظيف
+    # إذا كانت نسبة الخصم ممتازة نعرضها بقوة، وإذا لم تكن عالية نرفع الحماس بأسلوب الصيدات
+    discount_text = f"🔥 **خصم يكسر الدنيا بنسبة {discount_pct}%!**" if discount_pct > 15 else "🔥 **صيدة اليوم الخطيرة لا تفوتكم!**"
+
+    # صياغة حماسية جداً تناسب طلبك تماماً مع الـ Bold والهايلات
     hooks = [
-        f"{emoji} **{name}**\nقطعة مميزة وطلب عليه إقبال كبير 😍",
-        f"{emoji} **{name}**\nمن أفضل المنتجات طلباً أنصحكم به 👌",
-        f"{emoji} **{name}**\nفرصة ممتازة وسعر استثنائي لا تفوتكم ⚡"
+        f"🚨 **الحقوا هذه الصيدة يا جماعة!**\n{emoji} **{name}**",
+        f"🎯 **عينك على الخصم القوي!**\n{emoji} **{name}**",
+        f"⚡ **صيدة لقطة لا تعوض!**\n{emoji} **{name}**"
     ]
     selected_hook = random.choice(hooks)
     
-    # تنسيق السعر بشكل مرتب ونظيف بدون أخطاء "طار السعر"
     price_section = f"💰 السعر الحالي: **{clean_current}**"
     if clean_old and discount_pct > 0:
-        price_section = f"🏷️ السعر بعد الخصم: **{clean_current}** ~~{clean_old}~~ (خصم {discount_pct}%) 🔥"
+        price_section = f"🏷️ السعر بعد الخصم: **{clean_current}** بدلاً من ~~{clean_old}~~ ({discount_text})"
 
     post_lines = [
         selected_hook,
         "",
         price_section,
-        "",
-        f"🛒 **للطلب السريع:**",
-        f"{original_url}"
     ]
+
+    if promos:
+        post_lines.append("")
+        post_lines.append("💳 **أكواد وعروض البنوك والخصومات الإضافية:**")
+        for promo in promos:
+            post_lines.append(f"• {promo}")
+
+    post_lines.extend([
+        "",
+        f"🛒 **للطلب السريع (الحق العرض):**",
+        f"{original_url}"
+    ])
 
     return "\n".join([line for line in post_lines if line is not None])
 
@@ -275,7 +311,7 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال روابط أمازون السعودية لتتحول فوراً إلى منشورات احترافية ✨")
+        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال روابط أمازون السعودية لتحويلها فوراً إلى صيدات احترافية ✨")
         return
 
     for original_url in urls:
@@ -289,7 +325,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري تنسيق المنشور بأسلوب احترافي أنيق...")
+        wait = bot.reply_to(msg, "⏳ جاري اصطياد أقوى العروض والكوبونات وتنسيق المنشور...")
 
         product = get_product(asin)
         if not product:
@@ -323,7 +359,7 @@ WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بأعلى كفاءة وتنسيق أنيق 🔥"
+    return "🤖 بوت الصيدات والخصومات يعمل بأعلى كفاءة 🔥"
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
