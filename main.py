@@ -76,8 +76,6 @@ def translate_to_arabic(text):
 def clean_product_title(full_title):
     if not full_title:
         return "منتج مميز"
-    
-    # [التعديل الأول]: تنظيف العنوان وأخذ مساحة كافية (حتى 8 كلمات) لتفادي قطع الأسماء والعلامات التجارية
     clean_title = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', full_title)
     parts = re.split(r'[-–,|/]', clean_title)
     main_part = parts[0].strip()
@@ -170,13 +168,13 @@ def get_high_quality_image(soup):
 def extract_promos_and_discounts(soup):
     promos = []
     
-    # [التعديل الثاني]: البحث وتصفية الكوبونات الحقيقية فقط وإزالة حشو والشروط التابعة لأمازون
+    # التقاط القسائم الحقيقية وتصفية أي حشو أو شروط طويلة
     coupon_elems = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon']")
     for elem in coupon_elems:
         text = elem.text.strip()
         if text and "تسجيل الدخول" not in text and "الشروط" not in text:
-            if len(text) < 60 and text not in promos:
-                promos.append(f"🎟️ **كوبون خصم:** `{text}`")
+            if len(text) < 50 and text not in promos:
+                promos.append(f"🎟️ **استخدم القسيمة:** `{text}`")
 
     bank_codes = ["SAB20", "ANB", "ALJ", "STCPAY", "VISA", "MASTERCARD"]
     page_text = soup.get_text()
@@ -187,10 +185,10 @@ def extract_promos_and_discounts(soup):
 
     clean_promos = []
     for p in promos:
-        if len(p) < 80 and "الشروط" not in p and "تسجيل الدخول" not in p:
+        if len(p) < 60 and "الشروط" not in p and "تسجيل الدخول" not in p:
             clean_promos.append(p)
 
-    return clean_promos[:2]
+    return clean_promos[:1] # الاكتفاء بكوبون واحد رئيسي ومفيد لمنع الإطالة
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -272,18 +270,26 @@ def generate_post(product_data, original_url):
         if calc_pct < 100:
             discount_pct = calc_pct
 
-    discount_text = f"🔥 **خصم يكسر الدنيا بنسبة {discount_pct}%!**" if discount_pct > 15 else "🔥 **صيدة اليوم الخطيرة لا تفوتكم!**"
-
+    # تشكيلة متنوعة وحماسية من العبارات لجعل كل بوست مختلف تماماً عن الآخر
     hooks = [
-        f"🚨 **الحقوا هذه الصيدة يا جماعة!**\n{emoji} **{name}**",
-        f"🎯 **عينك على الخصم القوي!**\n{emoji} **{name}**",
-        f"⚡ **صيدة لقطة لا تعوض!**\n{emoji} **{name}**"
+        f"🔥 **يا بلاش الحقوها!**\n{emoji} **{name}**",
+        f"🚨 **صيدة نارية ما تتفوت!**\n{emoji} **{name}**",
+        f"⚡ **عروض الصدمة وصلت.. عينك على السعر!**\n{emoji} **{name}**",
+        f"🎯 **قطعة لقطة وطلبها عالي!**\n{emoji} **{name}**",
+        f"💥 **فرصة لا تعوض وسعر مجنون!**\n{emoji} **{name}**"
     ]
     selected_hook = random.choice(hooks)
     
-    price_section = f"💰 السعر الحالي: **{clean_current}**"
+    # صياغات متنوعة لنسب الخصم والسعر
     if clean_old and discount_pct > 0:
-        price_section = f"🏷️ السعر بعد الخصم: **{clean_current}** بدلاً من ~~{clean_old}~~ ({discount_text})"
+        price_phrases = [
+            f"💰 السعر الآن: **{clean_current}** (بدلاً من ~~{clean_old}~~) 📉 خصم **{discount_pct}%**",
+            f"🏷️ وفر الآن واشترِ بـ **{clean_current}** بدل ~~{clean_old}~~ 🔥 بنسبة خصم **{discount_pct}%**",
+            f"✨ السعر بعد الخصم: **{clean_current}** | كان ~~{clean_old}~~ (خصم صاروخي **{discount_pct}%**)"
+        ]
+        price_section = random.choice(price_phrases)
+    else:
+        price_section = f"💰 السعر الحالي: **{clean_current}**"
 
     post_lines = [
         selected_hook,
@@ -292,15 +298,18 @@ def generate_post(product_data, original_url):
     ]
 
     if promos:
-        post_lines.append("")
-        post_lines.append("💳 **أكواد وعروض البنوك والخصومات الإضافية:**")
-        for promo in promos:
-            post_lines.append(f"• {promo}")
+        post_lines.append(promos[0])
 
+    # تشكيلة مختلفة لعبارة دعوة الشراء (Call to Action)
+    cta_phrases = [
+        f"🛒 **اطلبها الآن من هنا:**\n{original_url}",
+        f"🏃‍♂️ **لحق العرض قبل ما يخلص:**\n{original_url}",
+        f"🔗 **لطلب المنتج مباشرة:**\n{original_url}"
+    ]
+    
     post_lines.extend([
         "",
-        f"🛒 **للطلب السريع (الحق العرض):**",
-        f"{original_url}"
+        random.choice(cta_phrases)
     ])
 
     return "\n".join([line for line in post_lines if line is not None])
@@ -325,7 +334,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري اصطياد أقوى العروض والكوبونات وتنسيق المنشور...")
+        wait = bot.reply_to(msg, "⏳ جاري اصطياد أقوى العروض وتنسيق البوست بحماس...")
 
         product = get_product(asin)
         if not product:
