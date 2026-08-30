@@ -7,6 +7,8 @@ cloudscraper
 googletrans==3.1.0a0
 beautifulsoup4
 lxml
-groq
+groq==0.4.2
+
+
 
 
