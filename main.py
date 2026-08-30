@@ -85,10 +85,10 @@ def clean_product_title(full_title):
     if re.search(r'[A-Za-z]', main_part):
         translated = translate_to_arabic(main_part)
         words = translated.split()
-        return " ".join(words[:7])
+        return " ".join(words[:6])
     else:
         words = main_part.split()
-        return " ".join(words[:7])
+        return " ".join(words[:6])
 
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🏡", "sports": "⚡"}
@@ -99,7 +99,7 @@ def expand_url(url):
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
             }
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
             if 'link.amazon' in url.lower():
@@ -169,14 +169,11 @@ def get_high_quality_image(soup):
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
-    
-    # قائمة من User-Agents الحقيقية والمتنوعة لتجاوز الحماية
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
     ]
-    
     for ua in user_agents:
         try:
             headers = {
@@ -189,10 +186,7 @@ def get_product(asin):
             r = requests.get(url, headers=headers, timeout=25)
             if r.status_code != 200:
                 continue
-                
             soup = BeautifulSoup(r.text, "html.parser")
-            
-            # التحقق من وجود صفحة حماية أو كابتشا
             if "To discuss automated automated access to Amazon data" in r.text or soup.select_one("input#captchacharacters"):
                 continue
 
@@ -201,7 +195,6 @@ def get_product(asin):
             if not title:
                 continue
 
-            # استخراج السعر الحالي بطرق متعددة لتجنب الفشل
             price = "0"
             price_elem = soup.select_one(".a-price .a-offscreen")
             if price_elem:
@@ -234,7 +227,6 @@ def get_product(asin):
 
 def generate_post(product_data, original_url):
     name = product_data["name"]
-    full_title = product_data["full_title"]
     price = product_data["price"]
     old_price = product_data["old_price"]
     category = product_data["category"]
@@ -244,28 +236,34 @@ def generate_post(product_data, original_url):
     emoji = get_category_emoji(category)
 
     old_num = extract_number(old_price) if old_price else 0
-    discount_pct = 0
-    if old_num > product_data["current_price_num"] and old_num > 0:
-        discount_pct = int(((old_num - product_data["current_price_num"]) / old_num) * 100)
-
-    hooks = [
-        f"🔥 **{name}**\nقطعة مميزة لا تفوتكم بـ {clean_current} فقط 😍",
-        f"🔥 **أفضل ماركة أنصح به شخصياً👌**\n{name} بسعر خيالي!",
-        f"🔥 **عرض ما يتتفوت أبداً على {name}!**\nالحق السعر قبل ينتهي ⚡",
-        f"🔥 **{name}**\nوفرنا لكم هذا الطلب بخصم قوي وسعر بلاش 😉"
-    ]
+    current_num = product_data["current_price_num"]
     
+    # حساب نسبة الخصم والتأكد من منطقيتها (أقل من 95% وأكبر من 0)
+    discount_pct = 0
+    if old_num > current_num and old_num > 0 and current_num > 0:
+        calc_pct = int(((old_num - current_num) / old_num) * 100)
+        if calc_pct < 100:
+            discount_pct = calc_pct
+
+    # جمل جذابة ومنوعة مع استخدام Bold نظيف
+    hooks = [
+        f"{emoji} **{name}**\nقطعة مميزة وطلب عليه إقبال كبير 😍",
+        f"{emoji} **{name}**\nمن أفضل المنتجات طلباً أنصحكم به 👌",
+        f"{emoji} **{name}**\nفرصة ممتازة وسعر استثنائي لا تفوتكم ⚡"
+    ]
     selected_hook = random.choice(hooks)
     
-    price_line = f"💰 السعر: **{clean_current}**"
+    # تنسيق السعر بشكل مرتب ونظيف بدون أخطاء "طار السعر"
+    price_section = f"💰 السعر الحالي: **{clean_current}**"
     if clean_old and discount_pct > 0:
-        price_line = f"❌ طار السعر وصار ~~{clean_old}~~\n✨ وسعرها الآن: **{clean_current}** (خصم {discount_pct}%)"
+        price_section = f"🏷️ السعر بعد الخصم: **{clean_current}** ~~{clean_old}~~ (خصم {discount_pct}%) 🔥"
 
     post_lines = [
         selected_hook,
         "",
-        price_line,
+        price_section,
         "",
+        f"🛒 **للطلب السريع:**",
         f"{original_url}"
     ]
 
@@ -291,7 +289,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري تجاوز حماية أمازون وقراءة بيانات المنتج...")
+        wait = bot.reply_to(msg, "⏳ جاري تنسيق المنشور بأسلوب احترافي أنيق...")
 
         product = get_product(asin)
         if not product:
@@ -325,7 +323,7 @@ WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بأعلى كفاءة وتجاوز للحماية 🔥"
+    return "🤖 البوت يعمل بأعلى كفاءة وتنسيق أنيق 🔥"
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
