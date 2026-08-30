@@ -73,20 +73,33 @@ def translate_to_arabic(text):
     result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
     return result
 
-def clean_product_title(full_title):
+def extract_smart_highlight(full_title):
     if not full_title:
-        return "منتج مميز"
+        return "منتج مميز وعالي الطلب"
+    
+    # البحث عن تفاصيل جذابة داخل العنوان مثل (الحجم، العدد، المقاس، القوة) لاختيارها كمعلومة مفيدة
+    extra_info = ""
+    size_match = re.search(r'(\d+\s*(لتر|مل|قطعة|عبوة|كيلو|جرام|واط|ساعة|سم|إنش|مقاس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
+    if size_match:
+        extra_info = f" ({size_match.group(1)})"
+
+    # تنظيف العنوان واستخراج الكốt الأساسي بذكاء بدون قطع الكلمات المفيدة
     clean_title = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', full_title)
     parts = re.split(r'[-–,|/]', clean_title)
     main_part = parts[0].strip()
     
+    if len(main_part) < 12 and len(parts) > 1:
+        main_part = f"{parts[0].strip()} {parts[1].strip()}"
+
     if re.search(r'[A-Za-z]', main_part):
         translated = translate_to_arabic(main_part)
         words = translated.split()
-        return " ".join(words[:8])
+        title_res = " ".join(words[:8])
     else:
         words = main_part.split()
-        return " ".join(words[:8])
+        title_res = " ".join(words[:8])
+
+    return f"{title_res}{extra_info}"
 
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🏡", "sports": "⚡"}
@@ -167,14 +180,12 @@ def get_high_quality_image(soup):
 
 def extract_promos_and_discounts(soup):
     promos = []
-    
-    # التقاط القسائم الحقيقية وتصفية أي حشو أو شروط طويلة
     coupon_elems = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon']")
     for elem in coupon_elems:
         text = elem.text.strip()
         if text and "تسجيل الدخول" not in text and "الشروط" not in text:
             if len(text) < 50 and text not in promos:
-                promos.append(f"🎟️ **استخدم القسيمة:** `{text}`")
+                promos.append(f"🎟️ **قسيمة خصم إضافية:** `{text}`")
 
     bank_codes = ["SAB20", "ANB", "ALJ", "STCPAY", "VISA", "MASTERCARD"]
     page_text = soup.get_text()
@@ -183,12 +194,7 @@ def extract_promos_and_discounts(soup):
         if code in page_text and f"كود `{code}`" not in promos:
             promos.append(f"💳 **كود خصم بنكي:** استخدم الرمز `{code}` عند الدفع")
 
-    clean_promos = []
-    for p in promos:
-        if len(p) < 60 and "الشروط" not in p and "تسجيل الدخول" not in p:
-            clean_promos.append(p)
-
-    return clean_promos[:1] # الاكتفاء بكوبون واحد رئيسي ومفيد لمنع الإطالة
+    return promos[:1]
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -218,12 +224,13 @@ def get_product(asin):
             if not title:
                 continue
 
-            price = "0"
+            price = ""
             price_elem = soup.select_one(".a-price .a-offscreen")
             if price_elem:
                 price = price_elem.text.strip()
-            else:
-                price_alt = soup.select_one("#priceblock_ourprice") or soup.select_one("#priceblock_dealprice")
+            
+            if not price or price == "0":
+                price_alt = soup.select_one("#priceblock_ourprice") or soup.select_one("#priceblock_dealprice") or soup.select_one(".priceToPay")
                 if price_alt:
                     price = price_alt.text.strip()
 
@@ -231,15 +238,15 @@ def get_product(asin):
             old_price = old_price_elem.text.strip() if old_price_elem else None
 
             image = get_high_quality_image(soup)
-            clean_name = clean_product_title(title)
+            smart_name = extract_smart_highlight(title)
             category = detect_product_category(title)
             current_price_num = extract_number(price)
             promos = extract_promos_and_discounts(soup)
 
             return {
                 "full_title": title,
-                "name": clean_name,
-                "price": price,
+                "name": smart_name,
+                "price": price if price else "0",
                 "old_price": old_price,
                 "image": image,
                 "category": category,
@@ -257,7 +264,7 @@ def generate_post(product_data, original_url):
     category = product_data["category"]
     promos = product_data.get("promos", [])
     
-    clean_current = clean_price(price)
+    clean_current = clean_price(price) if price and price != "0" else None
     clean_old = clean_price(old_price) if old_price else ""
     emoji = get_category_emoji(category)
 
@@ -270,26 +277,29 @@ def generate_post(product_data, original_url):
         if calc_pct < 100:
             discount_pct = calc_pct
 
-    # تشكيلة متنوعة وحماسية من العبارات لجعل كل بوست مختلف تماماً عن الآخر
+    # تشكيلة واسعة وعشوائية تماماً لجعل أسلوب كل بوست مختلف عن الآخر
     hooks = [
-        f"🔥 **يا بلاش الحقوها!**\n{emoji} **{name}**",
-        f"🚨 **صيدة نارية ما تتفوت!**\n{emoji} **{name}**",
-        f"⚡ **عروض الصدمة وصلت.. عينك على السعر!**\n{emoji} **{name}**",
-        f"🎯 **قطعة لقطة وطلبها عالي!**\n{emoji} **{name}**",
-        f"💥 **فرصة لا تعوض وسعر مجنون!**\n{emoji} **{name}**"
+        f"🔥 **صفقة مميزة ولا تفوتك!**\n{emoji} **{name}**",
+        f"🚨 **تخفيض قوي وعليها إقبال عالي:**\n{emoji} **{name}**",
+        f"⚡ **لقطة اليوم السريعة.. استغل الفرصة:**\n{emoji} **{name}**",
+        f"🎯 **منتج يستهل الطلب بسعر مميز:**\n{emoji} **{name}**",
+        f"💥 **خصم طازج وفرصة ذهبية للتوفير:**\n{emoji} **{name}**",
+        f"✨ **طلب مسبق وعليها خصم واو:**\n{emoji} **{name}**"
     ]
     selected_hook = random.choice(hooks)
     
-    # صياغات متنوعة لنسب الخصم والسعر
-    if clean_old and discount_pct > 0:
-        price_phrases = [
-            f"💰 السعر الآن: **{clean_current}** (بدلاً من ~~{clean_old}~~) 📉 خصم **{discount_pct}%**",
-            f"🏷️ وفر الآن واشترِ بـ **{clean_current}** بدل ~~{clean_old}~~ 🔥 بنسبة خصم **{discount_pct}%**",
-            f"✨ السعر بعد الخصم: **{clean_current}** | كان ~~{clean_old}~~ (خصم صاروخي **{discount_pct}%**)"
-        ]
-        price_section = random.choice(price_phrases)
+    if clean_current:
+        if clean_old and discount_pct > 0:
+            price_phrases = [
+                f"💰 السعر الآن: **{clean_current}** (بدلاً من ~~{clean_old}~~) 🔥 وفر **{discount_pct}%**",
+                f"🏷️ خذها بـ **{clean_current}** فقط! (كانت ~~{clean_old}~~ بخصم **{discount_pct}%**)",
+                f"✨ السعر الحالي: **{clean_current}** | السعر السابق ~~{clean_old}~~ 📉 بنسبة خصم **{discount_pct}%**"
+            ]
+            price_section = random.choice(price_phrases)
+        else:
+            price_section = f"💰 السعر الحالي المميز: **{clean_current}**"
     else:
-        price_section = f"💰 السعر الحالي: **{clean_current}**"
+        price_section = f"💰 **شاهد السعر الحالي والخصم المباشر هنا 👇**"
 
     post_lines = [
         selected_hook,
@@ -300,11 +310,11 @@ def generate_post(product_data, original_url):
     if promos:
         post_lines.append(promos[0])
 
-    # تشكيلة مختلفة لعبارة دعوة الشراء (Call to Action)
     cta_phrases = [
-        f"🛒 **اطلبها الآن من هنا:**\n{original_url}",
-        f"🏃‍♂️ **لحق العرض قبل ما يخلص:**\n{original_url}",
-        f"🔗 **لطلب المنتج مباشرة:**\n{original_url}"
+        f"🛒 **اطلبها الآن قبل نفاد الكمية:**\n{original_url}",
+        f"🏃‍♂️ **رابط الشراء السريع:**\n{original_url}",
+        f"🔗 **لطلب المنتج مباشرة:**\n{original_url}",
+        f"👇 **الحق العرض من هنا:**\n{original_url}"
     ]
     
     post_lines.extend([
@@ -334,7 +344,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري اصطياد أقوى العروض وتنسيق البوست بحماس...")
+        wait = bot.reply_to(msg, "⏳ جاري استخلاص أهم تفاصيل المنتج وصياغة بوست حصري...")
 
         product = get_product(asin)
         if not product:
