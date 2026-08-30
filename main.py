@@ -14,13 +14,6 @@ bot = telebot.TeleBot(TOKEN)
 GROQ_API_KEY = "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"
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-PROXY_URL = os.environ.get("PROXY_URL")
-
-
-def protect_brands(text):
-    return text
-
-
 CATEGORY_KEYWORDS = {
     "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني", "مكنسة"],
     "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "معطف", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء"],
@@ -29,7 +22,6 @@ CATEGORY_KEYWORDS = {
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "exercise", "workout", "sport", "running", "walking", "training", "sneakers", "shoes", "رياضة", "جيم", "لياقة", "تمارين", "سير", "دامبل", "يوغا", "دراجة", "كرة", "جري", "مشي", "تدريب"]
 }
 
-
 def detect_product_category(product_name):
     name_lower = product_name.lower()
     for category, keywords in CATEGORY_KEYWORDS.items():
@@ -37,7 +29,6 @@ def detect_product_category(product_name):
             if keyword in name_lower:
                 return category
     return "general"
-
 
 TRANSLATION_DICT = {
     "laptop": "لابتوب", "tablet": "تابلت", "keyboard": "كيبورد", "mouse": "ماوس",
@@ -73,9 +64,7 @@ TRANSLATION_DICT = {
     "black": "أسود", "white": "أبيض", "blue": "أزرق", "red": "أحمر", "green": "أخضر",
 }
 
-
 def translate_to_arabic(text):
-    text = protect_brands(text)
     text_lower = text.lower()
     words = text_lower.split()
     translated_words = []
@@ -89,26 +78,28 @@ def translate_to_arabic(text):
     result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
     return result
 
-
 def clean_product_title(full_title):
-    """استخراج الاسم المفيد والواضح بدون قطع الكلمات المهمة مثل الماركات"""
+    """الاحتفاظ باسم العلامة التجارية والمنتج بوضوح تام دون اقتطاع مخل"""
     if not full_title:
         return "منتج مميز"
     
-    # تنظيف الرموز الزائدة ولكن الاحتفاظ بالاسم كاملاً بشكل معقول (أول 6-8 كلمات مفيدة)
-    cleaned = re.split(r'[-–,|/]', full_title)[0]
-    arabic_name = translate_to_arabic(cleaned)
-    words = arabic_name.split()
+    # أخذ الجزء الأول المفيد الذي يحتوي على الماركة والاسم (قبل الفواصل الطويلة أو المواصفات البحتة)
+    parts = re.split(r'[-–,|/]', full_title)
+    main_part = parts[0].strip()
     
-    # أخذ أول 6 كلمات لضمان عدم ضياع اسم الماركة أو المنتج الأساسي
-    short_name = " ".join(words[:7])
-    return short_name.strip() if len(short_name) > 3 else translate_to_arabic(full_title[:50])
-
+    # إذا كان العنوان الأصلي بالإنجليزية، نقوم بترجمته مع الحفاظ على الكلمات الدلالية
+    if re.search(r'[A-Za-z]', main_part):
+        translated = translate_to_arabic(main_part)
+        # نأخذ أول 7 كلمات لضمان عدم ضياع اسم الماركة والنوع
+        words = translated.split()
+        return " ".join(words[:8])
+    else:
+        words = main_part.split()
+        return " ".join(words[:8])
 
 def get_category_emoji(category):
-    emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "✨", "home": "🏡", "sports": "⚡"}
+    emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🏡", "sports": "⚡"}
     return emojis.get(category, "🔥")
-
 
 def expand_url(url):
     try:
@@ -131,12 +122,10 @@ def expand_url(url):
     except:
         return url
 
-
 def is_saudi_amazon(url):
     if "link.amazon" in url.lower():
         return True
     return "amazon.sa" in url.lower()
-
 
 def extract_asin(url):
     if 'link.amazon' in url.lower():
@@ -150,7 +139,6 @@ def extract_asin(url):
             return m.group(1)
     return None
 
-
 def clean_price(price_text):
     try:
         nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
@@ -161,7 +149,6 @@ def clean_price(price_text):
         pass
     return price_text
 
-
 def extract_number(price_text):
     try:
         nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
@@ -170,7 +157,6 @@ def extract_number(price_text):
     except:
         pass
     return 0
-
 
 def get_high_quality_image(soup):
     image = None
@@ -184,7 +170,6 @@ def get_high_quality_image(soup):
     if image:
         image = re.sub(r'_SX\d+_SY\d+_', '_', image).split('?')[0]
     return image
-
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -217,6 +202,7 @@ def get_product(asin):
             current_price_num = extract_number(price)
 
             return {
+                "full_title": title,
                 "name": clean_name,
                 "price": price,
                 "old_price": old_price,
@@ -228,10 +214,10 @@ def get_product(asin):
             continue
     return None
 
-
 def generate_post(product_data, original_url):
-    """توليد آلاف الصيغ الإبداعية المختلفة ومنمقة جداً لضمان عدم التكرار"""
+    """توليد محتوى تسويقي احترافي بلهجة خليجية طبيعية ومتحمسة مع تنوع كامل"""
     name = product_data["name"]
+    full_title = product_data["full_title"]
     price = product_data["price"]
     old_price = product_data["old_price"]
     category = product_data["category"]
@@ -244,29 +230,30 @@ def generate_post(product_data, original_url):
     old_num = extract_number(old_price) if old_price else 0
     if old_num > product_data["current_price_num"] and old_num > 0:
         pct = int(((old_num - product_data["current_price_num"]) / old_num) * 100)
-        discount_text = f"⚡ خصم قوي بنسبة {pct}%!"
+        discount_text = f"خصم قوي بنسبة {pct}% لفترة محدودة!"
 
-    angles = [
-        "إبراز روعة الصفقة وكأنها لقطة لا تعوض",
-        "نصيحة سريعة ومباشرة عن جودة المنتج وسعره المذهل",
-        "تعبير عفوي وحماسي عن مدى فائدة المنتج وسعره الإداري",
-        "أسلوب راقي وهادئ يركز على قيمة السعر الحالي"
+    styles = [
+        "أسلوب حماسي مباشر وموجه للقروب (يا جماعة الخير، فرصة لا تفوتكم...) مع التركيز على جودة المنتج وسعره المذهل.",
+        "أسلوب استشاري ذكي (لكل اللي يورون عن الجودة والوفر الحقيقي...) مع إبراز لماذا هذا المنتج ضروري.",
+        "أسلوب صدمة السعر والعروض القوية (عرض ما يتقارن، السعر طاح بشكل جنوني...) مع حث سريع على الطلب."
     ]
-    
-    chosen_angle = random.choice(angles)
-    random_seed = random.randint(10000, 99999)
+    chosen_style = random.choice(styles)
+    random_seed = random.randint(1000, 9999)
 
     prompt = f"""
 [Seed: {random_seed}]
-أنت خبير تسويق إلكتروني مبتكر. اكتب جملة أو جملتين ترويجيتين فقط لمنتج: ({name}).
-الزاوية التسويقية: ({chosen_angle}).
+أنت مسوق إلكتروني محترف ومبدع تستهدف العملاء في السعودية بجروب تسوق وتخفيضات عبر تيليجرام.
+اكتب رسالة تسويقية قصيرة ومميزة باللغة العربية (اللهجة الخليجية الطبيعية الخفيفة) للمنتج التالي:
+اسم المنتج المختصر: {name}
+العنوان الأصلي الكامل: {full_title}
+الأسلوب المطلوب لهذه القطعة: {chosen_style}
 
-شروط صارمة:
-1. ممنوع نهائياً استخدام أي جملة استهلالية محفوظة أو مكررة (مثل "لقد وجدت لكم"). ابدأ فوراً بوصف الصفقة أو المنتج بطريقة مبتكرة.
-2. لا تضع اسم المنتج كاملاً بشكل طويل، بل أشر إليه بذكاء.
-3. الأسلوب أنيق، جذاب، وشيق جداً ومختصر (في حدود سطرين).
-4. لا تضع أي روابط أو أسعار داخل النص.
-5. أعطني النص الخالص فقط بدون علامات تنصيص.
+شروط صارمة جداً:
+1. ابدأ مباشرة بعبارة تسويقية خليجية جذابة ولا تستخدم أبداً العبارة المكررة "لقد وجدت لكم اليوم".
+2. اذكر ميزة حقيقية أو فائدة تهم المشتري من خلال العنوان الأصلي للمنتج (مثل جودته أو حاجته اليومية).
+3. اجعل النص في حدود سطرين إلى 3 أسطر، منسق، مريح للعين، وبدون أي حشو زائد.
+4. لا تضع أي أسعار أو روابط داخل نص الذكاء الاصطناعي (الأسعار والروابط ستتم اضافتها تلقائياً في القالب).
+5. أعطني النص الخالص فقط بدون مقدمات وبدون علامات تنصيص.
 """
 
     ai_text = ""
@@ -274,31 +261,30 @@ def generate_post(product_data, original_url):
         completion = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "أنت كاتب محتوى تسويقي إبداعي متجدد ومتنوع الأفكار تماماً."},
+                {"role": "system", "content": "أنت مسوق محترف ومتمرس في كتابة الإعلانات الترويجية الخليجية الجذابة."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=1.5,
+            temperature=1.3,
             max_tokens=150
         )
         ai_text = completion.choices[0].message.content.strip()
     except:
-        ai_text = f"فرصة ممتازة جداً لا تفوتك على هذا المنتج المميز بجودة عالية وسعر استثنائي."
+        ai_text = f"يا جماعه الخير، وفرنا لكم اليوم هذا المنتج المميز بجودة عالية وسعر ما يتتفوت أبداً!"
 
-    # تنسيق الفورمات النهائي بشكل راقي ومريح للعين
+    # تنسيق نهائي مرتب ونظيف يناسب جروبات التسوق المحترمة
     post_lines = [
         f"{emoji} **{name}**",
         "",
         ai_text,
         "",
-        f"🏷️ السعر الحالي: `{clean_current}`" + (f" ~~{clean_old}~~" if clean_old else ""),
-        (f"🔥 {discount_text}" if discount_text else ""),
+        f"🏷️ **السعر الحالي:** `{clean_current}`" + (f" ~~{clean_old}~~" if clean_old else ""),
+        (f"🔥 **{discount_text}**" if discount_text else ""),
         "",
-        f"🛒 **رابط الطلب السريع:**",
+        f"🛒 **للطلب والشراء السريع:**",
         f"{original_url}"
     ]
 
     return "\n".join([line for line in post_lines if line is not None])
-
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -306,7 +292,7 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال رابط المنتج من أمازون السعودية لنشر السحر ✨")
+        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال روابط المنتجات من أمازون السعودية لنشرها بالتنسيق الاحترافي الجديد ✨")
         return
 
     for original_url in urls:
@@ -320,7 +306,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري إعداد التنسيق الأنيق والصياغة المبتكرة...")
+        wait = bot.reply_to(msg, "⏳ جاري تنسيق المنشور بأسلوب احترافي وجذاب...")
 
         product = get_product(asin)
         if not product:
@@ -355,7 +341,7 @@ WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بكفاءة عالية وتنسيق مميز 🔥"
+    return "🤖 البوت يعمل بكفاءة عالية وصياغة خليجية مميزة 🔥"
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
