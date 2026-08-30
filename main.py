@@ -22,10 +22,10 @@ def protect_brands(text):
 
 
 CATEGORY_KEYWORDS = {
-    "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني"],
-    "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء"],
-    "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "foundation", "mascara", "eyeliner", "brush", "cosmetic", "skincare", "haircare", "عطر", "عود", "مسك", "كريم", "شامبو", "بلسم", "صابون", "مكياج", "أحمر شفاه", "عناية", "جمال", "تجميل"],
-    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "ac", "heater", "fan", "blender", "mixer", "oven", "microwave", "toaster", "kettle", "coffee maker", "iron", "hair dryer", "chair", "table", "desk", "bed", "sofa", "couch", "lamp", "light", "mirror", "carpet", "curtain", "furniture", "kitchen", "home", "house", "ثلاجة", "غسالة", "مكنسة", "مكيف", "دفاية", "مروحة", "خلاط", "فرن", "مايكرويف", "غلاية", "كرسي", "طاولة", "سرير", "كنبة", "لمبة", "سجادة", "أثاث", "مطبخ", "منزل"],
+    "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني", "مكنسة"],
+    "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "معطف", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء"],
+    "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "foundation", "mascara", "eyeliner", "brush", "cosmetic", "skincare", "haircare", "عطر", "عود", "مسك", "كريم", "شامبو", "بلسم", "صابون", "مكياج", "أحمر شفاه", "عناية", "جمال", "تجميل", "جل"],
+    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "ac", "heater", "fan", "blender", "mixer", "oven", "microwave", "toaster", "kettle", "coffee maker", "iron", "hair dryer", "chair", "table", "desk", "bed", "sofa", "couch", "lamp", "light", "mirror", "carpet", "curtain", "furniture", "kitchen", "home", "house", "ارز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "دفاية", "مروحة", "خلاط", "فرن", "مايكرويف", "غلاية", "كرسي", "طاولة", "سرير", "كنبة", "لمبة", "سجادة", "أثاث", "مطبخ", "منزل"],
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "exercise", "workout", "sport", "running", "walking", "training", "sneakers", "shoes", "رياضة", "جيم", "لياقة", "تمارين", "سير", "دامبل", "يوغا", "دراجة", "كرة", "جري", "مشي", "تدريب"]
 }
 
@@ -91,25 +91,22 @@ def translate_to_arabic(text):
 
 
 def clean_product_title(full_title):
-    """استخراج الزبدة والمهم فقط من اسم المنتج وحذف الحشو الطويل"""
+    """استخراج الاسم المفيد والواضح بدون قطع الكلمات المهمة مثل الماركات"""
     if not full_title:
         return "منتج مميز"
     
-    # إزالة الكلمات الزائدة والخصائص الطويلة المعتادة في أمازون
-    cleaned = re.sub(r'\b(Aspirin|By|with|for|and|من|لـ|مع)\b.*', '', full_title, flags=re.IGNORECASE)
-    cleaned = re.split(r'[-–,|/]', full_title)[0] # اخذ أول جزء فقط قبل الرموز الفاصلة الطويلة
-    
-    # ترجمة وتحسين الاسم ليصبح قصيراً ومفهوماً
+    # تنظيف الرموز الزائدة ولكن الاحتفاظ بالاسم كاملاً بشكل معقول (أول 6-8 كلمات مفيدة)
+    cleaned = re.split(r'[-–,|/]', full_title)[0]
     arabic_name = translate_to_arabic(cleaned)
     words = arabic_name.split()
     
-    # تقليص الاسم ليكون في حدود 3 إلى 5 كلمات قوية ومختصرة
-    short_name = " ".join(words[:5])
-    return short_name.strip() if len(short_name) > 3 else translate_to_arabic(full_title[:40])
+    # أخذ أول 6 كلمات لضمان عدم ضياع اسم الماركة أو المنتج الأساسي
+    short_name = " ".join(words[:7])
+    return short_name.strip() if len(short_name) > 3 else translate_to_arabic(full_title[:50])
 
 
 def get_category_emoji(category):
-    emojis = {"electronics": "📱", "fashion": "👕", "beauty": "💄", "home": "🏠", "sports": "💪"}
+    emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "✨", "home": "🏡", "sports": "⚡"}
     return emojis.get(category, "🔥")
 
 
@@ -233,7 +230,7 @@ def get_product(asin):
 
 
 def generate_post(product_data, original_url):
-    """توليد آلاف الصيغ الإبداعية المنمقة جداً بأساليب تسويقية ساحرة"""
+    """توليد آلاف الصيغ الإبداعية المختلفة ومنمقة جداً لضمان عدم التكرار"""
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
@@ -243,37 +240,33 @@ def generate_post(product_data, original_url):
     clean_old = clean_price(old_price) if old_price else ""
     emoji = get_category_emoji(category)
 
-    # حساب نسبة الخصم إن وجد
     discount_text = ""
     old_num = extract_number(old_price) if old_price else 0
     if old_num > product_data["current_price_num"] and old_num > 0:
         pct = int(((old_num - product_data["current_price_num"]) / old_num) * 100)
-        discount_text = f"⚡ خصم {pct}% لفترة محدودة!"
+        discount_text = f"⚡ خصم قوي بنسبة {pct}%!"
 
-    # آلاف الاحتمالات العشوائية لكسر التكرار تماماً وصياغة جذابة
-    marketing_styles = [
-        "أسلوب الفخامة والروعة المباشرة",
-        "أسلوب النصيحة الخفيفة والصدمة الإيجابية بالسعر",
-        "أسلوب التشويق والإثارة لعرض لا يُعوض",
-        "أسلوب الهدوء الأنيق والمميز"
+    angles = [
+        "إبراز روعة الصفقة وكأنها لقطة لا تعوض",
+        "نصيحة سريعة ومباشرة عن جودة المنتج وسعره المذهل",
+        "تعبير عفوي وحماسي عن مدى فائدة المنتج وسعره الإداري",
+        "أسلوب راقي وهادئ يركز على قيمة السعر الحالي"
     ]
     
-    chosen_style = random.choice(marketing_styles)
-    random_ref_id = random.randint(100000, 999999)
+    chosen_angle = random.choice(angles)
+    random_seed = random.randint(10000, 99999)
 
     prompt = f"""
-[Ref_Code: {random_ref_id}]
-أنت خبير تسويق إلكتروني وصانع محتوى محترف جداً على السوشيال ميديا.
-اكتب رسالة ترويجية قصيرة ومنمقة للغاية لمنتج: ({name}).
-الأسلوب المطلوب: ({chosen_style}).
+[Seed: {random_seed}]
+أنت خبير تسويق إلكتروني مبتكر. اكتب جملة أو جملتين ترويجيتين فقط لمنتج: ({name}).
+الزاوية التسويقية: ({chosen_angle}).
 
-شروط التنسيق والصياغة بدقة شديدة:
-1. ابدأ فوراً بعبارة تشويقية أو إيموجي جذاب يناسب المنتج بدون أي مقدمات تقليدية.
-2. لا تذكر سوى اسم المنتج المختصر والنظيف ({name}) بدون أي حشو أو تفاصيل تقنية معقدة.
-3. اجعل الأسلوب راقياً، بسيطاً، مشجعاً، وغير مكرر نهائياً بفضل الـ Ref_Code.
-4. الطول أقصاه سطران إلى 3 أسطر فقط.
-5. لا تضع أي روابط نهائياً داخل النص.
-6. أعطني النص الخالص فقط بدون أي علامات تنصيص.
+شروط صارمة:
+1. ممنوع نهائياً استخدام أي جملة استهلالية محفوظة أو مكررة (مثل "لقد وجدت لكم"). ابدأ فوراً بوصف الصفقة أو المنتج بطريقة مبتكرة.
+2. لا تضع اسم المنتج كاملاً بشكل طويل، بل أشر إليه بذكاء.
+3. الأسلوب أنيق، جذاب، وشيق جداً ومختصر (في حدود سطرين).
+4. لا تضع أي روابط أو أسعار داخل النص.
+5. أعطني النص الخالص فقط بدون علامات تنصيص.
 """
 
     ai_text = ""
@@ -281,35 +274,30 @@ def generate_post(product_data, original_url):
         completion = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "أنت كاتب محتوى تسويقي إبداعي بأسلوب راقي ومبتكر."},
+                {"role": "system", "content": "أنت كاتب محتوى تسويقي إبداعي متجدد ومتنوع الأفكار تماماً."},
                 {"role": "user", "content": prompt}
             ],
             temperature=1.5,
-            max_tokens=200
+            max_tokens=150
         )
         ai_text = completion.choices[0].message.content.strip()
     except:
-        ai_text = f"لقت لكم اليوم قطعة مميزة لا تستغنى عنها: **{name}** بجودة عالية وسعر استثنائي!"
+        ai_text = f"فرصة ممتازة جداً لا تفوتك على هذا المنتج المميز بجودة عالية وسعر استثنائي."
 
-    # تنسيق الفورمات النهائي بشكل مرتب وأنيق جداً (كما طلبت)
+    # تنسيق الفورمات النهائي بشكل راقي ومريح للعين
     post_lines = [
         f"{emoji} **{name}**",
         "",
         ai_text,
         "",
-        f"🏷️ السعر بسعر لقطة: `{clean_current}`" + (f" ~~{clean_old}~~" if clean_old else ""),
+        f"🏷️ السعر الحالي: `{clean_current}`" + (f" ~~{clean_old}~~" if clean_old else ""),
         (f"🔥 {discount_text}" if discount_text else ""),
         "",
-        f"🛒 **اضغط هنا للطلب والشراء:**",
+        f"🛒 **رابط الطلب السريع:**",
         f"{original_url}"
     ]
 
-    # إزالة الأسطر الفارغة الزائدة إن وجدت
-    final_post = "\nnot_empty".join([line for line in post_lines if line != ""])
-    # تصحيح تداخل الـ join المؤقت
-    final_post = "\n".join([line for line in post_lines if line is not None])
-    
-    return final_post
+    return "\n".join([line for line in post_lines if line is not None])
 
 
 @bot.message_handler(func=lambda m: True)
