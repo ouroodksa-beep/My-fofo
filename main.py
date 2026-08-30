@@ -97,7 +97,10 @@ def get_category_emoji(category):
 def expand_url(url):
     try:
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
-            headers = {"User-Agent": "Mozilla/5.0"}
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+            }
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
             if 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
@@ -153,7 +156,7 @@ def extract_number(price_text):
 
 def get_high_quality_image(soup):
     image = None
-    img_elem = soup.select_one("#landingImage")
+    img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront")
     if img_elem:
         image = img_elem.get("data-old-hires") or img_elem.get("src")
     if not image:
@@ -166,25 +169,47 @@ def get_high_quality_image(soup):
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
+    
+    # قائمة من User-Agents الحقيقية والمتنوعة لتجاوز الحماية
     user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
     ]
+    
     for ua in user_agents:
         try:
-            headers = {"User-Agent": ua, "Accept-Language": "ar-SA,ar;q=0.9"}
-            r = requests.get(url, headers=headers, timeout=20)
+            headers = {
+                "User-Agent": ua,
+                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Referer": "https://www.amazon.sa/",
+                "DNT": "1"
+            }
+            r = requests.get(url, headers=headers, timeout=25)
             if r.status_code != 200:
                 continue
+                
             soup = BeautifulSoup(r.text, "html.parser")
             
+            # التحقق من وجود صفحة حماية أو كابتشا
+            if "To discuss automated automated access to Amazon data" in r.text or soup.select_one("input#captchacharacters"):
+                continue
+
             title_elem = soup.select_one("#productTitle")
             title = title_elem.text.strip() if title_elem else ""
             if not title:
                 continue
 
+            # استخراج السعر الحالي بطرق متعددة لتجنب الفشل
+            price = "0"
             price_elem = soup.select_one(".a-price .a-offscreen")
-            price = price_elem.text.strip() if price_elem else "0"
+            if price_elem:
+                price = price_elem.text.strip()
+            else:
+                price_alt = soup.select_one("#priceblock_ourprice") or soup.select_one("#priceblock_dealprice")
+                if price_alt:
+                    price = price_alt.text.strip()
 
             old_price_elem = soup.select_one(".a-text-price .a-offscreen")
             old_price = old_price_elem.text.strip() if old_price_elem else None
@@ -208,7 +233,6 @@ def get_product(asin):
     return None
 
 def generate_post(product_data, original_url):
-    """توليد محتوى تسويقي قصير واحترافي بلهجة قنوات التخفيضات الكبيرة بدون حشو"""
     name = product_data["name"]
     full_title = product_data["full_title"]
     price = product_data["price"]
@@ -224,7 +248,6 @@ def generate_post(product_data, original_url):
     if old_num > product_data["current_price_num"] and old_num > 0:
         discount_pct = int(((old_num - product_data["current_price_num"]) / old_num) * 100)
 
-    # صيغ تحاكي القنوات الكبيرة (مثل الصورة المرسلة بالضبط)
     hooks = [
         f"🔥 **{name}**\nقطعة مميزة لا تفوتكم بـ {clean_current} فقط 😍",
         f"🔥 **أفضل ماركة أنصح به شخصياً👌**\n{name} بسعر خيالي!",
@@ -234,7 +257,6 @@ def generate_post(product_data, original_url):
     
     selected_hook = random.choice(hooks)
     
-    # تنسيق سطر السعر المشطوب والحالي مثل القنوات الاحترافية
     price_line = f"💰 السعر: **{clean_current}**"
     if clean_old and discount_pct > 0:
         price_line = f"❌ طار السعر وصار ~~{clean_old}~~\n✨ وسعرها الآن: **{clean_current}** (خصم {discount_pct}%)"
@@ -255,7 +277,7 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال روابط أمازون السعودية لتتحول فوراً إلى منشورات احترافية مثل الكبار ✨")
+        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال روابط أمازون السعودية لتتحول فوراً إلى منشورات احترافية ✨")
         return
 
     for original_url in urls:
@@ -269,11 +291,11 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري صياغة المنشور باحترافية القنوات الكبيرة...")
+        wait = bot.reply_to(msg, "⏳ جاري تجاوز حماية أمازون وقراءة بيانات المنتج...")
 
         product = get_product(asin)
         if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط أو جرب رابطاً آخر.", msg.chat.id, wait.message_id)
             continue
 
         post = generate_post(product, original_url)
@@ -291,7 +313,6 @@ def handler(msg):
             except:
                 bot.edit_message_text("❌ حدث خطأ أثناء إرسال المنشور.", msg.chat.id, wait.message_id)
 
-
 # ============ WEBHOOK SERVER ============
 from flask import Flask, request
 
@@ -304,7 +325,7 @@ WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بأعلى جودة وتنسيق احترافي 🔥"
+    return "🤖 البوت يعمل بأعلى كفاءة وتجاوز للحماية 🔥"
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
