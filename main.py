@@ -39,19 +39,6 @@ def detect_product_category(product_name):
     return "general"
 
 
-def detect_product_gender(product_name):
-    name_lower = product_name.lower()
-    women_indicators = ['women', 'woman', 'ladies', 'lady', 'female', 'feminine', 'نسائي', 'نساء', 'نسا', 'سيدات', 'سيدة', 'انثى', 'انثوي', 'dress', 'skirt', 'فستان', 'تنورة', 'بلايز', 'فساتين', 'makeup', 'lipstick', 'شامبو', 'بلسم', 'كريم', 'عطر نسائي', 'عطر للنساء']
-    men_indicators = ['men', 'man', 'male', 'masculine', 'gents', 'gentlemen', 'رجالي', 'رجال', 'رجل', 'ذكر', 'ذكوري', 'رجولة', 'عطر رجالي', 'عطر للرجال']
-    for indicator in women_indicators:
-        if indicator in name_lower:
-            return 'women'
-    for indicator in men_indicators:
-        if indicator in name_lower:
-            return 'men'
-    return 'neutral'
-
-
 TRANSLATION_DICT = {
     "laptop": "لابتوب", "tablet": "تابلت", "keyboard": "كيبورد", "mouse": "ماوس",
     "charger": "شاحن", "cable": "كيبل", "power bank": "باور بانك", "battery": "بطارية",
@@ -84,19 +71,6 @@ TRANSLATION_DICT = {
     "premium": "بريميوم", "deluxe": "ديلوكس", "unisex": "للجنسين", "adult": "للبالغين",
     "men": "رجالي", "women": "نسائي",
     "black": "أسود", "white": "أبيض", "blue": "أزرق", "red": "أحمر", "green": "أخضر",
-    "capsule": "كبسولة", "capsules": "كبسولات", "machine": "ماكينة", "maker": "صانع",
-    "espresso": "إسبريسو", "coffee": "قهوة", "cafe": "كافيه",
-    "preparation": "تحضير", "prepare": "تحضير",
-    "anti": "مضاد", "anti-hair loss": "مضاد تساقط", "hair loss": "تساقط الشعر",
-    "stimulating": "منشط", "stimulator": "منشط", "fortifying": "يقوي",
-    "serum": "سيروم", "repair": "ترميم", "damaged": "تالف", "split ends": "نهايات متقصفة",
-    "protection": "حماية", "heat": "حرارة", "spray": "بخاخ", "fixative": "مثبت",
-    "keratin": "كيراتين", "smooth": "سموث", "touch": "ريتاتش", "retouch": "ريتاتش",
-    "night": "نايت", "eau de toilette": "أو دي تواليت", "edt": "أو دي تواليت",
-    "eau de parfum": "أو دي بارفان", "edp": "أو دي بارفان", "perfume": "عطر",
-    "for men": "للرجال", "for women": "للنساء", "unisex": "للجنسين",
-    "swiss": "سويسرية", "arabian": "عربية", "oriental": "شرقية",
-    "honey": "هوني", "treasures": "تريجرز",
 }
 
 
@@ -116,22 +90,27 @@ def translate_to_arabic(text):
     return result
 
 
-def smart_arabic_title(full_title):
-    full_title = protect_brands(full_title)
-    arabic_title = translate_to_arabic(full_title)
-    words = arabic_title.split()
-    unique_words = []
-    for word in words:
-        if not unique_words or word.lower() != unique_words[-1].lower():
-            unique_words.append(word)
-    result = " ".join(unique_words)
-    result = protect_brands(result)
-    return result.strip()
+def clean_product_title(full_title):
+    """استخراج الزبدة والمهم فقط من اسم المنتج وحذف الحشو الطويل"""
+    if not full_title:
+        return "منتج مميز"
+    
+    # إزالة الكلمات الزائدة والخصائص الطويلة المعتادة في أمازون
+    cleaned = re.sub(r'\b(Aspirin|By|with|for|and|من|لـ|مع)\b.*', '', full_title, flags=re.IGNORECASE)
+    cleaned = re.split(r'[-–,|/]', full_title)[0] # اخذ أول جزء فقط قبل الرموز الفاصلة الطويلة
+    
+    # ترجمة وتحسين الاسم ليصبح قصيراً ومفهوماً
+    arabic_name = translate_to_arabic(cleaned)
+    words = arabic_name.split()
+    
+    # تقليص الاسم ليكون في حدود 3 إلى 5 كلمات قوية ومختصرة
+    short_name = " ".join(words[:5])
+    return short_name.strip() if len(short_name) > 3 else translate_to_arabic(full_title[:40])
 
 
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "👕", "beauty": "💄", "home": "🏠", "sports": "💪"}
-    return emojis.get(category, "📦")
+    return emojis.get(category, "🔥")
 
 
 def expand_url(url):
@@ -139,53 +118,20 @@ def expand_url(url):
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
-
             if 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
                 asin = None
-                detail_rows = soup.find_all('tr')
-                for row in detail_rows:
-                    cells = row.find_all(['td', 'th'])
-                    for i, cell in enumerate(cells):
-                        if 'ASIN' in cell.get_text(strip=True) and i + 1 < len(cells):
-                            asin = cells[i + 1].get_text(strip=True)
-                            if asin and len(asin) >= 9:
-                                break
-                    if asin:
-                        break
-
-                if not asin:
-                    page_text = soup.get_text()
-                    asin_match = re.search(r'ASIN\s*[:\-]?\s*([A-Z0-9]{9,10})', page_text, re.IGNORECASE)
+                canonical = soup.select_one('link[rel="canonical"]')
+                if canonical:
+                    href = canonical.get('href', '')
+                    asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', href)
                     if asin_match:
                         asin = asin_match.group(1)
-
-                if not asin:
-                    canonical = soup.select_one('link[rel="canonical"]')
-                    if canonical:
-                        href = canonical.get('href', '')
-                        asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', href)
-                        if asin_match:
-                            asin = asin_match.group(1)
-
-                if not asin:
-                    all_links = soup.find_all('a', href=True)
-                    for link in all_links:
-                        href = link.get('href', '')
-                        asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', href)
-                        if asin_match:
-                            asin = asin_match.group(1)
-                            break
-
                 if asin:
                     return f"https://www.amazon.sa/dp/{asin}"
-
-                return r.url
-
             return r.url
         return url
-    except Exception as e:
-        print(f"expand_url error: {e}")
+    except:
         return url
 
 
@@ -200,12 +146,7 @@ def extract_asin(url):
         match = re.search(r'link\.amazon/([A-Za-z0-9]{9,10})', url, re.IGNORECASE)
         if match:
             return match.group(1).upper()
-
-    patterns = [
-        r'/dp/([A-Z0-9]{9,10})', r'/gp/product/([A-Z0-9]{9,10})',
-        r'/product/([A-Z0-9]{9,10})', r'([A-Z0-9]{9,10})/?$',
-        r'([A-Z0-9]{9,10})(?:[/?]|\b)'
-    ]
+    patterns = [r'/dp/([A-Z0-9]{9,10})', r'/gp/product/([A-Z0-9]{9,10})', r'/product/([A-Z0-9]{9,10})', r'([A-Z0-9]{9,10})/?$']
     for p in patterns:
         m = re.search(p, url)
         if m:
@@ -218,9 +159,7 @@ def clean_price(price_text):
         nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
         if nums:
             num_str = nums[0].replace(",", "")
-            num_float = float(num_str)
-            num_int = int(num_float)
-            return f"{num_int} ريال"
+            return f"{int(float(num_str))} ر.س"
     except:
         pass
     return price_text
@@ -240,578 +179,137 @@ def get_high_quality_image(soup):
     image = None
     img_elem = soup.select_one("#landingImage")
     if img_elem:
-        image = img_elem.get("data-old-hires")
-        if not image:
-            dynamic_data = img_elem.get("data-a-dynamic-image")
-            if dynamic_data:
-                try:
-                    img_dict = json.loads(dynamic_data)
-                    if img_dict:
-                        sorted_urls = sorted(img_dict.keys(), key=lambda x: img_dict[x][0] * img_dict[x][1], reverse=True)
-                        image = sorted_urls[0] if sorted_urls else None
-                except:
-                    pass
-        if not image:
-            image = img_elem.get("src")
-    if not image:
-        gallery_img = soup.select_one("#imgTagWrapperId img")
-        if gallery_img:
-            image = gallery_img.get("data-old-hires") or gallery_img.get("src")
+        image = img_elem.get("data-old-hires") or img_elem.get("src")
     if not image:
         og_img = soup.select_one('meta[property="og:image"]')
         if og_img:
             image = og_img.get("content")
     if image:
-        image = clean_image_url(image)
+        image = re.sub(r'_SX\d+_SY\d+_', '_', image).split('?')[0]
     return image
-
-
-def clean_image_url(url):
-    if not url:
-        return None
-    patterns_to_remove = [
-        r'_SX\d+_SY\d+_', r'_SX\d+_', r'_SY\d+_',
-        r'_CR\d+,\d+,\d+,\d+_', r'_AC_SL\d+_',
-        r'_SCLZZZZZZZ_', r'_FMwebp_', r'_QL\d+_',
-    ]
-    cleaned = url
-    for pattern in patterns_to_remove:
-        cleaned = re.sub(pattern, '_', cleaned)
-    if '_SL' not in cleaned and 'amazon' in cleaned:
-        cleaned = re.sub(r'(\.[a-zA-Z]+)(\?.*)?$', r'_SL1500\1', cleaned)
-    cleaned = cleaned.split('?')[0]
-    return cleaned
-
-
-def get_seller_info(soup):
-    seller_name = None
-    seller_rating = None
-    seller_selectors = [
-        "#merchant-info a",
-        "[data-feature-name='merchant'] a",
-        ".tabular-buybox-text[tabular-attribute-name='Merchant']",
-        "#merchant-info",
-    ]
-    for selector in seller_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            text = elem.get_text(strip=True)
-            if text and len(text) > 2:
-                seller_name = text
-                break
-    rating_elem = soup.select_one("[data-feature-name='merchant'] .a-icon-alt")
-    if rating_elem:
-        text = rating_elem.get_text(strip=True)
-        match = re.search(r'(\d+)%', text)
-        if match:
-            seller_rating = int(match.group(1))
-    return seller_name, seller_rating
-
-
-def get_product_rating(soup):
-    rating = None
-    review_count = None
-    rating_elem = soup.select_one("#acrPopover .a-icon-alt")
-    if not rating_elem:
-        rating_elem = soup.select_one("[data-hook='rating-out-of-text']")
-    if rating_elem:
-        text = rating_elem.get_text(strip=True)
-        m = re.search(r'([\d.]+)', text)
-        if m:
-            rating = m.group(1)
-    review_elem = soup.select_one("#acrCustomerReviewText")
-    if not review_elem:
-        review_elem = soup.select_one("[data-hook='total-review-count']")
-    if review_elem:
-        text = review_elem.get_text(strip=True)
-        m = re.search(r'([\d,]+)', text)
-        if m:
-            review_count = m.group(1).replace(",", "")
-    return rating, review_count
-
-
-def get_stock_info(soup):
-    stock_text = None
-    selectors = [
-        "#availability span",
-        ".a-color-price.a-text-bold",
-        "#outOfStock",
-        "[data-feature-name='availability']",
-    ]
-    for selector in selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            text = elem.get_text(strip=True)
-            if text and any(w in text.lower() for w in ['left', 'متبقي', 'stock', 'soon', 'قريبا', 'limited', 'only']):
-                stock_text = text
-                break
-    return stock_text
-
-
-def extract_all_offers(soup, current_price_num):
-    all_offers = []
-    page_text = soup.get_text()
-
-    promo_patterns = [
-        r'promo\s*code[:\s]+([A-Z0-9]{3,15})',
-        r'enter\s+code\s+([A-Z0-9]{3,15})\s+at\s+checkout',
-        r'code[:\s]+([A-Z0-9]{3,15})',
-        r'use\s+code\s+([A-Z0-9]{3,15})',
-        r'(?:apply|clip|enter|استخدم|طبّق)\s+([A-Z0-9]{4,12})\s*(?:to save|للحصول|for)\s*(\d+)%',
-    ]
-
-    for pattern in promo_patterns:
-        matches = re.finditer(pattern, page_text, re.IGNORECASE)
-        for match in matches:
-            code = match.group(1).upper() if match.group(1) else None
-            percent = 0
-            context = page_text[max(0, match.start()-100):min(len(page_text), match.end()+100)]
-            pct_match = re.search(r'(\d+)%', context)
-            if pct_match:
-                percent = int(pct_match.group(1))
-
-            if code and not any(o.get('code') == code for o in all_offers):
-                discount = current_price_num * percent / 100 if percent > 0 else 0
-                final = current_price_num - discount
-                all_offers.append({
-                    "type": "promo_code",
-                    "code": code,
-                    "percent": percent,
-                    "discount_amount": int(discount),
-                    "final_price": int(final),
-                    "description": f"كود خصم: {code}"
-                })
-
-    prime_patterns = [
-        r'Prime\s*Savings\s*(\d+)%\s*off\s*up\s*to\s*SAR([\d,]+)',
-        r'(\d+)%\s*OFF\s*SAR([\d,]+)',
-        r'(\d+)%\s*off\s*up\s*to\s*SAR([\d,]+)',
-    ]
-
-    for pattern in prime_patterns:
-        matches = re.finditer(pattern, page_text, re.IGNORECASE)
-        for match in matches:
-            percent = int(match.group(1))
-            max_discount = extract_number(match.group(2))
-            context = page_text[max(0, match.start()-150):min(len(page_text), match.end()+150)]
-            card_match = re.search(r'(Rajhi|Alinma|SNB|Riyad|Emirates|Visa|Mastercard)', context, re.IGNORECASE)
-            card_name = card_match.group(1) if card_match else "بطاقة ائتمان"
-
-            discount = min(current_price_num * percent / 100, max_discount)
-            final = current_price_num - discount
-
-            offer_key = f"prime_{percent}_{card_name}"
-            if not any(o.get('key') == offer_key for o in all_offers):
-                all_offers.append({
-                    "type": "prime_savings",
-                    "code": None,
-                    "percent": percent,
-                    "discount_amount": int(discount),
-                    "final_price": int(final),
-                    "max_discount": int(max_discount),
-                    "card": card_name,
-                    "description": f"Prime Savings {percent}% | {card_name}",
-                    "key": offer_key
-                })
-
-    sub_save = soup.select_one("[data-feature-name='subscribeAndSave']")
-    if sub_save:
-        text = sub_save.get_text()
-        pct_match = re.search(r'(\d+)%', text)
-        if pct_match:
-            percent = int(pct_match.group(1))
-            discount = current_price_num * percent / 100
-            final = current_price_num - discount
-            all_offers.append({
-                "type": "subscribe_save",
-                "code": None,
-                "percent": percent,
-                "discount_amount": int(discount),
-                "final_price": int(final),
-                "description": f"اشتراك وتوفير {percent}%"
-            })
-
-    multi_patterns = [
-        r'Save\s*(\d+)%\s*on\s*any\s*(\d+)\s*or\s*more',
-        r'(\d+)%\s*off\s*when\s*you\s*buy\s*(\d+)',
-    ]
-    for pattern in multi_patterns:
-        match = re.search(pattern, page_text, re.IGNORECASE)
-        if match:
-            percent = int(match.group(1))
-            qty = int(match.group(2))
-            discount = current_price_num * percent / 100
-            final = current_price_num - discount
-            all_offers.append({
-                "type": "multi_buy",
-                "code": None,
-                "percent": percent,
-                "discount_amount": int(discount),
-                "final_price": int(final),
-                "min_qty": qty,
-                "description": f"اشتري {qty} واحصل على خصم {percent}%"
-            })
-
-    coupon_selectors = [
-        "#couponTextInput", "[data-feature-name='coupon']", ".couponText",
-        "#couponContainer", "[id*='coupon']", ".promoPriceBlockMessage",
-        "[data-a-expander-name='couponSecondaryView']", ".couponCheckbox",
-        ".savingsPercentage", ".a-color-price",
-    ]
-    for selector in coupon_selectors:
-        elems = soup.select(selector)
-        for elem in elems:
-            text = elem.get_text(strip=True)
-            if text and len(text) > 3:
-                code, percent = extract_coupon_info(text)
-                if code and percent > 0:
-                    discount = current_price_num * percent / 100
-                    final = current_price_num - discount
-                    if not any(o.get('code') == code and o.get('type') == 'clip_coupon' for o in all_offers):
-                        all_offers.append({
-                            "type": "clip_coupon",
-                            "code": code,
-                            "percent": percent,
-                            "discount_amount": int(discount),
-                            "final_price": int(final),
-                            "description": f"كوبون خصم {percent}%"
-                        })
-
-    seen = {}
-    unique = []
-    for o in all_offers:
-        key = o.get("code") or o.get("key") or o.get("description", "")
-        if key not in seen:
-            seen[key] = True
-            unique.append(o)
-
-    unique.sort(key=lambda x: x["discount_amount"], reverse=True)
-    return unique
-
-
-def extract_coupon_info(text):
-    if not text:
-        return None, 0
-    percent = 0
-    percent_match = re.search(r'(\d+)%', text)
-    if percent_match:
-        percent = int(percent_match.group(1))
-    code = None
-    code_match = re.search(r'\b([A-Z]{3,}\d{2,}|\d{2,}[A-Z]{3,}|[A-Z]{4,})\b', text)
-    if code_match:
-        candidate = code_match.group(1)
-        if len(candidate) >= 4 and len(candidate) <= 15 and re.search(r'[A-Z]', candidate):
-            code = candidate
-    if not code and percent > 0:
-        code = f"خصم {percent}%"
-    return code, percent
-
-
-def get_all_coupons(soup, current_price_num):
-    return extract_all_offers(soup, current_price_num)
 
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
-
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36 Edg/117.0.2045.47",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
     ]
-
-    for attempt, ua in enumerate(user_agents):
+    for ua in user_agents:
         try:
-            delay = (2 ** attempt) + random.uniform(0.5, 2.0)
-            if attempt > 0:
-                print(f"  Waiting {delay:.1f}s before retry...")
-                time.sleep(delay)
-
-            session = requests.Session()
-
-            headers = {
-                "User-Agent": ua,
-                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Cache-Control": "max-age=0",
-                "Referer": "https://www.google.com/",
-                "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-                "sec-ch-ua-mobile": "?0",
-                "sec-ch-ua-platform": '"Windows"',
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "cross-site",
-                "Sec-Fetch-User": "?1",
-                "Priority": "u=0, i",
-            }
-
-            proxies = {}
-            if PROXY_URL:
-                proxies = {"http": PROXY_URL, "https": PROXY_URL}
-
-            try:
-                session.get("https://www.amazon.sa/", headers=headers, timeout=10, proxies=proxies)
-                time.sleep(random.uniform(0.5, 1.5))
-            except:
-                pass
-
-            r = session.get(url, headers=headers, timeout=30, proxies=proxies)
-
-            print(f"Attempt {attempt + 1}: Status {r.status_code}, Length {len(r.text)}")
-
+            headers = {"User-Agent": ua, "Accept-Language": "ar-SA,ar;q=0.9"}
+            r = requests.get(url, headers=headers, timeout=20)
             if r.status_code != 200:
                 continue
-            if len(r.text) < 3000:
-                print(f"  Content too short ({len(r.text)} chars)")
-                if "captcha" in r.text.lower():
-                    print("  CAPTCHA detected!")
-                continue
-
             soup = BeautifulSoup(r.text, "html.parser")
-
-            title = None
+            
             title_elem = soup.select_one("#productTitle")
-            if title_elem:
-                title = title_elem.text.strip()
-
+            title = title_elem.text.strip() if title_elem else ""
             if not title:
-                json_ld = soup.select_one('script[type="application/ld+json"]')
-                if json_ld:
-                    try:
-                        data = json.loads(json_ld.string)
-                        if isinstance(data, dict):
-                            title = data.get('name', '')
-                        elif isinstance(data, list):
-                            for item in data:
-                                if isinstance(item, dict) and item.get('@type') == 'Product':
-                                    title = item.get('name', '')
-                                    break
-                    except:
-                        pass
-
-            if not title:
-                print("  Title not found")
                 continue
 
-            price = None
-            price_selectors = [
-                ".a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen",
-                ".a-price.a-text-price.apexPriceToPay .a-offscreen",
-                ".a-price.aok-align-center .a-offscreen",
-                ".a-price .a-offscreen",
-                "span.a-price span.a-offscreen",
-                ".a-price-buy-box .a-offscreen",
-                "[data-a-color='price'] .a-offscreen",
-                ".a-price-whole",
-                ".a-price-current .a-offscreen",
-                ".a-price-to-pay .a-offscreen",
-            ]
-            for selector in price_selectors:
-                elem = soup.select_one(selector)
-                if elem and elem.text:
-                    text = elem.text.strip()
-                    if any(c.isdigit() for c in text):
-                        price = text
-                        break
+            price_elem = soup.select_one(".a-price .a-offscreen")
+            price = price_elem.text.strip() if price_elem else "0"
 
-            if not price:
-                json_ld = soup.select_one('script[type="application/ld+json"]')
-                if json_ld:
-                    try:
-                        data = json.loads(json_ld.string)
-                        if isinstance(data, dict):
-                            offers = data.get('offers', {})
-                            if isinstance(offers, dict):
-                                price = offers.get('price', '')
-                                if price:
-                                    price = f"SAR {price}"
-                        elif isinstance(data, list):
-                            for item in data:
-                                if isinstance(item, dict) and item.get('@type') == 'Product':
-                                    offers = item.get('offers', {})
-                                    if isinstance(offers, dict):
-                                        price = offers.get('price', '')
-                                        if price:
-                                            price = f"SAR {price}"
-                                    break
-                    except:
-                        pass
-
-            if not price:
-                price_match = re.search(r'"displayPrice"\s*:\s*"([^"]+)"', r.text)
-                if price_match:
-                    price = price_match.group(1)
-
-            if not price:
-                price_match = re.search(r'"priceAmount"\s*:\s*([\d.]+)', r.text)
-                if price_match:
-                    price = f"SAR {price_match.group(1)}"
-
-            if not price:
-                price_match = re.search(r'SAR\s*([\d,]+(?:\.\d+)?)', r.text)
-                if price_match:
-                    price = f"SAR {price_match.group(1)}"
-
-            if not price:
-                print("  Price not found")
-                continue
-
-            old_price = None
-            old_selectors = [
-                ".a-price.a-text-price[data-a-color='secondary'] .a-offscreen",
-                ".a-price.a-text-price .a-offscreen",
-                ".basisPrice .a-offscreen",
-                ".a-price.a-text-price[data-a-strike='true'] .a-offscreen",
-                ".a-price[data-a-color='secondary'] .a-offscreen",
-            ]
-            for selector in old_selectors:
-                elem = soup.select_one(selector)
-                if elem and elem.text:
-                    text = elem.text.strip()
-                    if text != price and any(c.isdigit() for c in text):
-                        old_price = text
-                        break
+            old_price_elem = soup.select_one(".a-text-price .a-offscreen")
+            old_price = old_price_elem.text.strip() if old_price_elem else None
 
             image = get_high_quality_image(soup)
-            seller_name, seller_rating = get_seller_info(soup)
-            rating, review_count = get_product_rating(soup)
-            stock_info = get_stock_info(soup)
-            current_price_num = extract_number(price) if price else 0
-
-            all_offers = extract_all_offers(soup, current_price_num)
-            all_coupons = all_offers
-
-            arabic_title = smart_arabic_title(title)
-            print(f"  SUCCESS: '{arabic_title[:50]}...' at {price}")
-            print(f"  Found {len(all_offers)} offers")
+            clean_name = clean_product_title(title)
+            category = detect_product_category(title)
+            current_price_num = extract_number(price)
 
             return {
-                "name": arabic_title,
-                "full_title": title,
+                "name": clean_name,
                 "price": price,
                 "old_price": old_price,
                 "image": image,
-                "seller_name": seller_name,
-                "seller_rating": seller_rating,
-                "rating": rating,
-                "review_count": review_count,
-                "stock_info": stock_info,
-                "all_coupons": all_coupons,
-                "all_offers": all_offers,
+                "category": category,
                 "current_price_num": current_price_num,
             }
-
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
+        except:
             continue
-
-    print("  All attempts failed")
     return None
 
 
 def generate_post(product_data, original_url):
-    """Generate completely unique marketing posts by forcing variation and removing static fallbacks."""
+    """توليد آلاف الصيغ الإبداعية المنمقة جداً بأساليب تسويقية ساحرة"""
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
-    all_offers = product_data.get("all_offers", [])
-    current_price_num = product_data["current_price_num"]
-
+    category = product_data["category"]
+    
     clean_current = clean_price(price)
-    clean_old = clean_price(old_price) if old_price else "لا يوجد"
-    
-    discount_pct = 0
+    clean_old = clean_price(old_price) if old_price else ""
+    emoji = get_category_emoji(category)
+
+    # حساب نسبة الخصم إن وجد
+    discount_text = ""
     old_num = extract_number(old_price) if old_price else 0
-    if old_num > current_price_num and old_num > 0:
-        discount_pct = int(((old_num - current_price_num) / old_num) * 100)
+    if old_num > product_data["current_price_num"] and old_num > 0:
+        pct = int(((old_num - product_data["current_price_num"]) / old_num) * 100)
+        discount_text = f"⚡ خصم {pct}% لفترة محدودة!"
 
-    extra_offer_info = ""
-    if all_offers:
-        best = all_offers[0] if isinstance(all_offers, list) else {}
-        if best.get("type") == "promo_code" and best.get("code"):
-            extra_offer_info = f"كود الخصم: `{best.get('code')}` ({best.get('percent')}%)"
-        elif best.get("type") == "clip_coupon":
-            extra_offer_info = f"كوبون خصم مفعل: {best.get('percent')}%"
-
-    angles = [
-        "صدمة من السعر الرخيص جداً مقارنة بالجودة",
-        "نصيحة سرية بين الأصدقاء عن لقطة لا تعوض",
-        "إبراز الفائدة الملحة والضرورة القصوى للمنتج في البيت",
-        "تنبيه بحماس شديد عن عرض سينتهي قريباً",
-        "مدح مبالغ فيه وساحر لأداء المنتج",
-        "مقارنة سريعة بين سعره الحالي وقيمته الفعلية",
-        "سرد تجربة شخصية عفوية وبسيطة جداً",
-        "إعلان عن كنز تم العثور عليه صدفة وبسعر مذهل"
+    # آلاف الاحتمالات العشوائية لكسر التكرار تماماً وصياغة جذابة
+    marketing_styles = [
+        "أسلوب الفخامة والروعة المباشرة",
+        "أسلوب النصيحة الخفيفة والصدمة الإيجابية بالسعر",
+        "أسلوب التشويق والإثارة لعرض لا يُعوض",
+        "أسلوب الهدوء الأنيق والمميز"
     ]
     
-    dialects_shades = [
-        "بلهجة خليجية بيضاء وعفوية",
-        "بلهجة سعودية حماسية وشعبية",
-        "بلهجة ساخرة وخفيفة الظل",
-        "بلهجة توحي بأن العرض حصري وموجه للخاص"
-    ]
-
-    chosen_angle = random.choice(angles)
-    chosen_dialect = random.choice(dialects_shades)
-    random_seed_factor = random.randint(1000, 99999)
+    chosen_style = random.choice(marketing_styles)
+    random_ref_id = random.randint(100000, 999999)
 
     prompt = f"""
-[Ref_ID: {random_seed_factor}]
-أنت كاتب محتوى تسويقي عبقري ومبدع جداً. اكتب بوست تسويقي قصير لمنتج من أمازون السعودية.
-يجب أن تكون الصياغة مبتكرة كلياً ومختلفة تماماً عن أي قوالب مكررة، وبدون استخدام أي عبارات استهلالية محفوظة.
+[Ref_Code: {random_ref_id}]
+أنت خبير تسويق إلكتروني وصانع محتوى محترف جداً على السوشيال ميديا.
+اكتب رسالة ترويجية قصيرة ومنمقة للغاية لمنتج: ({name}).
+الأسلوب المطلوب: ({chosen_style}).
 
-الزاوية التسويقية: ({chosen_angle})
-الأسلوب اللغوي: ({chosen_dialect})
-
-بيانات المنتج:
-- الاسم: {name}
-- السعر: {clean_current}
-- السعر القديم: {clean_old}
-- نسبة الخصم: {discount_pct}%
-- عروض: {extra_offer_info}
-
-شروط صارمة:
-1. ابدأ فوراً بمحتوى الإعلان وبدون أي مقدمات أو ترحيب.
-2. اذكر اسم المنتج بوضوح.
-3. أبرز السعر الحالي بوضوح باستخدام الخط العريض (Bold).
-4. الطول من سطرين إلى 3 أسطر فقط.
-5. لا تضع رابط الشراء نهائياً.
-6. أعطني النص الخالص فقط بدون علامات تنصيص.
+شروط التنسيق والصياغة بدقة شديدة:
+1. ابدأ فوراً بعبارة تشويقية أو إيموجي جذاب يناسب المنتج بدون أي مقدمات تقليدية.
+2. لا تذكر سوى اسم المنتج المختصر والنظيف ({name}) بدون أي حشو أو تفاصيل تقنية معقدة.
+3. اجعل الأسلوب راقياً، بسيطاً، مشجعاً، وغير مكرر نهائياً بفضل الـ Ref_Code.
+4. الطول أقصاه سطران إلى 3 أسطر فقط.
+5. لا تضع أي روابط نهائياً داخل النص.
+6. أعطني النص الخالص فقط بدون أي علامات تنصيص.
 """
 
-    ai_generated_text = ""
+    ai_text = ""
     try:
         completion = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "أنت خبير تسويق إلكتروني مبتكر ومتجدد الأفكار بالكامل."},
+                {"role": "system", "content": "أنت كاتب محتوى تسويقي إبداعي بأسلوب راقي ومبتكر."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=1.4,
-            max_tokens=250
+            temperature=1.5,
+            max_tokens=200
         )
-        ai_generated_text = completion.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Groq API Error: {e}")
-        fallbacks = [
-            f"يا جماعة شوفوا وش حصلت! 🔥 {name} متوفر الآن بسعر ما يتطوف: **{clean_current}**.",
-            f"فرصة لقطة لا تعوض! 🤩 تبي {name}؟ خذه الحين بسعر مخفض: **{clean_current}**.",
-            f"عرض قوي جداً على {name} 🛒 الحق حالك واطلبه بسعر خيالي: **{clean_current}**."
-        ]
-        ai_generated_text = random.choice(fallbacks)
+        ai_text = completion.choices[0].message.content.strip()
+    except:
+        ai_text = f"لقت لكم اليوم قطعة مميزة لا تستغنى عنها: **{name}** بجودة عالية وسعر استثنائي!"
 
-    final_post_parts = [
-        ai_generated_text,
-        f"🛒 **رابط الطلب السريع:**\n{original_url}"
+    # تنسيق الفورمات النهائي بشكل مرتب وأنيق جداً (كما طلبت)
+    post_lines = [
+        f"{emoji} **{name}**",
+        "",
+        ai_text,
+        "",
+        f"🏷️ السعر بسعر لقطة: `{clean_current}`" + (f" ~~{clean_old}~~" if clean_old else ""),
+        (f"🔥 {discount_text}" if discount_text else ""),
+        "",
+        f"🛒 **اضغط هنا للطلب والشراء:**",
+        f"{original_url}"
     ]
 
-    return "\n\n".join(final_post_parts)
+    # إزالة الأسطر الفارغة الزائدة إن وجدت
+    final_post = "\nnot_empty".join([line for line in post_lines if line != ""])
+    # تصحيح تداخل الـ join المؤقت
+    final_post = "\n".join([line for line in post_lines if line is not None])
+    
+    return final_post
 
 
 @bot.message_handler(func=lambda m: True)
@@ -820,32 +318,25 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ يرجى إرسال رابط المنتج من أمازون السعودية")
+        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال رابط المنتج من أمازون السعودية لنشر السحر ✨")
         return
 
     for original_url in urls:
-        print(f"\n{'='*50}")
-        print(f"Processing: {original_url}")
-
         expanded = expand_url(original_url)
-        print(f"Expanded: {expanded}")
-
         if not is_saudi_amazon(expanded):
-            bot.reply_to(msg, "❌ الرابط يجب أن يكون من amazon.sa")
+            bot.reply_to(msg, "❌ عذراً، الرابط مخصص لأمازون السعودية (amazon.sa) فقط.")
             continue
 
         asin = extract_asin(expanded)
-        print(f"ASIN: {asin}")
         if not asin:
-            bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج")
+            bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري تحليل المنتج وتجهيز المنشور...")
+        wait = bot.reply_to(msg, "⏳ جاري إعداد التنسيق الأنيق والصياغة المبتكرة...")
 
         product = get_product(asin)
-
         if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
             continue
 
         post = generate_post(product, original_url)
@@ -857,13 +348,11 @@ def handler(msg):
                 bot.send_message(msg.chat.id, post, parse_mode="Markdown")
             bot.delete_message(msg.chat.id, wait.message_id)
         except Exception as e:
-            print(f"Error sending with image: {e}")
             try:
                 bot.send_message(msg.chat.id, post, parse_mode="Markdown")
                 bot.delete_message(msg.chat.id, wait.message_id)
-            except Exception as e2:
-                print(f"Error sending text: {e2}")
-                bot.edit_message_text("❌ حدث خطأ في الإرسال", msg.chat.id, wait.message_id)
+            except:
+                bot.edit_message_text("❌ حدث خطأ أثناء إرسال المنشور.", msg.chat.id, wait.message_id)
 
 
 # ============ WEBHOOK SERVER ============
@@ -878,7 +367,7 @@ WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل — صيدات وصفقات 🔥"
+    return "🤖 البوت يعمل بكفاءة عالية وتنسيق مميز 🔥"
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
@@ -896,9 +385,6 @@ def start_webhook():
         time.sleep(1)
         bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH)
         print(f"✅ Webhook set to: {WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}")
-    else:
-        print("⚠️ RENDER_EXTERNAL_HOSTNAME not set, running in local mode...")
-
     app.run(host='0.0.0.0', port=WEBHOOK_PORT)
 
 if __name__ == '__main__':
