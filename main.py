@@ -5,13 +5,9 @@ import re
 import time
 import random
 import os
-from groq import Groq
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
-
-GROQ_API_KEY = "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"
-groq_client = Groq(api_key=GROQ_API_KEY)
 
 CATEGORY_KEYWORDS = {
     "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني", "مكنسة"],
@@ -80,15 +76,19 @@ def translate_to_arabic(text):
 def clean_product_title(full_title):
     if not full_title:
         return "منتج مميز"
-    parts = re.split(r'[-–,|/]', full_title)
+    
+    # [التعديل الأول]: تنظيف العنوان وأخذ مساحة كافية (حتى 8 كلمات) لتفادي قطع الأسماء والعلامات التجارية
+    clean_title = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', full_title)
+    parts = re.split(r'[-–,|/]', clean_title)
     main_part = parts[0].strip()
+    
     if re.search(r'[A-Za-z]', main_part):
         translated = translate_to_arabic(main_part)
         words = translated.split()
-        return " ".join(words[:6])
+        return " ".join(words[:8])
     else:
         words = main_part.split()
-        return " ".join(words[:6])
+        return " ".join(words[:8])
 
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🏡", "sports": "⚡"}
@@ -170,25 +170,27 @@ def get_high_quality_image(soup):
 def extract_promos_and_discounts(soup):
     promos = []
     
-    # البحث عن قسائم أمازون
+    # [التعديل الثاني]: البحث وتصفية الكوبونات الحقيقية فقط وإزالة حشو والشروط التابعة لأمازون
     coupon_elems = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon']")
     for elem in coupon_elems:
         text = elem.text.strip()
-        if text and text not in promos:
-            promos.append(f"🎟️ **قسيمة توفير:** `{text}`")
+        if text and "تسجيل الدخول" not in text and "الشروط" not in text:
+            if len(text) < 60 and text not in promos:
+                promos.append(f"🎟️ **كوبون خصم:** `{text}`")
 
-    # البحث عن عروض البنوك وبرايم
-    bank_keywords = ["الراجحي", "الأهلي", "الإنماء", "الرياض", "البلاد", "السعودي الفرنسي", "العربي", "stc pay", "Visa", "Mastercard", "Prime", "برايم"]
-    all_text_blocks = soup.find_all(text=True)
-    for text_block in all_text_blocks:
-        block_text = text_block.strip()
-        if any(kw in block_text for kw in bank_keywords) or "خصم" in block_text:
-            if len(block_text) > 10 and len(block_text) < 120:
-                if block_text not in promos:
-                    if any(b in block_text for b in ["بنك", "بطاقة", "برايم", "Prime", "خصم", "كود", "Code"]):
-                        promos.append(f"💡 **عرض خاص:** {block_text}")
+    bank_codes = ["SAB20", "ANB", "ALJ", "STCPAY", "VISA", "MASTERCARD"]
+    page_text = soup.get_text()
+    
+    for code in bank_codes:
+        if code in page_text and f"كود `{code}`" not in promos:
+            promos.append(f"💳 **كود خصم بنكي:** استخدم الرمز `{code}` عند الدفع")
 
-    return list(dict.fromkeys(promos))[:3]
+    clean_promos = []
+    for p in promos:
+        if len(p) < 80 and "الشروط" not in p and "تسجيل الدخول" not in p:
+            clean_promos.append(p)
+
+    return clean_promos[:2]
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -270,10 +272,8 @@ def generate_post(product_data, original_url):
         if calc_pct < 100:
             discount_pct = calc_pct
 
-    # إذا كانت نسبة الخصم ممتازة نعرضها بقوة، وإذا لم تكن عالية نرفع الحماس بأسلوب الصيدات
     discount_text = f"🔥 **خصم يكسر الدنيا بنسبة {discount_pct}%!**" if discount_pct > 15 else "🔥 **صيدة اليوم الخطيرة لا تفوتكم!**"
 
-    # صياغة حماسية جداً تناسب طلبك تماماً مع الـ Bold والهايلات
     hooks = [
         f"🚨 **الحقوا هذه الصيدة يا جماعة!**\n{emoji} **{name}**",
         f"🎯 **عينك على الخصم القوي!**\n{emoji} **{name}**",
