@@ -716,7 +716,7 @@ def get_product(asin):
 
 
 def generate_post(product_data, original_url):
-    """Generate short, spacious, eye-catching Khaleeji marketing posts using Groq AI."""
+    """Generate unique, varied, and engaging Khaleeji marketing posts using Groq AI."""
     name = product_data["name"]
     price = product_data["price"]
     old_price = product_data["old_price"]
@@ -739,8 +739,18 @@ def generate_post(product_data, original_url):
         elif best.get("type") == "clip_coupon":
             extra_offer_info = f"كوبون خصم مفعل: {best.get('percent')}%"
 
+    styles = [
+        "أسلوب الحماس والصدمة من السعر (مثل: مو معقول!، الحق ما تلحق..)",
+        "أسلوب النصيحة الأخوية والوفر (مثل: وفر دراهمك وخذ الأصلي بـ...)",
+        "أسلوب الفخامة والروعة الاستثنائية (مثل: يا لبيييه على هاللّقطة الخرافية..)",
+        "أسلوب السرعة والاستعجال قبل نفاد الكمية (مثل: الكمية شبه منتهية، الحقها..)"
+    ]
+    chosen_style = random.choice(styles)
+
     prompt = f"""
-أنت مسوق إلكتروني محترف، وتكتب بوست تسويقي قصير جداً لمنتج من أمازون السعودية بلهجة خليجية بحتة ومبسطة.
+أنت مسوق إلكتروني محترف ومبدع جداً. اكتب بوست تسويقي قصير جداً (3 إلى 4 أسطر مفصولة بمسافات فارغة) لمنتج من أمازون السعودية بلهجة خليجية بحتة.
+
+الأسلوب المطلوب لهذه القطعة بالذات: ({chosen_style})
 
 تفاصيل المنتج:
 - اسم المنتج: {name}
@@ -749,21 +759,21 @@ def generate_post(product_data, original_url):
 - نسبة الخصم: {discount_pct}%
 - عروض إضافية: {extra_offer_info}
 
-شروط التنسيق والصياغة الصارمة:
-1. ألا تزيد الإجمالي عن 3 إلى 4 أسطر فقط مقسمة بمسافات فارغة (كل فكرة أو جملة في سطر منفصل مستقل تماماً، وبينهما سطر فاضي).
-2. اجعل الصياغة سريعة وخاطفة، وابدأ بهوك بصري يشد العين فوراً (مثل ذكر السعر المذهل أو الخصم القوي).
-3. لا تضع رابط الشراء في ردك لأنني سأضيفه بنفسي.
-4. اعطني النص مباشرة بدون مقدمات أو شرح أو علامات تنصيص.
+شروط الصياغة:
+1. ممنوع تكرار نفس القالب أو النمط الاعتيادي؛ اجعل هذا البوست فريداً ومختلفاً تماماً في صياغته وهوك البداية.
+2. كل جملة أو فكرة في سطر مستقل وبينهما سطر فارغ.
+3. لا تضع رابط الشراء في ردك.
+4. اعطني النص مباشرة بدون مقدمات أو علامات تنصيص.
 """
 
     try:
         completion = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "أنت صانع محتوى تسويقي مبدع ومنظم باللهجة الخليجية."},
+                {"role": "system", "content": "أنت صانع محتوى تسويقي متجدد ومبدع باللهجة الخليجية."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.9,
+            temperature=1.0,
             max_tokens=250
         )
         
@@ -771,7 +781,7 @@ def generate_post(product_data, original_url):
         
     except Exception as e:
         print(f"Groq API Error: {e}")
-        ai_generated_text = f"يا لبيييه على سعر اليوم! 🔥\n\nوفرنا لك {name} بـ {clean_current} بدل {clean_old}.\n\nالحق الكمية قبل لا تخلص!"
+        ai_generated_text = f"فرصة ما تتعوض على {name}! 🔥\n\nمتوفر الآن بسعر خاص جداً: {clean_current}.\n\nاطلبه الحين قبل تنتهي الكمية!"
 
     final_post_parts = [
         ai_generated_text,
