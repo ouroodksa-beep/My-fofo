@@ -13,15 +13,16 @@ POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex", 
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec", 
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
-    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينکس",
+    "الشعلان", "MOTHERCARE", "Gillette", "U.S. POLO", "لافيسيرا",
+    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينكس",
     "بامبرز", "نيفيا", "دوف", "لوريال", "ماكفيتيز", "نادك", "المراعي", "تايد", "بيرسيل"
 ]
 
 CATEGORY_KEYWORDS = {
     "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني", "مكنسة"],
-    "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "معطف", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء"],
-    "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "foundation", "mascara", "eyeliner", "brush", "cosmetic", "skincare", "haircare", "عطر", "عود", "مسك", "كريم", "شامبو", "بلسم", "صابون", "مكياج", "أحمر شفاه", "عناية", "جمال", "تجميل", "جل"],
-    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "ac", "heater", "fan", "blender", "mixer", "oven", "microwave", "toaster", "kettle", "coffee maker", "iron", "hair dryer", "chair", "table", "desk", "bed", "sofa", "couch", "lamp", "light", "mirror", "carpet", "curtain", "furniture", "kitchen", "home", "house", "ارز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "دفاية", "مروحة", "خلاط", "فرن", "مايكرويف", "غلاية", "كرسي", "طاولة", "سرير", "كنبة", "لمبة", "سجادة", "أثاث", "مطبخ", "منزل"],
+    "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "معطف", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء", "بوكسر"],
+    "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "foundation", "mascara", "eyeliner", "brush", "cosmetic", "skincare", "haircare", "عطر", "عود", "مسك", "كريم", "شامبو", "بلسم", "صابون", "مكياج", "أحمر شفاه", "عناية", "جمال", "تجميل", "جل", "موس", "حلاقة"],
+    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "ac", "heater", "fan", "blender", "mixer", "oven", "microwave", "toaster", "kettle", "coffee maker", "iron", "hair dryer", "chair", "table", "desk", "bed", "sofa", "couch", "lamp", "light", "mirror", "carpet", "curtain", "furniture", "kitchen", "home", "house", "ارز", "رز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "دفاية", "مروحة", "خلاط", "فرن", "مايكرويف", "غلاية", "كرسي", "طاولة", "سرير", "كنبة", "لمبة", "سجادة", "أثاث", "مطبخ", "منزل", "صابون", "باودر"],
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "exercise", "workout", "sport", "running", "walking", "training", "sneakers", "shoes", "رياضة", "جيم", "لياقة", "تمارين", "سير", "دامبل", "يوغا", "دراجة", "كرة", "جري", "مشي", "تدريب"]
 }
 
@@ -91,9 +92,8 @@ def extract_product_details(full_title):
             found_brand = brand.upper()
             break
 
-    # استخراج تفاصيل العبوة (عدد القطع، الحجم، السعة)
     package_detail = ""
-    size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|سم|إنش|محور|ساعة|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
+    size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|سم|إنش|محور|ساعة|حبة|موس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
     if size_match:
         package_detail = size_match.group(1)
 
@@ -283,66 +283,46 @@ def generate_post(product_data, original_url):
     emoji = get_category_emoji(category)
     current_num = product_data["current_price_num"]
 
-    # حساب السعر بعد البرومو كود
-    final_price_str = clean_current
-    has_promo = False
-    if clean_current and current_num > 0 and coupon_text:
-        pct_match = re.search(r'(\d+)\s*%', coupon_text)
-        val_match = re.search(r'(\d+)\s*(ريال|رس|SAR)', coupon_text, re.IGNORECASE)
-        
-        if pct_match:
-            discount_val = int(pct_match.group(1))
-            new_val = current_num * (1 - discount_val / 100)
-            final_price_str = f"{int(new_val)} ريال"
-            has_promo = True
-        elif val_match:
-            discount_val = float(val_match.group(1))
-            new_val = max(0, current_num - discount_val)
-            final_price_str = f"{int(new_val)} ريال"
-            has_promo = True
+    promo_code_used = "NOW15"
+    if coupon_text:
+        if "POLO" in coupon_text.upper():
+            promo_code_used = "POLO20"
+        elif "PAYDAY" in coupon_text.upper():
+            promo_code_used = "PAYDAY20"
 
-    # حساب نسبة الخصم الحقيقية إذا وجد سعر قديم
-    discount_pct = 0
-    if old_price_num > current_num and old_price_num > 0 and current_num > 0:
-        calc_pct = int(((old_price_num - current_num) / old_price_num) * 100)
-        if calc_pct < 100:
-            discount_pct = calc_pct
-
-    # بناء اسم المنتج مع البراند والعبوة بشكل جذاب
-    brand_str = f"**{brand}** " if brand else ""
-    package_str = f" ({package})" if package else ""
+    # تنسيق البراند والعبوة والاسم بشكل بارز (Bold)
+    brand_str = f"**<u>{brand}</u>** " if brand else ""
+    package_str = f" **({package})**" if package else ""
     product_display = f"{brand_str}**{title_res}**{package_str}"
 
-    # الجملة الأولى: عنوان جذاب مع الإيموجي واسم البراند والمنتج
+    # 1. الجملة الأولى: تنبيه ناري أو صييدة بصيغ متنوعة واحترافية
     hooks = [
-        f"🔥 **صفقة نارية لا تعوض!**\n{emoji} {product_display}",
-        f"🚨 **تخفيض قوي وعليها طلب جبار:**\n{emoji} {product_display}",
-        f"⚡ **لقطة سريعة وفرصة لاتفوت:**\n{emoji} {product_display}",
-        f"🎯 **قطعة مميزة ومرغوبة جداً:**\n{emoji} {product_display}"
+        f"⚠️ **<u>تنبيه لقطة..</u>**\n\n{emoji} {product_display}",
+        f"🔥 **<u>حرررررقووو والسعر طار..</u>**\n\n{emoji} {product_display}",
+        f"🎯 **<u>صيييدة ما تتفوتش..</u>**\n\n{emoji} {product_display}",
+        f"🚨 **<u>توفرت من جديد بسعر جبار..</u>**\n\n{emoji} {product_display}"
     ]
     sentence_1 = random.choice(hooks)
 
-    # الجملة الثانية: السعر الحالي (بعد خصم البرومو كود إن وجد) ونسبة الخصم
+    # 2. الجملة الثانية: السعر القديم مشطوب (Strikethrough) والسعر الحالي بارز مع الكود
+    price_lines = []
     if clean_current:
-        if has_promo:
-            sentence_2 = f"💰 السعر الحالي بعد خصم البرومو كود: **{final_price_str}** 🔥"
-        elif discount_pct > 0:
-            sentence_2 = f"💰 السعر الحالي: **{clean_current}** بخصم حصري **{discount_pct}%** 🔥"
+        if old_price_num > current_num and old_price_num > 0:
+            price_lines.append(f"❌ السعر سابقًا: ~~{int(old_price_num)} ريال~~ ❌")
+            price_lines.append(f"🔥 السعر الحالي: **<u>{clean_current}</u>** بس 😱")
         else:
-            sentence_2 = f"💰 السعر الحالي المذهل: **{clean_current}** 🔥"
+            price_lines.append(f"🔥 السعر الحالي: **<u>{clean_current}</u>** 😱🔥")
+        
+        # إضافة الكوبون بتنسيق جميل إذا توفر
+        price_lines.append(f"🎟️ الكود الفعّال : `<u>{promo_code_used}</u>`")
     else:
-        sentence_2 = f"💰 **اكتشف السعر الحالي والخصم المباشر بالداخل 👇**"
+        price_lines.append(f"🔥 **<u>السعر وعرض الخصم داخل الرابط 👇</u>**")
 
-    # الجملة الثالثة: رابط الشراء المباشر
-    cta_phrases = [
-        f"🛒 **اطلبها الآن قبل نفاد الكمية:**\n{original_url}",
-        f"🏃‍♂️ **رابط الشراء السريع (الحق العرض):**\n{original_url}",
-        f"🔗 **لطلب المنتج مباشرة:**\n{original_url}",
-        f"👇 **فعل العرض واطلبه من هنا:**\n{original_url}"
-    ]
-    sentence_3 = random.choice(cta_phrases)
+    sentence_2 = "\n".join(price_lines)
 
-    # تجميع الـ 3 جمل مع أسطر فاضية بينها تماماً كما طلبت
+    # 3. الجملة الثالثة: الرابط مباشرة وبدون أي كلمة قبله
+    sentence_3 = original_url
+
     post_lines = [
         sentence_1,
         "",
@@ -384,13 +364,13 @@ def handler(msg):
 
         try:
             if product["image"]:
-                bot.send_photo(msg.chat.id, product["image"], caption=post, parse_mode="Markdown")
+                bot.send_photo(msg.chat.id, product["image"], caption=post, parse_mode="HTML")
             else:
-                bot.send_message(msg.chat.id, post, parse_mode="Markdown")
+                bot.send_message(msg.chat.id, post, parse_mode="HTML")
             bot.delete_message(msg.chat.id, wait.message_id)
         except Exception as e:
             try:
-                bot.send_message(msg.chat.id, post, parse_mode="Markdown")
+                bot.send_message(msg.chat.id, post, parse_mode="HTML")
                 bot.delete_message(msg.chat.id, wait.message_id)
             except:
                 bot.edit_message_text("❌ حدث خطأ أثناء إرسال المنشور.", msg.chat.id, wait.message_id)
