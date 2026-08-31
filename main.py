@@ -6,6 +6,7 @@ import time
 import random
 import os
 import html
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
@@ -30,7 +31,7 @@ CATEGORY_KEYWORDS = {
 def generate_dynamic_hook(brand=""):
     emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸"]
     openers = [
-        "تنبيه عاجل", "صيددة اليوم", "نزول مفاجئ بالسعر", "عرض لا يتكرر", "فرصة توفير جبارة",
+        "تنبيه عاجل", "صيدة اليوم", "نزول مفاجئ بالسعر", "عرض لا يتكرر", "فرصة توفير جبارة",
         "لقطة ممتازة", "سعر حارق الآن", "صفقة استثنائية", "تخفيض قوي جداً", "انخفاض ممتاز",
         "عروض اللحظة الأخيرة", "عينكم على الخصم", "صيدة رايقة", "توفير قوي", "خصم خيالي"
     ]
@@ -61,7 +62,6 @@ def generate_dynamic_coupon_call(code):
     noun = random.choice(nouns)
     adj = random.choice(adjectives)
     
-    # دمج تركيبات ديناميكية لا تنتهي
     style = random.choice([1, 2, 3])
     if style == 1:
         phrase = f"{verb} {noun} {adj}:"
@@ -195,40 +195,50 @@ def extract_number(price_text):
     return 0
 
 def extract_coupons_and_vouchers(soup):
+    """
+    مُحسّن للبحث بدقة عن الأكواد وقسائم الخصم حتى لا يتم تجاهلها
+    """
     coupon_info = {"code": None, "voucher_text": None}
     
-    # استخراج الكوبونات البروموكود المباشرة
-    selectors = [
-        "#couponText", ".promoPriceBlockMessage", ".vouchers-one-time-code", 
-        "#couponBadge", "span.a-declarative[data-action='a-modal']", ".sns-coupon-details"
-    ]
-    for sel in selectors:
-        elements = soup.select(sel)
-        for elem in elements:
-            text = elem.text.strip()
-            if "الشروط" in text or "تسجيل الدخول" in text:
-                continue
-            
-            code_match = re.search(r'\b([A-Z0-9]{4,12})\b', text)
-            if code_match:
-                candidate = code_match.group(1)
-                if candidate not in ["OFF", "SAR", "AED", "GET", "SAVE", "AMAZON", "DETAILS", "PRIME"]:
-                    coupon_info["code"] = candidate
-                    break
-        if coupon_info["code"]:
-            break
-            
-    # استخراج قسائم الخصم التفاعلية (Vouchers)
+    # 1. البحث الشامل في النصوص والعناصر التي تحتوي على كود بروموكود
+    all_text = soup.get_text()
+    
+    # البحث عن كلمات مفتاحية تدل على كود الخصم في الصفحة بالكامل
+    code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code)[:\s\-]*([A-Z0-9]{4,12})', all_text, re.IGNORECASE)
+    if code_pattern:
+        cand = code_pattern.group(1).upper()
+        if cand not in ["AMAZON", "PRIME", "SHIPPING", "DETAILS"]:
+            coupon_info["code"] = cand
+
+    # لو لم يُعثر عليه بالنص العام، نبحث في العناصر المخصصة لأمازون
+    if not coupon_info["code"]:
+        selectors = [
+            "#couponText", ".promoPriceBlockMessage", ".vouchers-one-time-code", 
+            "#couponBadge", "span.a-declarative[data-action='a-modal']", ".sns-coupon-details",
+            "span.a-color-success", "div[id*='coupon']"
+        ]
+        for sel in selectors:
+            for elem in soup.select(sel):
+                text = elem.text.strip()
+                match = re.search(r'\b([A-Z0-9]{5,10})\b', text)
+                if match:
+                    val = match.group(1)
+                    if val not in ["OFF", "SAR", "AED", "GET", "SAVE", "AMAZON", "DETAILS"]:
+                        coupon_info["code"] = val
+                        break
+            if coupon_info["code"]:
+                break
+
+    # 2. البحث عن القسائم التفاعلية المتاحة (Vouchers)
     voucher_selectors = [
         "label[for*='checkbox'] span", "#vpcButton", ".a-section .a-color-success", 
-        ".vouchers-discount-text", "#item_coupon_vt", ".badge-link"
+        ".vouchers-discount-text", "#item_coupon_vt", ".badge-link", "span[id*='couponText']"
     ]
     for sel in voucher_selectors:
-        elements = soup.select(sel)
-        for elem in elements:
+        for elem in soup.select(sel):
             v_text = elem.text.strip()
-            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "توفير"]):
-                discount_match = re.search(r'(\d+%\s*خصم|\d+\s*ريال\s*خصم|خصم\s*\d+%|خصم\s*\d+\s*ريال)', v_text)
+            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "توفير", "%", "ريال"]):
+                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال)', v_text)
                 if discount_match:
                     coupon_info["voucher_text"] = discount_match.group(1)
                     break
@@ -299,22 +309,25 @@ def generate_post(product_data, original_url):
     clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
 
-    # تجهيز تفاصيل اسم المنتج والبراند
     brand_str = f"<b>{brand}</b> " if brand else ""
     package_str = f" <b>({package})</b>" if package else ""
     product_item = f"{brand_str}<b>{title}</b>{package_str}"
 
-    # توليد سطر كود ديناميكي غير مكرر
+    # حساب نسبة الخصم تلقائياً إذا وُجد السعر القديم
+    discount_line = ""
+    if old_price_num > current_num and old_price_num > 0:
+        discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
+        if discount_percent > 0:
+            discount_line = f"🔥 <b>خصم قوي بنسبة {discount_percent}%!</b>"
+
+    # تجهيز الكود أو القسيمة
     coupon_line = ""
     if coupon_code:
         coupon_line = generate_dynamic_coupon_call(coupon_code)
     elif voucher_text:
-        coupon_line = f"🎟️ <b>تأكدوا من تفعيل ({html.escape(voucher_text)}) في الصفحة!</b>"
+        coupon_line = f"🎟️ <b>تأكدوا من تفعيل القسيمة ({html.escape(voucher_text)}) في الصفحة!</b>"
 
-    # توليد الهوك عشوائياً بدون حدود
     dynamic_hook = generate_dynamic_hook(brand)
-
-    # التنوع في اختيار الأنماط والتنسيق
     style_choice = random.choice([1, 2, 3, 4])
     lines = []
 
@@ -326,6 +339,8 @@ def generate_post(product_data, original_url):
                 lines.append(f"❌ قبل: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
             else:
                 lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱🔥")
+        if discount_line:
+            lines.append(discount_line)
         if coupon_line:
             lines.append(coupon_line)
 
@@ -336,6 +351,8 @@ def generate_post(product_data, original_url):
                 lines.append(f"🔥 نازل من <s>{int(old_price_num)} ريال</s> لـ <b>{clean_current}</b> بس! 😱")
             else:
                 lines.append(f"🔥 السعر الحالي المميز: <b>{clean_current}</b> 😱")
+        if discount_line:
+            lines.append(discount_line)
         lines.append(f"\n{emoji} المنتج: {product_item}")
         if coupon_line:
             lines.append(coupon_line)
@@ -345,6 +362,8 @@ def generate_post(product_data, original_url):
         lines.append(f"{emoji} {product_item}\n")
         if coupon_line:
             lines.append(coupon_line)
+        if discount_line:
+            lines.append(discount_line)
         if clean_current:
             lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱")
 
@@ -353,11 +372,18 @@ def generate_post(product_data, original_url):
         lines.append(f"{emoji} {product_item}\n")
         if clean_current:
             lines.append(f"💰 السعر المطلوب: <b>{clean_current}</b>")
+        if discount_line:
+            lines.append(discount_line)
         if coupon_line:
             lines.append(coupon_line)
 
-    lines.append(f"\n{original_url}")
     return "\n".join(lines)
+
+def build_buy_button(url):
+    markup = InlineKeyboardMarkup()
+    btn = InlineKeyboardButton(text="🛒 اضغط هنا للشراء مباشرة", url=url)
+    markup.add(btn)
+    return markup
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -379,7 +405,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري جلب التفاصيل وتنسيق المنشور...")
+        wait = bot.reply_to(msg, "⏳ جاري جلب التفاصيل وقراءة الأكواد وتنسيق المنشور...")
 
         product = get_product(asin)
         if not product:
@@ -387,15 +413,16 @@ def handler(msg):
             continue
 
         post = generate_post(product, original_url)
+        markup = build_buy_button(original_url)
 
         try:
             if product["image"]:
-                bot.send_photo(msg.chat.id, product["image"], caption=post, parse_mode="HTML")
+                bot.send_photo(msg.chat.id, product["image"], caption=post, parse_mode="HTML", reply_markup=markup)
             else:
-                bot.send_message(msg.chat.id, post, parse_mode="HTML")
+                bot.send_message(msg.chat.id, post, parse_mode="HTML", reply_markup=markup)
             bot.delete_message(msg.chat.id, wait.message_id)
         except Exception:
-            bot.send_message(msg.chat.id, post, parse_mode="HTML")
+            bot.send_message(msg.chat.id, post, parse_mode="HTML", reply_markup=markup)
             bot.delete_message(msg.chat.id, wait.message_id)
 
 # ============ WEBHOOK SERVER ============
