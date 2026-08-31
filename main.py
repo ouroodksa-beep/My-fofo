@@ -131,7 +131,8 @@ def extract_brand_from_soup(soup, full_title):
 
     # 2. الاستخراج التلقائي للبراند بالإنجليزية من عناصر أمازون
     brand_selectors = [
-        "#bylineInfo", ".po-brand .a-span9", "#bylineInfo_feature_div", "a#bylineInfo"
+        "#bylineInfo", ".po-brand .a-span9", "#bylineInfo_feature_div", "a#bylineInfo",
+        "#brand", "tr.po-brand td.a-span9"
     ]
     for sel in brand_selectors:
         elem = soup.select_one(sel)
@@ -165,7 +166,7 @@ def expand_url(url):
         }
         r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
         final_url = r.url
-        if 'link.amazon' in url.lower() or 'amzn' in url.lower():
+        if any(k in url.lower() for k in ['link.amazon', 'amzn.to', 'amzn.sa']):
             soup = BeautifulSoup(r.text, "html.parser")
             canonical = soup.select_one('link[rel="canonical"]')
             if canonical and canonical.get('href'):
@@ -175,21 +176,24 @@ def expand_url(url):
         return url
 
 def is_saudi_amazon(url):
-    return any(k in url.lower() for k in ["amazon.sa", "link.amazon", "amzn.to", "amzn.sa"])
+    return any(k in url.lower() for k in ["amazon.sa", "link.amazon", "amzn.to", "amzn.sa", "amazon.com"])
 
 def extract_asin(url):
+    # دعم ASIN الـ 10 خانات والروابط المباشرة مثل link.amazon/B0cuPFTVC (9 أو 10 خانات)
     patterns = [
-        r'/dp/([A-Z0-9]{10})', 
-        r'/gp/product/([A-Z0-9]{10})', 
-        r'/ASIN/([A-Z0-9]{10})',
-        r'link\.amazon/[A-Za-z0-9]+',
-        r'([A-Z0-9]{10})'
+        r'/dp/([A-Z0-9]{9,10})', 
+        r'/gp/product/([A-Z0-9]{9,10})', 
+        r'/ASIN/([A-Z0-9]{9,10})',
+        r'link\.amazon/([A-Za-z0-9]{8,12})',
+        r'amzn\.(?:to|sa)/([A-Za-z0-9]{8,12})',
+        r'([A-Za-z0-9]{9,10})'
     ]
     for p in patterns:
         m = re.search(p, url, re.IGNORECASE)
         if m:
-            val = m.group(1) if m.groups() else m.group(0)
-            if len(val) == 10:
+            val = m.group(1)
+            # تجنب الكلمات العامة في الرابط
+            if val.upper() not in ["HTTPS", "HTTP", "AMAZON", "SAUDI", "PRODUCT"]:
                 return val.upper()
     return None
 
@@ -216,39 +220,47 @@ def extract_coupons_and_vouchers(soup):
     coupon_info = {"code": None, "voucher_text": None}
     all_text = soup.get_text()
     
-    code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code)[:\s\-]*([A-Z0-9]{4,12})', all_text, re.IGNORECASE)
+    # قائمة الفلاتر لتجنب الكلمات غير البروموكودية
+    IGNORED_WORDS = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER", "SAVINGS"]
+
+    # 1. البحث في نص الصفحة بجميع الأنماط الشائعة (كود / رمز / Promo / Code / Coupon / Voucher)
+    code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code|Voucher|كوبون)[:\s\-]*([A-Za-z0-9]{3,15})', all_text, re.IGNORECASE)
     if code_pattern:
         cand = code_pattern.group(1).upper()
-        if cand not in ["AMAZON", "PRIME", "SHIPPING", "DETAILS"]:
+        if cand not in IGNORED_WORDS and len(cand) >= 3:
             coupon_info["code"] = cand
 
+    # 2. فحص عناصر الـ HTML المخصصة للأكواد والقسائم
     if not coupon_info["code"]:
         selectors = [
             "#couponText", ".promoPriceBlockMessage", ".vouchers-one-time-code", 
             "#couponBadge", "span.a-declarative[data-action='a-modal']", ".sns-coupon-details",
-            "span.a-color-success", "div[id*='coupon']"
+            "span.a-color-success", "div[id*='coupon']", ".coupon-code", "#unclippedCoupon",
+            ".a-section.vouchers-discount-text"
         ]
         for sel in selectors:
             for elem in soup.select(sel):
                 text = elem.text.strip()
-                match = re.search(r'\b([A-Z0-9]{5,10})\b', text)
+                match = re.search(r'\b([A-Z0-9]{3,12})\b', text)
                 if match:
-                    val = match.group(1)
-                    if val not in ["OFF", "SAR", "AED", "GET", "SAVE", "AMAZON", "DETAILS"]:
+                    val = match.group(1).upper()
+                    if val not in IGNORED_WORDS and not val.isdigit():
                         coupon_info["code"] = val
                         break
             if coupon_info["code"]:
                 break
 
+    # 3. استخراج تفاصيل قسائم التخفيض الضمنية (Vouchers)
     voucher_selectors = [
         "label[for*='checkbox'] span", "#vpcButton", ".a-section .a-color-success", 
-        ".vouchers-discount-text", "#item_coupon_vt", ".badge-link", "span[id*='couponText']"
+        ".vouchers-discount-text", "#item_coupon_vt", ".badge-link", "span[id*='couponText']",
+        "#sp_detail"
     ]
     for sel in voucher_selectors:
         for elem in soup.select(sel):
             v_text = elem.text.strip()
             if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "توفير", "%", "ريال"]):
-                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال)', v_text)
+                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال|Save\s*\d+%)', v_text, re.IGNORECASE)
                 if discount_match:
                     coupon_info["voucher_text"] = discount_match.group(1)
                     break
@@ -267,7 +279,11 @@ def get_product(asin, full_expanded_url=""):
     try:
         r = requests.get(url, headers=headers, timeout=20)
         if r.status_code != 200:
-            return None
+            # تجربة جلب الرابط الموسع المباشر إذا فشل الـ dp
+            r = requests.get(full_expanded_url, headers=headers, timeout=20)
+            if r.status_code != 200:
+                return None
+        
         soup = BeautifulSoup(r.text, "html.parser")
         
         title_elem = soup.select_one("#productTitle")
