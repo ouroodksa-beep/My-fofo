@@ -14,15 +14,14 @@ POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex", 
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec", 
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
-    "الشعلان", "MOTHERCARE", "Gillette", "U.S. POLO", "لافيسيرا", "دوف", "نيفيا",
-    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينكس", "شي إن", "نوون"
+    "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO"
 ]
 
 CATEGORY_KEYWORDS = {
     "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "هاتف", "آيفون", "لابتوب", "سماعات", "شاحن", "كيبل", "شاشة", "تلفزيون", "ساعة"],
     "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "bag", "backpack", "wallet", "belt", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "حذاء", "شنطة", "مكياج", "ملابس", "بوكسر"],
     "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "deodorant", "roll-on", "عطر", "عود", "مسك", "كريم", "لوشن", "شامبو", "بلسم", "صابون", "مزيل عرق", "مغذي", "رول", "حلاقة", "موس"],
-    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "blender", "mixer", "oven", "microwave", "kettle", "coffee maker", "iron", "ارز", "رز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "خلاط", "فرن", "غلاية", "مطبخ", "غسول"],
+    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "blender", "mixer", "oven", "microwave", "kettle", "coffee maker", "iron", "ارز", "رز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "خلاط", "فرن", "غلاية", "مطبخ", "غسول", "مطهر", "مناديل"],
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "sport", "رياضة", "جيم", "تمارين", "دراجة"]
 }
 
@@ -128,7 +127,7 @@ def extract_product_details(full_title):
     found_brand = ""
     for brand in POPULAR_BRANDS:
         if brand.lower() in full_title.lower():
-            found_brand = brand
+            found_brand = brand  # تبقى إنجليزية كما هي
             break
 
     package_detail = ""
@@ -288,7 +287,7 @@ def get_product(asin):
 
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
-    brand = html.escape(product_data["brand"])
+    brand = html.escape(product_data["brand"])  # تظهر إنجليزية زي ما هي
     package = html.escape(product_data["package"])
     price = product_data["price"]
     category = product_data["category"]
@@ -304,12 +303,6 @@ def generate_post(product_data, original_url):
     package_str = f" <b>({package})</b>" if package else ""
     product_item = f"{brand_str}<b>{title}</b>{package_str}"
 
-    discount_line = ""
-    if old_price_num > current_num and old_price_num > 0:
-        discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
-        if discount_percent > 0:
-            discount_line = f"🔥 <b>خصم قوي بنسبة {discount_percent}%!</b>"
-
     coupon_line = ""
     if coupon_code:
         coupon_line = generate_dynamic_coupon_call(coupon_code)
@@ -317,58 +310,25 @@ def generate_post(product_data, original_url):
         coupon_line = f"🎟️ <b>تأكدوا من تفعيل القسيمة ({html.escape(voucher_text)}) في الصفحة!</b>"
 
     dynamic_hook = generate_dynamic_hook(brand)
-    style_choice = random.choice([1, 2, 3, 4])
-    lines = []
+    lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
-    if style_choice == 1:
-        lines.append(f"{dynamic_hook}\n")
-        lines.append(f"{emoji} {product_item}\n")
-        if clean_current:
-            if old_price_num > current_num and old_price_num > 0:
-                lines.append(f"❌ قبل: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
-            else:
-                lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱🔥")
-        if discount_line:
-            lines.append(discount_line)
-        if coupon_line:
-            lines.append(coupon_line)
+    # تجهيز خطة عرض السعر بشكل رايق ودون كركبة (إما السعر السابق أو نسبة الخصم)
+    has_discount = old_price_num > current_num and old_price_num > 0
+    show_style = random.choice(["old_price", "discount_percent"]) if has_discount else "simple_price"
 
-    elif style_choice == 2:
-        lines.append(f"{dynamic_hook}\n")
-        if clean_current:
-            if old_price_num > current_num and old_price_num > 0:
-                lines.append(f"🔥 نازل من <s>{int(old_price_num)} ريال</s> لـ <b>{clean_current}</b> بس! 😱")
-            else:
-                lines.append(f"🔥 السعر الحالي المميز: <b>{clean_current}</b> 😱")
-        if discount_line:
-            lines.append(discount_line)
-        lines.append(f"\n{emoji} المنتج: {product_item}")
-        if coupon_line:
-            lines.append(coupon_line)
-
-    elif style_choice == 3:
-        lines.append(f"{dynamic_hook}\n")
-        lines.append(f"{emoji} {product_item}\n")
-        if coupon_line:
-            lines.append(coupon_line)
-        if discount_line:
-            lines.append(discount_line)
+    if show_style == "old_price":
+        lines.append(f"❌ قبل: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
+    elif show_style == "discount_percent":
+        discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
+        lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> (خصم {discount_percent}%) 😱")
+    else:
         if clean_current:
             lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱")
 
-    else:
-        lines.append(f"{dynamic_hook}\n")
-        lines.append(f"{emoji} {product_item}\n")
-        if clean_current:
-            lines.append(f"💰 السعر المطلوب: <b>{clean_current}</b>")
-        if discount_line:
-            lines.append(discount_line)
-        if coupon_line:
-            lines.append(coupon_line)
+    if coupon_line:
+        lines.append(coupon_line)
 
-    # إرجاع الرابط كنص عادي في آخر البوست تماماً كما أرسلتيه
     lines.append(f"\n{original_url}")
-
     return "\n".join(lines)
 
 @bot.message_handler(func=lambda m: True)
