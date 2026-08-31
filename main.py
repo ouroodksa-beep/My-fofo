@@ -123,12 +123,28 @@ def clean_arabic_title(full_title, found_brand):
     res = " ".join(words).strip()
     return res if res else "منتج مميز"
 
-def extract_product_details(full_title):
-    found_brand = ""
+def extract_brand_from_soup(soup, full_title):
+    # 1. البحث في قائمة الماركات الشائعة
     for brand in POPULAR_BRANDS:
         if brand.lower() in full_title.lower():
-            found_brand = brand  # تبقى إنجليزية كما هي
-            break
+            return brand
+
+    # 2. الاستخراج التلقائي للبراند بالإنجليزية من عناصر أمازون
+    brand_selectors = [
+        "#bylineInfo", ".po-brand .a-span9", "#bylineInfo_feature_div", "a#bylineInfo"
+    ]
+    for sel in brand_selectors:
+        elem = soup.select_one(sel)
+        if elem:
+            text = elem.text.strip()
+            text = re.sub(r'^(Brand:|الماركة:|زيارة متجر|Visit the|Store|\s+)+', '', text, flags=re.IGNORECASE).strip()
+            if text and not re.search(r'[\u0600-\u06FF]', text):
+                return text
+
+    return ""
+
+def extract_product_details(full_title, soup):
+    found_brand = extract_brand_from_soup(soup, full_title)
 
     package_detail = ""
     size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|سم|حبة|موس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
@@ -144,33 +160,37 @@ def get_category_emoji(category):
 
 def expand_url(url):
     try:
-        if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            }
-            r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
-            if 'link.amazon' in url.lower():
-                soup = BeautifulSoup(r.text, "html.parser")
-                canonical = soup.select_one('link[rel="canonical"]')
-                if canonical:
-                    href = canonical.get('href', '')
-                    asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', href)
-                    if asin_match:
-                        return f"https://www.amazon.sa/dp/{asin_match.group(1)}"
-            return r.url
-        return url
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        }
+        r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
+        final_url = r.url
+        if 'link.amazon' in url.lower() or 'amzn' in url.lower():
+            soup = BeautifulSoup(r.text, "html.parser")
+            canonical = soup.select_one('link[rel="canonical"]')
+            if canonical and canonical.get('href'):
+                return canonical.get('href')
+        return final_url
     except:
         return url
 
 def is_saudi_amazon(url):
-    return "amazon.sa" in url.lower() or "link.amazon" in url.lower()
+    return any(k in url.lower() for k in ["amazon.sa", "link.amazon", "amzn.to", "amzn.sa"])
 
 def extract_asin(url):
-    patterns = [r'/dp/([A-Z0-9]{9,10})', r'/gp/product/([A-Z0-9]{9,10})', r'link\.amazon/([A-Za-z0-9]{9,10})', r'([A-Z0-9]{9,10})/?$']
+    patterns = [
+        r'/dp/([A-Z0-9]{10})', 
+        r'/gp/product/([A-Z0-9]{10})', 
+        r'/ASIN/([A-Z0-9]{10})',
+        r'link\.amazon/[A-Za-z0-9]+',
+        r'([A-Z0-9]{10})'
+    ]
     for p in patterns:
-        m = re.search(p, url)
+        m = re.search(p, url, re.IGNORECASE)
         if m:
-            return m.group(1).upper()
+            val = m.group(1) if m.groups() else m.group(0)
+            if len(val) == 10:
+                return val.upper()
     return None
 
 def clean_price(price_text):
@@ -237,8 +257,8 @@ def extract_coupons_and_vouchers(soup):
 
     return coupon_info
 
-def get_product(asin):
-    url = f"https://www.amazon.sa/dp/{asin}"
+def get_product(asin, full_expanded_url=""):
+    url = f"https://www.amazon.sa/dp/{asin}" if asin else full_expanded_url
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
@@ -266,7 +286,7 @@ def get_product(asin):
         img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront")
         image = img_elem.get("src") if img_elem else None
 
-        title_res, brand_res, package_res = extract_product_details(title)
+        title_res, brand_res, package_res = extract_product_details(title, soup)
         category = detect_product_category(title)
         coupon_details = extract_coupons_and_vouchers(soup)
 
@@ -287,7 +307,7 @@ def get_product(asin):
 
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
-    brand = html.escape(product_data["brand"])  # تظهر إنجليزية زي ما هي
+    brand = html.escape(product_data["brand"])
     package = html.escape(product_data["package"])
     price = product_data["price"]
     category = product_data["category"]
@@ -312,7 +332,6 @@ def generate_post(product_data, original_url):
     dynamic_hook = generate_dynamic_hook(brand)
     lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
-    # تجهيز خطة عرض السعر بشكل رايق ودون كركبة (إما السعر السابق أو نسبة الخصم)
     has_discount = old_price_num > current_num and old_price_num > 0
     show_style = random.choice(["old_price", "discount_percent"]) if has_discount else "simple_price"
 
@@ -347,13 +366,9 @@ def handler(msg):
             continue
 
         asin = extract_asin(expanded)
-        if not asin:
-            bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
-            continue
-
         wait = bot.reply_to(msg, "⏳ جاري جلب التفاصيل وقراءة الأكواد وتنسيق المنشور...")
 
-        product = get_product(asin)
+        product = get_product(asin, expanded)
         if not product:
             bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
             continue
