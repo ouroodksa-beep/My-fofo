@@ -26,33 +26,51 @@ CATEGORY_KEYWORDS = {
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "sport", "رياضة", "جيم", "تمارين", "دراجة"]
 }
 
-# قائمة أساليب وافتتاحيات متنوعة وموسعة جداً
-HOOK_TEMPLATES = [
-    "🚨 <b>تنبيه.. صيددة اليوم لا تفوتك!</b>",
-    "🔥 <b>توفرت من جديد بسعر حارق..</b>",
-    "🚨 <b>حرررررقووو السعر طار..</b>",
-    "🎯 <b>لقطة ممتازة وبسعر لقطة..</b>",
-    "⚡ <b>نزول مفاجئ في السعر.. الحق العرض!</b>",
-    "💥 <b>عرض نار وقوي جداً الآن..</b>",
-    "🛍️ <b>فرصة توفير جبارة لا تتكرر..</b>",
-    "💣 <b>تخفيض ممتاز وقوي جداً..</b>",
-    "✨ <b>سعر خيالي ومنتجات مطلوبة..</b>",
-    "🚨 <b>انخفاض ممتاز بالسعر الآن..</b>",
-    "🎁 <b>صيدة اليوم بامتياز..</b>",
-    "🔥 <b>تخفيض استثنائي بسعر جبار..</b>",
-    "⚡ <b>من أقوى صيدات اليوم لا تتفوت!</b>",
-    "🏆 <b>عرض الأسبوع بسعر ممتاز..</b>",
-    "💸 <b>وفر فلوسك والحق التخفيض..</b>",
-    "📣 <b>تنبيه سريع.. فرصة ممتازة للطلب!</b>",
-    "🌟 <b>سعر ممتاز جداً مقارنة بالمواصفات..</b>",
-    "🏷️ <b>صفقة ممتازة بسعر لا يصدق..</b>",
-    "🔥 <b>السعر طايح بشكل ممتاز الآن..</b>",
-    "🚀 <b>انخفاض سريع وممتاز بالسعر..</b>",
-    "🎉 <b>الفرصة وصلت بسعر حراق..</b>",
-    "💎 <b>منتج ممتاز وعليه خصم جبار..</b>",
-    "🚨 <b>تخفيض قوي ولحظي.. الحق قبل النفاد!</b>",
-    "✨ <b>صيدة رايقة وبسعر ممتاز جدًا..</b>"
-]
+# ==================== DYNAMIC HOOK GENERATOR ====================
+def generate_dynamic_hook(brand=""):
+    emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸"]
+    openers = [
+        "تنبيه عاجل", "صيددة اليوم", "نزول مفاجئ بالسعر", "عرض لا يتكرر", "فرصة توفير جبارة",
+        "لقطة ممتازة", "سعر حارق الآن", "صفقة استثنائية", "تخفيض قوي جداً", "انخفاض ممتاز",
+        "عروض اللحظة الأخيرة", "عينكم على الخصم", "صيدة رايقة", "توفير قوي", "خصم خيالي"
+    ]
+    actions = [
+        "الحقوا العرض قبل النفاد", "لا تفوتوا هذه الفرصة", "بسعر يابلاش الآن", "وفر فلوسك واطلب فوراً",
+        "طايح السعر بشكل ممتاز", "السعر صار بلاش", "من أقوى صيدات الساعة", "فرصة ممتازة للطلب",
+        "تم تحديث الخصم ليكون الأفضل", "سعر ممتاز جداً لليوم"
+    ]
+    
+    emoji = random.choice(emojis)
+    opener = random.choice(openers)
+    action = random.choice(actions)
+    
+    if brand and random.choice([True, False]):
+        return f"{emoji} <b>الحقوا على عروض {brand}.. {action}!</b>"
+    else:
+        return f"{emoji} <b>{opener}.. {action}!</b>"
+
+# ==================== DYNAMIC COUPON CALL GENERATOR ====================
+def generate_dynamic_coupon_call(code):
+    icons = ["🎟️", "🏷️", "🔑", "💥", "🎁", "✨", "📌", "💳"]
+    verbs = ["استخدموا", "لا تنسوا استخدام", "تأكدوا من تطبيق", "ادخلوا", "انسخوا", "ضعوا", "فعّلوا"]
+    nouns = ["كود الخصم", "رمز الخصم", "الكود الإضافي", "كود التوفير", "الكود المباشر", "الرمز الترويجي"]
+    adjectives = ["الفعّال", "المتاح", "الحالي", "المميز", "الخاص بالموقع"]
+    
+    icon = random.choice(icons)
+    verb = random.choice(verbs)
+    noun = random.choice(nouns)
+    adj = random.choice(adjectives)
+    
+    # دمج تركيبات ديناميكية لا تنتهي
+    style = random.choice([1, 2, 3])
+    if style == 1:
+        phrase = f"{verb} {noun} {adj}:"
+    elif style == 2:
+        phrase = f"{noun} {adj} للتوفير:"
+    else:
+        phrase = f"{verb} هذا الكود عند الدفع:"
+        
+    return f"{icon} <b>{phrase}</b> <code>{html.escape(code)}</code>"
 
 def detect_product_category(product_name):
     name_lower = product_name.lower()
@@ -177,34 +195,45 @@ def extract_number(price_text):
     return 0
 
 def extract_coupons_and_vouchers(soup):
-    """
-    استخراج متطور ودقيق للأكواد والقسائم الترويجية الحقيقية من صفحة المنتج.
-    """
     coupon_info = {"code": None, "voucher_text": None}
     
-    # 1. البحث عن أكواد الخصم النصية (Promotional Codes)
-    coupon_elements = soup.select("#couponText, .promoPriceBlockMessage, .vouchers-one-time-code, #couponBadge")
-    for elem in coupon_elements:
-        text = elem.text.strip()
-        # تجنب النصوص العامة
-        if "الشروط" in text or "تسجيل الدخول" in text:
-            continue
-        
-        # البحث عن كود برومو ملائم (4 إلى 10 خانات إنجليزية)
-        code_match = re.search(r'\b([A-Z0-9]{4,10})\b', text)
-        if code_match and code_match.group(1) not in ["OFF", "SAR", "AED", "GET", "SAVE", "AMAZON"]:
-            coupon_info["code"] = code_match.group(1)
+    # استخراج الكوبونات البروموكود المباشرة
+    selectors = [
+        "#couponText", ".promoPriceBlockMessage", ".vouchers-one-time-code", 
+        "#couponBadge", "span.a-declarative[data-action='a-modal']", ".sns-coupon-details"
+    ]
+    for sel in selectors:
+        elements = soup.select(sel)
+        for elem in elements:
+            text = elem.text.strip()
+            if "الشروط" in text or "تسجيل الدخول" in text:
+                continue
+            
+            code_match = re.search(r'\b([A-Z0-9]{4,12})\b', text)
+            if code_match:
+                candidate = code_match.group(1)
+                if candidate not in ["OFF", "SAR", "AED", "GET", "SAVE", "AMAZON", "DETAILS", "PRIME"]:
+                    coupon_info["code"] = candidate
+                    break
+        if coupon_info["code"]:
             break
             
-    # 2. البحث عن الكوبونات وقسائم التخفيض الرقمية (Vouchers) مثل: "طبق كوبون خصم 15%"
-    voucher_elements = soup.select("label[for*='checkbox'] span, #vpcButton, .a-section .a-color-success, .vouchers-discount-text")
-    for elem in voucher_elements:
-        v_text = elem.text.strip()
-        if "كوبون" in v_text or "خصم" in v_text or "voucher" in v_text.lower() or "coupon" in v_text.lower():
-            discount_match = re.search(r'(\d+%\s*خصم|\d+\s*ريال\s*خصم|خصم\s*\d+%|خصم\s*\d+\s*ريال)', v_text)
-            if discount_match:
-                coupon_info["voucher_text"] = discount_match.group(1)
-                break
+    # استخراج قسائم الخصم التفاعلية (Vouchers)
+    voucher_selectors = [
+        "label[for*='checkbox'] span", "#vpcButton", ".a-section .a-color-success", 
+        ".vouchers-discount-text", "#item_coupon_vt", ".badge-link"
+    ]
+    for sel in voucher_selectors:
+        elements = soup.select(sel)
+        for elem in elements:
+            v_text = elem.text.strip()
+            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "توفير"]):
+                discount_match = re.search(r'(\d+%\s*خصم|\d+\s*ريال\s*خصم|خصم\s*\d+%|خصم\s*\d+\s*ريال)', v_text)
+                if discount_match:
+                    coupon_info["voucher_text"] = discount_match.group(1)
+                    break
+        if coupon_info["voucher_text"]:
+            break
 
     return coupon_info
 
@@ -270,46 +299,65 @@ def generate_post(product_data, original_url):
     clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
 
-    # اسم البراند بشكل متصدر ومحدد
-    brand_part = f"<b>{brand}</b> " if brand else ""
-    package_part = f" <b>({package})</b>" if package else ""
-    product_line = f"{emoji} {brand_part}<b>{title}</b>{package_part}"
+    # تجهيز تفاصيل اسم المنتج والبراند
+    brand_str = f"<b>{brand}</b> " if brand else ""
+    package_str = f" <b>({package})</b>" if package else ""
+    product_item = f"{brand_str}<b>{title}</b>{package_str}"
 
-    # اختيار افتتاحية واسلوب متغير عشوائياً لزيادة التنوع
-    selected_hook = random.choice(HOOK_TEMPLATES)
-    sentence_1 = f"{selected_hook}\n\n{product_line}"
+    # توليد سطر كود ديناميكي غير مكرر
+    coupon_line = ""
+    if coupon_code:
+        coupon_line = generate_dynamic_coupon_call(coupon_code)
+    elif voucher_text:
+        coupon_line = f"🎟️ <b>تأكدوا من تفعيل ({html.escape(voucher_text)}) في الصفحة!</b>"
 
-    # تفاصيل الأسعار والأكواد
-    price_lines = []
-    if clean_current:
-        if old_price_num > current_num and old_price_num > 0:
-            price_lines.append(f"❌ السعر سابقًا: <s>{int(old_price_num)} ريال</s>")
-            price_lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> بس 😱")
-        else:
-            price_lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱🔥")
-        
-        # عرض الكود أو الكوبون الترويجي إذا وجد فعلياً في الصفحة
-        if coupon_code:
-            price_lines.append(f"🎟️ الكود : <code>{html.escape(coupon_code)}</code>")
-        elif voucher_text:
-            price_lines.append(f"🎟️ قسيمة التخفيض: <b>{html.escape(voucher_text)} عند التفعيل</b>")
+    # توليد الهوك عشوائياً بدون حدود
+    dynamic_hook = generate_dynamic_hook(brand)
+
+    # التنوع في اختيار الأنماط والتنسيق
+    style_choice = random.choice([1, 2, 3, 4])
+    lines = []
+
+    if style_choice == 1:
+        lines.append(f"{dynamic_hook}\n")
+        lines.append(f"{emoji} {product_item}\n")
+        if clean_current:
+            if old_price_num > current_num and old_price_num > 0:
+                lines.append(f"❌ قبل: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
+            else:
+                lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱🔥")
+        if coupon_line:
+            lines.append(coupon_line)
+
+    elif style_choice == 2:
+        lines.append(f"{dynamic_hook}\n")
+        if clean_current:
+            if old_price_num > current_num and old_price_num > 0:
+                lines.append(f"🔥 نازل من <s>{int(old_price_num)} ريال</s> لـ <b>{clean_current}</b> بس! 😱")
+            else:
+                lines.append(f"🔥 السعر الحالي المميز: <b>{clean_current}</b> 😱")
+        lines.append(f"\n{emoji} المنتج: {product_item}")
+        if coupon_line:
+            lines.append(coupon_line)
+
+    elif style_choice == 3:
+        lines.append(f"{dynamic_hook}\n")
+        lines.append(f"{emoji} {product_item}\n")
+        if coupon_line:
+            lines.append(coupon_line)
+        if clean_current:
+            lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱")
+
     else:
-        price_lines.append("🔥 <b>السعر والتخفيض متوفر داخل الرابط 👇</b>")
+        lines.append(f"{dynamic_hook}\n")
+        lines.append(f"{emoji} {product_item}\n")
+        if clean_current:
+            lines.append(f"💰 السعر المطلوب: <b>{clean_current}</b>")
+        if coupon_line:
+            lines.append(coupon_line)
 
-    sentence_2 = "\n".join(price_lines)
-
-    # الرابط
-    sentence_3 = original_url
-
-    post_lines = [
-        sentence_1,
-        "",
-        sentence_2,
-        "",
-        sentence_3
-    ]
-
-    return "\n".join(post_lines)
+    lines.append(f"\n{original_url}")
+    return "\n".join(lines)
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
