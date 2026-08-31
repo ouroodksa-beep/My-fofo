@@ -15,7 +15,7 @@ POPULAR_BRANDS = [
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec", 
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
     "الشعلان", "MOTHERCARE", "Gillette", "U.S. POLO", "لافيسيرا", "دوف", "نيفيا",
-    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينكس"
+    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينكس", "شي إن", "نوون"
 ]
 
 CATEGORY_KEYWORDS = {
@@ -25,6 +25,34 @@ CATEGORY_KEYWORDS = {
     "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "blender", "mixer", "oven", "microwave", "kettle", "coffee maker", "iron", "ارز", "رز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "خلاط", "فرن", "غلاية", "مطبخ", "غسول"],
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "sport", "رياضة", "جيم", "تمارين", "دراجة"]
 }
+
+# قائمة أساليب وافتتاحيات متنوعة وموسعة جداً
+HOOK_TEMPLATES = [
+    "🚨 <b>تنبيه.. صيددة اليوم لا تفوتك!</b>",
+    "🔥 <b>توفرت من جديد بسعر حارق..</b>",
+    "🚨 <b>حرررررقووو السعر طار..</b>",
+    "🎯 <b>لقطة ممتازة وبسعر لقطة..</b>",
+    "⚡ <b>نزول مفاجئ في السعر.. الحق العرض!</b>",
+    "💥 <b>عرض نار وقوي جداً الآن..</b>",
+    "🛍️ <b>فرصة توفير جبارة لا تتكرر..</b>",
+    "💣 <b>تخفيض ممتاز وقوي جداً..</b>",
+    "✨ <b>سعر خيالي ومنتجات مطلوبة..</b>",
+    "🚨 <b>انخفاض ممتاز بالسعر الآن..</b>",
+    "🎁 <b>صيدة اليوم بامتياز..</b>",
+    "🔥 <b>تخفيض استثنائي بسعر جبار..</b>",
+    "⚡ <b>من أقوى صيدات اليوم لا تتفوت!</b>",
+    "🏆 <b>عرض الأسبوع بسعر ممتاز..</b>",
+    "💸 <b>وفر فلوسك والحق التخفيض..</b>",
+    "📣 <b>تنبيه سريع.. فرصة ممتازة للطلب!</b>",
+    "🌟 <b>سعر ممتاز جداً مقارنة بالمواصفات..</b>",
+    "🏷️ <b>صفقة ممتازة بسعر لا يصدق..</b>",
+    "🔥 <b>السعر طايح بشكل ممتاز الآن..</b>",
+    "🚀 <b>انخفاض سريع وممتاز بالسعر..</b>",
+    "🎉 <b>الفرصة وصلت بسعر حراق..</b>",
+    "💎 <b>منتج ممتاز وعليه خصم جبار..</b>",
+    "🚨 <b>تخفيض قوي ولحظي.. الحق قبل النفاد!</b>",
+    "✨ <b>صيدة رايقة وبسعر ممتاز جدًا..</b>"
+]
 
 def detect_product_category(product_name):
     name_lower = product_name.lower()
@@ -148,39 +176,37 @@ def extract_number(price_text):
         pass
     return 0
 
-def extract_best_coupon(soup):
+def extract_coupons_and_vouchers(soup):
     """
-    يبحث في الصفحة عن كل الأكواد ونسب الخصم المرتبطة بها،
-    ويختار الكود الذي يقدم أعلى نسبة خصم حقيقية.
+    استخراج متطور ودقيق للأكواد والقسائم الترويجية الحقيقية من صفحة المنتج.
     """
-    coupons_found = [] # قائمة لتخزين (الكود، نسبة الخصم الرقمية)
+    coupon_info = {"code": None, "voucher_text": None}
     
-    # استخراج النصوص من عناصر الكوبونات المحتملة في أمازون
-    elements = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon'], .a-section .a-size-base")
-    for elem in elements:
+    # 1. البحث عن أكواد الخصم النصية (Promotional Codes)
+    coupon_elements = soup.select("#couponText, .promoPriceBlockMessage, .vouchers-one-time-code, #couponBadge")
+    for elem in coupon_elements:
         text = elem.text.strip()
-        if not text or "تسجيل الدخول" in text or "الشروط" in text:
+        # تجنب النصوص العامة
+        if "الشروط" in text or "تسجيل الدخول" in text:
             continue
-            
-        # البحث عن الكود (كلمة إنجليزية كبيرة من 4 إلى 10 حروف/أرقام)
-        code_matches = re.findall(r'\b([A-Z0-9]{4,10})\b', text)
-        # البحث عن نسبة الخصم الرقمية (مثل 15%, 20%)
-        pct_matches = re.findall(r'(\d+)\s*%', text)
         
-        discount_value = 0
-        if pct_matches:
-            discount_value = int(pct_matches[0])
+        # البحث عن كود برومو ملائم (4 إلى 10 خانات إنجليزية)
+        code_match = re.search(r'\b([A-Z0-9]{4,10})\b', text)
+        if code_match and code_match.group(1) not in ["OFF", "SAR", "AED", "GET", "SAVE", "AMAZON"]:
+            coupon_info["code"] = code_match.group(1)
+            break
             
-        for code in code_matches:
-            if code not in ["OFF", "SAR", "AED", "GET", "SAVE"]:
-                coupons_found.append((code, discount_value))
-                
-    if not coupons_found:
-        return None
-        
-    # ترتيب الكوبونات تنازلياً حسب أعلى نسبة خصم تم رصدها
-    coupons_found.sort(key=lambda x: x[1], reverse=True)
-    return coupons_found[0][0]
+    # 2. البحث عن الكوبونات وقسائم التخفيض الرقمية (Vouchers) مثل: "طبق كوبون خصم 15%"
+    voucher_elements = soup.select("label[for*='checkbox'] span, #vpcButton, .a-section .a-color-success, .vouchers-discount-text")
+    for elem in voucher_elements:
+        v_text = elem.text.strip()
+        if "كوبون" in v_text or "خصم" in v_text or "voucher" in v_text.lower() or "coupon" in v_text.lower():
+            discount_match = re.search(r'(\d+%\s*خصم|\d+\s*ريال\s*خصم|خصم\s*\d+%|خصم\s*\d+\s*ريال)', v_text)
+            if discount_match:
+                coupon_info["voucher_text"] = discount_match.group(1)
+                break
+
+    return coupon_info
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -213,7 +239,7 @@ def get_product(asin):
 
         title_res, brand_res, package_res = extract_product_details(title)
         category = detect_product_category(title)
-        best_coupon = extract_best_coupon(soup)
+        coupon_details = extract_coupons_and_vouchers(soup)
 
         return {
             "title_clean": title_res,
@@ -224,7 +250,8 @@ def get_product(asin):
             "current_price_num": extract_number(price),
             "image": image,
             "category": category,
-            "best_coupon": best_coupon
+            "coupon_code": coupon_details["code"],
+            "voucher_text": coupon_details["voucher_text"]
         }
     except:
         return None
@@ -237,26 +264,22 @@ def generate_post(product_data, original_url):
     category = product_data["category"]
     old_price_num = product_data["old_price_num"]
     current_num = product_data["current_price_num"]
-    coupon_code = product_data.get("best_coupon")
+    coupon_code = product_data.get("coupon_code")
+    voucher_text = product_data.get("voucher_text")
     
     clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
 
-    # وضع اسم البراند في الصدارة وبشكل بارز مع اسم المنتج والعبوة
+    # اسم البراند بشكل متصدر ومحدد
     brand_part = f"<b>{brand}</b> " if brand else ""
     package_part = f" <b>({package})</b>" if package else ""
     product_line = f"{emoji} {brand_part}<b>{title}</b>{package_part}"
 
-    # الجملة الأولى: عنوان جذاب وحصري
-    hooks = [
-        "🚨 <b>تنبيه.. صيددة!</b>",
-        "🔥 <b>توفرت من جديد بسعر حارق..</b>",
-        "🚨 <b>حرررررقووو السعر طار..</b>",
-        "🎯 <b>لقطة ممتازة وبسعر مميز..</b>"
-    ]
-    sentence_1 = f"{random.choice(hooks)}\n\n{product_line}"
+    # اختيار افتتاحية واسلوب متغير عشوائياً لزيادة التنوع
+    selected_hook = random.choice(HOOK_TEMPLATES)
+    sentence_1 = f"{selected_hook}\n\n{product_line}"
 
-    # الجملة الثانية: تفاصيل السعر وأعلى كود خصم تم سحبه من الصفحة إن وجد
+    # تفاصيل الأسعار والأكواد
     price_lines = []
     if clean_current:
         if old_price_num > current_num and old_price_num > 0:
@@ -265,15 +288,17 @@ def generate_post(product_data, original_url):
         else:
             price_lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱🔥")
         
-        # يظهر الكود الأعلى خصمًا المستخرج من الصفحة بدقة
+        # عرض الكود أو الكوبون الترويجي إذا وجد فعلياً في الصفحة
         if coupon_code:
             price_lines.append(f"🎟️ الكود : <code>{html.escape(coupon_code)}</code>")
+        elif voucher_text:
+            price_lines.append(f"🎟️ قسيمة التخفيض: <b>{html.escape(voucher_text)} عند التفعيل</b>")
     else:
         price_lines.append("🔥 <b>السعر والتخفيض متوفر داخل الرابط 👇</b>")
 
     sentence_2 = "\n".join(price_lines)
 
-    # الجملة الثالثة: الرابط مباشر ونظيف
+    # الرابط
     sentence_3 = original_url
 
     post_lines = [
