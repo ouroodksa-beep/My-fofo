@@ -5,6 +5,7 @@ import re
 import time
 import random
 import os
+import html
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
@@ -13,17 +14,16 @@ POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex", 
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec", 
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
-    "الشعلان", "MOTHERCARE", "Gillette", "U.S. POLO", "لافيسيرا",
-    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينكس",
-    "بامبرز", "نيفيا", "دوف", "لوريال", "ماكفيتيز", "نادك", "المراعي", "تايد", "بيرسيل"
+    "الشعلان", "MOTHERCARE", "Gillette", "U.S. POLO", "لافيسيرا", "دوف", "نيفيا",
+    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينكس"
 ]
 
 CATEGORY_KEYWORDS = {
-    "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني", "مكنسة"],
-    "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "معطف", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء", "بوكسر"],
-    "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "foundation", "mascara", "eyeliner", "brush", "cosmetic", "skincare", "haircare", "عطر", "عود", "مسك", "كريم", "شامبو", "بلسم", "صابون", "مكياج", "أحمر شفاه", "عناية", "جمال", "تجميل", "جل", "موس", "حلاقة"],
-    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "ac", "heater", "fan", "blender", "mixer", "oven", "microwave", "toaster", "kettle", "coffee maker", "iron", "hair dryer", "chair", "table", "desk", "bed", "sofa", "couch", "lamp", "light", "mirror", "carpet", "curtain", "furniture", "kitchen", "home", "house", "ارز", "رز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "دفاية", "مروحة", "خلاط", "فرن", "مايكرويف", "غلاية", "كرسي", "طاولة", "سرير", "كنبة", "لمبة", "سجادة", "أثاث", "مطبخ", "منزل", "صابون", "باودر"],
-    "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "exercise", "workout", "sport", "running", "walking", "training", "sneakers", "shoes", "رياضة", "جيم", "لياقة", "تمارين", "سير", "دامبل", "يوغا", "دراجة", "كرة", "جري", "مشي", "تدريب"]
+    "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "هاتف", "آيفون", "لابتوب", "سماعات", "شاحن", "كيبل", "شاشة", "تلفزيون", "ساعة"],
+    "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "bag", "backpack", "wallet", "belt", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "حذاء", "شنطة", "مكياج", "ملابس", "بوكسر"],
+    "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "deodorant", "roll-on", "عطر", "عود", "مسك", "كريم", "لوشن", "شامبو", "بلسم", "صابون", "مزيل عرق", "مغذي", "رول", "حلاقة", "موس"],
+    "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "blender", "mixer", "oven", "microwave", "kettle", "coffee maker", "iron", "ارز", "رز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "خلاط", "فرن", "غلاية", "مطبخ", "غسول"],
+    "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "sport", "رياضة", "جيم", "تمارين", "دراجة"]
 }
 
 def detect_product_category(product_name):
@@ -35,42 +35,15 @@ def detect_product_category(product_name):
     return "general"
 
 TRANSLATION_DICT = {
-    "laptop": "لابتوب", "tablet": "تابلت", "keyboard": "كيبورد", "mouse": "ماوس",
-    "charger": "شاحن", "cable": "كيبل", "power bank": "باور بانك", "battery": "بطارية",
-    "screen": "شاشة", "monitor": "شاشة عرض", "camera": "كاميرا", "speaker": "سماعة",
-    "watch": "ساعة", "smartwatch": "ساعة ذكية", "headphones": "سماعات رأس",
-    "router": "راوتر", "modem": "مودم", "tv": "تلفزيون", "television": "تلفزيون",
-    "shoes": "حذاء", "shoe": "حذاء", "sneakers": "حذاء رياضي", "boots": "بوت",
-    "sandals": "صندل", "slippers": "شبشب", "t-shirt": "تيشيرت", "shirt": "قميص",
-    "pants": "بنطلون", "jeans": "جينز", "jacket": "جاكيت", "hoodie": "هودي",
-    "dress": "فستان", "skirt": "تنورة", "socks": "شرابات", "cap": "كاب",
-    "hat": "قبعة", "bag": "شنطة", "backpack": "حقيبة ظهر", "wallet": "محفظة",
-    "belt": "حزام", "scarf": "وشاح", "gloves": "قفازات",
-    "perfume": "عطر", "fragrance": "عطر", "oud": "عود", "musk": "مسك",
-    "cream": "كريم", "lotion": "لوشن", "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون",
-    "refrigerator": "ثلاجة", "fridge": "ثلاجة", "washing machine": "غسالة",
-    "vacuum cleaner": "مكنسة كهربائية", "air conditioner": "مكيف", "ac": "مكيف",
-    "heater": "دفاية", "fan": "مروحة", "blender": "خلاط", "mixer": "عجانة",
-    "oven": "فرن", "microwave": "مايكرويف", "toaster": "محمصة", "kettle": "غلاية",
-    "coffee maker": "ماكينة قهوة", "iron": "مكواة", "hair dryer": "سشوار",
-    "chair": "كرسي", "table": "طاولة", "desk": "مكتب", "bed": "سرير",
-    "sofa": "كنبة", "couch": "كنبة", "lamp": "لمبة", "light": "إضاءة",
-    "mirror": "مرآة", "carpet": "سجادة", "curtain": "ستارة",
-    "treadmill": "سير كهربائي", "dumbbell": "دامبل", "yoga mat": "حصيرة يوغا",
-    "bicycle": "دراجة", "ball": "كرة", "toys": "ألعاب", "toy": "لعبة",
-    "baby": "أطفال", "kids": "أطفال",
-    "wireless": "لاسلكي", "bluetooth": "بلوتوث", "smart": "ذكي", "digital": "رقمي",
-    "electric": "كهربائي", "automatic": "أوتوماتيك", "portable": "محمول",
-    "professional": "احترافي", "original": "أصلي", "new": "جديد",
-    "pro": "برو", "max": "ماكس", "plus": "بلس", "ultra": "ألترا", "mini": "ميني",
-    "premium": "بريميوم", "deluxe": "ديلوكس", "unisex": "للجنسين", "adult": "للبالغين",
-    "men": "رجالي", "women": "نسائي",
-    "black": "أسود", "white": "أبيض", "blue": "أزرق", "red": "أحمر", "green": "أخضر",
+    "deodorant": "مزيل عرق", "roll-on": "مزيل عرق رول", "cream": "كريم", "lotion": "لوشن",
+    "shampoo": "شامبو", "soap": "صابون", "hand wash": "غسول يدين", "body wash": "غسول جسم",
+    "perfume": "عطر", "shoes": "حذاء", "t-shirt": "تيشيرت", "bag": "حقيبة", "watch": "ساعة",
+    "headphones": "سماعات", "charger": "شاحن", "laptop": "لابتوب", "whitening": "مبيض",
+    "nourishing": "مغذي", "original": "أصلي", "men": "رجالي", "women": "نسائي"
 }
 
 def translate_to_arabic(text):
-    text_lower = text.lower()
-    words = text_lower.split()
+    words = text.lower().split()
     translated_words = []
     for word in words:
         clean_word = re.sub(r'[^\w\s]', '', word)
@@ -78,44 +51,56 @@ def translate_to_arabic(text):
             translated_words.append(TRANSLATION_DICT[clean_word])
         else:
             translated_words.append(word)
-    result = " ".join(translated_words)
-    result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
-    return result
+    return " ".join(translated_words)
+
+def clean_arabic_title(full_title, found_brand):
+    if not full_title:
+        return "منتج مميز"
+    
+    # ترجمة النص إن كان بالإنجليزية
+    if re.search(r'[A-Za-z]', full_title):
+        clean = translate_to_arabic(full_title)
+    else:
+        clean = full_title
+
+    # إزالة الكلمات الزائدة والتسويقية العامة
+    clean = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط|للرجال|للنساء)\b', '', clean)
+    
+    # حذف اسم البراند من العنوان لمنع التكرار
+    if found_brand:
+        clean = re.sub(re.escape(found_brand), '', clean, flags=re.IGNORECASE)
+
+    parts = re.split(r'[-–,|/]', clean)
+    main_part = parts[0].strip()
+    
+    words = main_part.split()[:5]
+    
+    # منع إنهاء العنوان بكلمات ناقصة
+    bad_endings = ['من', 'عن', 'في', 'على', 'إلى', 'مع', 'أو', 'و', 'الخالي', 'ذو', 'ذات', 'يغذي', 'الدوار']
+    while words and words[-1] in bad_endings:
+        words.pop()
+        
+    res = " ".join(words).strip()
+    return res if res else "منتج مميز"
 
 def extract_product_details(full_title):
-    if not full_title:
-        return "منتج مميز", "", ""
-    
     found_brand = ""
     for brand in POPULAR_BRANDS:
         if brand.lower() in full_title.lower():
-            found_brand = brand.upper()
+            found_brand = brand
             break
 
+    # استخراج الحجم أو عدد القطع (مثال: 500 مل ، 10 كيلو)
     package_detail = ""
-    size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|سم|إنش|محور|ساعة|حبة|موس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
+    size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|سم|حبة|موس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
     if size_match:
         package_detail = size_match.group(1)
 
-    clean_title = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', full_title)
-    parts = re.split(r'[-–,|/]', clean_title)
-    main_part = parts[0].strip()
-    
-    if len(main_part) < 8 and len(parts) > 1:
-        main_part = f"{parts[0].strip()} {parts[1].strip()}"
-
-    if re.search(r'[A-Za-z]', main_part):
-        translated = translate_to_arabic(main_part)
-        words = translated.split()
-        title_res = " ".join(words[:6])
-    else:
-        words = main_part.split()
-        title_res = " ".join(words[:6])
-
+    title_res = clean_arabic_title(full_title, found_brand)
     return title_res, found_brand, package_detail
 
 def get_category_emoji(category):
-    emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🏡", "sports": "⚡"}
+    emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🧼", "sports": "⚡"}
     return emojis.get(category, "🔥")
 
 def expand_url(url):
@@ -123,40 +108,30 @@ def expand_url(url):
         if any(short in url.lower() for short in ['amzn.to', 'bit.ly', 'tinyurl', 't.co', 'ty.gl', 'link.amazon']):
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
             }
-            r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
+            r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
             if 'link.amazon' in url.lower():
                 soup = BeautifulSoup(r.text, "html.parser")
-                asin = None
                 canonical = soup.select_one('link[rel="canonical"]')
                 if canonical:
                     href = canonical.get('href', '')
                     asin_match = re.search(r'/dp/([A-Z0-9]{9,10})', href)
                     if asin_match:
-                        asin = asin_match.group(1)
-                if asin:
-                    return f"https://www.amazon.sa/dp/{asin}"
+                        return f"https://www.amazon.sa/dp/{asin_match.group(1)}"
             return r.url
         return url
     except:
         return url
 
 def is_saudi_amazon(url):
-    if "link.amazon" in url.lower():
-        return True
-    return "amazon.sa" in url.lower()
+    return "amazon.sa" in url.lower() or "link.amazon" in url.lower()
 
 def extract_asin(url):
-    if 'link.amazon' in url.lower():
-        match = re.search(r'link\.amazon/([A-Za-z0-9]{9,10})', url, re.IGNORECASE)
-        if match:
-            return match.group(1).upper()
-    patterns = [r'/dp/([A-Z0-9]{9,10})', r'/gp/product/([A-Z0-9]{9,10})', r'/product/([A-Z0-9]{9,10})', r'([A-Z0-9]{9,10})/?$']
+    patterns = [r'/dp/([A-Z0-9]{9,10})', r'/gp/product/([A-Z0-9]{9,10})', r'link\.amazon/([A-Za-z0-9]{9,10})', r'([A-Z0-9]{9,10})/?$']
     for p in patterns:
         m = re.search(p, url)
         if m:
-            return m.group(1)
+            return m.group(1).upper()
     return None
 
 def clean_price(price_text):
@@ -178,149 +153,108 @@ def extract_number(price_text):
         pass
     return 0
 
-def get_high_quality_image(soup):
-    image = None
-    img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront")
-    if img_elem:
-        image = img_elem.get("data-old-hires") or img_elem.get("src")
-    if not image:
-        og_img = soup.select_one('meta[property="og:image"]')
-        if og_img:
-            image = og_img.get("content")
-    if image:
-        image = re.sub(r'_SX\d+_SY\d+_', '_', image).split('?')[0]
-    return image
-
-def extract_promos_and_discounts(soup):
-    promos = []
-    coupon_text_raw = ""
-    coupon_elems = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon']")
-    for elem in coupon_elems:
-        text = elem.text.strip()
-        if text and "تسجيل الدخول" not in text and "الشروط" not in text:
-            if len(text) < 50 and text not in promos:
-                coupon_text_raw = text
-                promos.append(text)
-
-    return promos[:1], coupon_text_raw
+def extract_real_coupon(soup):
+    # استخراج كود الخصم الحقيقي فقط بدون التكهن بأكواد وهمية
+    coupon_elem = soup.select_one(".promoPriceBlockMessage, #couponText, span.av-coupon-text")
+    if coupon_elem:
+        text = coupon_elem.text.strip()
+        code_match = re.search(r'\b([A-Z0-9]{4,10})\b', text)
+        if code_match and "OFF" not in code_match.group(1):
+            return code_match.group(1)
+    return None
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-    ]
-    for ua in user_agents:
-        try:
-            headers = {
-                "User-Agent": ua,
-                "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Referer": "https://www.amazon.sa/",
-                "DNT": "1"
-            }
-            r = requests.get(url, headers=headers, timeout=25)
-            if r.status_code != 200:
-                continue
-            soup = BeautifulSoup(r.text, "html.parser")
-            if "To discuss automated automated access to Amazon data" in r.text or soup.select_one("input#captchacharacters"):
-                continue
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
+        "Referer": "https://www.amazon.sa/"
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=20)
+        if r.status_code != 200:
+            return None
+        soup = BeautifulSoup(r.text, "html.parser")
+        
+        title_elem = soup.select_one("#productTitle")
+        if not title_elem:
+            return None
+        title = title_elem.text.strip()
 
-            title_elem = soup.select_one("#productTitle")
-            title = title_elem.text.strip() if title_elem else ""
-            if not title:
-                continue
+        price = ""
+        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice") or soup.select_one(".priceToPay")
+        if price_elem:
+            price = price_elem.text.strip()
 
-            price = ""
-            price_elem = soup.select_one(".a-price .a-offscreen")
-            if price_elem:
-                price = price_elem.text.strip()
-            
-            if not price or price == "0":
-                price_alt = soup.select_one("#priceblock_ourprice") or soup.select_one("#priceblock_dealprice") or soup.select_one(".priceToPay")
-                if price_alt:
-                    price = price_alt.text.strip()
+        old_price_elem = soup.select_one(".a-text-price .a-offscreen")
+        old_price = old_price_elem.text.strip() if old_price_elem else None
 
-            old_price_elem = soup.select_one(".a-text-price .a-offscreen")
-            old_price = old_price_elem.text.strip() if old_price_elem else None
+        img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront")
+        image = img_elem.get("src") if img_elem else None
 
-            image = get_high_quality_image(soup)
-            title_res, brand_res, package_res = extract_product_details(title)
-            category = detect_product_category(title)
-            current_price_num = extract_number(price)
-            old_price_num = extract_number(old_price) if old_price else 0
-            promos, coupon_text = extract_promos_and_discounts(soup)
+        title_res, brand_res, package_res = extract_product_details(title)
+        category = detect_product_category(title)
+        real_coupon = extract_real_coupon(soup)
 
-            return {
-                "full_title": title,
-                "title_res": title_res,
-                "brand": brand_res,
-                "package": package_res,
-                "price": price if price else "0",
-                "old_price": old_price,
-                "old_price_num": old_price_num,
-                "image": image,
-                "category": category,
-                "current_price_num": current_price_num,
-                "promos": promos,
-                "coupon_text": coupon_text
-            }
-        except:
-            continue
-    return None
+        return {
+            "title_clean": title_res,
+            "brand": brand_res,
+            "package": package_res,
+            "price": price,
+            "old_price_num": extract_number(old_price) if old_price else 0,
+            "current_price_num": extract_number(price),
+            "image": image,
+            "category": category,
+            "real_coupon": real_coupon
+        }
+    except:
+        return None
 
 def generate_post(product_data, original_url):
-    title_res = product_data["title_res"]
-    brand = product_data["brand"]
-    package = product_data["package"]
+    title = html.escape(product_data["title_clean"])
+    brand = html.escape(product_data["brand"])
+    package = html.escape(product_data["package"])
     price = product_data["price"]
     category = product_data["category"]
-    coupon_text = product_data.get("coupon_text", "")
     old_price_num = product_data["old_price_num"]
+    current_num = product_data["current_price_num"]
+    coupon_code = product_data.get("real_coupon")
     
     clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
-    current_num = product_data["current_price_num"]
 
-    promo_code_used = "NOW15"
-    if coupon_text:
-        if "POLO" in coupon_text.upper():
-            promo_code_used = "POLO20"
-        elif "PAYDAY" in coupon_text.upper():
-            promo_code_used = "PAYDAY20"
+    # تجهيز سطر اسم المنتج بأسلوب راقي بدون تكرار
+    brand_part = f"{brand} " if brand else ""
+    package_part = f" ({package})" if package else ""
+    product_line = f"{emoji} <b>{brand_part}{title}{package_part}</b>"
 
-    # تنسيق البراند والعبوة والاسم بشكل بارز (Bold)
-    brand_str = f"**<u>{brand}</u>** " if brand else ""
-    package_str = f" **({package})**" if package else ""
-    product_display = f"{brand_str}**{title_res}**{package_str}"
-
-    # 1. الجملة الأولى: تنبيه ناري أو صييدة بصيغ متنوعة واحترافية
+    # الجملة الأولى: عنوان جذاب وحصري
     hooks = [
-        f"⚠️ **<u>تنبيه لقطة..</u>**\n\n{emoji} {product_display}",
-        f"🔥 **<u>حرررررقووو والسعر طار..</u>**\n\n{emoji} {product_display}",
-        f"🎯 **<u>صيييدة ما تتفوتش..</u>**\n\n{emoji} {product_display}",
-        f"🚨 **<u>توفرت من جديد بسعر جبار..</u>**\n\n{emoji} {product_display}"
+        "🚨 <b>تنبيه.. صيددة!</b>",
+        "🔥 <b>توفرت من جديد بسعر حارق..</b>",
+        "🚨 <b>حرررررقووو السعر طار..</b>",
+        "🎯 <b>لقطة ممتازة وبسعر مميز..</b>"
     ]
-    sentence_1 = random.choice(hooks)
+    sentence_1 = f"{random.choice(hooks)}\n\n{product_line}"
 
-    # 2. الجملة الثانية: السعر القديم مشطوب (Strikethrough) والسعر الحالي بارز مع الكود
+    # الجملة الثانية: تفاصيل السعر والكود (بدون أكواد وهمية)
     price_lines = []
     if clean_current:
         if old_price_num > current_num and old_price_num > 0:
-            price_lines.append(f"❌ السعر سابقًا: ~~{int(old_price_num)} ريال~~ ❌")
-            price_lines.append(f"🔥 السعر الحالي: **<u>{clean_current}</u>** بس 😱")
+            price_lines.append(f"❌ السعر سابقًا: <s>{int(old_price_num)} ريال</s>")
+            price_lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> بس 😱")
         else:
-            price_lines.append(f"🔥 السعر الحالي: **<u>{clean_current}</u>** 😱🔥")
+            price_lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱🔥")
         
-        # إضافة الكوبون بتنسيق جميل إذا توفر
-        price_lines.append(f"🎟️ الكود الفعّال : `<u>{promo_code_used}</u>`")
+        # يظهر سطر الكود فقط وفقط إذا وجد كود حقيقي بالصفحة
+        if coupon_code:
+            price_lines.append(f"🎟️ الكود : <code>{html.escape(coupon_code)}</code>")
     else:
-        price_lines.append(f"🔥 **<u>السعر وعرض الخصم داخل الرابط 👇</u>**")
+        price_lines.append("🔥 <b>السعر والتخفيض متوفر داخل الرابط 👇</b>")
 
     sentence_2 = "\n".join(price_lines)
 
-    # 3. الجملة الثالثة: الرابط مباشرة وبدون أي كلمة قبله
+    # الجملة الثالثة: الرابط مباشر ونظيف
     sentence_3 = original_url
 
     post_lines = [
@@ -339,13 +273,13 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ أهلاً بك! يرجى إرسال روابط أمازون السعودية لتحويلها فوراً إلى صيدات احترافية ✨")
+        bot.reply_to(msg, "❌ أهلاً بك! أرسل رابط المنتج من أمازون السعودية لتحويله لبوست صيدات احترافي ✨")
         return
 
     for original_url in urls:
         expanded = expand_url(original_url)
         if not is_saudi_amazon(expanded):
-            bot.reply_to(msg, "❌ عذراً، الرابط مخصص لأمازون السعودية (amazon.sa) فقط.")
+            bot.reply_to(msg, "❌ عذراً، البوت مخصص لأمازون السعودية فقط.")
             continue
 
         asin = extract_asin(expanded)
@@ -353,11 +287,11 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري اصطياد تفاصيل المنتج وتنسيق بوست جذاب...")
+        wait = bot.reply_to(msg, "⏳ جاري جلب التفاصيل وتنسيق المنشور...")
 
         product = get_product(asin)
         if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط أو جرب رابطاً آخر.", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
             continue
 
         post = generate_post(product, original_url)
@@ -368,12 +302,9 @@ def handler(msg):
             else:
                 bot.send_message(msg.chat.id, post, parse_mode="HTML")
             bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception as e:
-            try:
-                bot.send_message(msg.chat.id, post, parse_mode="HTML")
-                bot.delete_message(msg.chat.id, wait.message_id)
-            except:
-                bot.edit_message_text("❌ حدث خطأ أثناء إرسال المنشور.", msg.chat.id, wait.message_id)
+        except Exception:
+            bot.send_message(msg.chat.id, post, parse_mode="HTML")
+            bot.delete_message(msg.chat.id, wait.message_id)
 
 # ============ WEBHOOK SERVER ============
 from flask import Flask, request
@@ -387,7 +318,7 @@ WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 @app.route('/')
 def index():
-    return "🤖 بوت الصيدات والخصومات يعمل بأعلى كفاءة 🔥"
+    return "🤖 البوت يعمل بأعلى كفاءة 🔥"
 
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
@@ -404,7 +335,6 @@ def start_webhook():
         bot.remove_webhook()
         time.sleep(1)
         bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH)
-        print(f"✅ Webhook set to: {WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}")
     app.run(host='0.0.0.0', port=WEBHOOK_PORT)
 
 if __name__ == '__main__':
