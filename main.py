@@ -9,6 +9,15 @@ import os
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
 
+# قائمة أشهر البراندات للبحث عنها وإبرازها في بداية البوست
+POPULAR_BRANDS = [
+    "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex", 
+    "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec", 
+    "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
+    "أبل", "سامسونج", "سوني", "فيليبس", "دايسون", "براون", "تيفال", "مولينکس",
+    "بامبرز", "نيفيا", "دوف", "لوريال", "ماكفيتيز", "نادك", "المراعي", "تايد", "بيرسيل"
+]
+
 CATEGORY_KEYWORDS = {
     "electronics": ["phone", "iphone", "samsung", "laptop", "computer", "tablet", "ipad", "airpods", "headphones", "camera", "tv", "screen", "monitor", "keyboard", "mouse", "charger", "cable", "power bank", "battery", "smart watch", "watch", "speaker", "router", "modem", "electronic", "digital", "هاتف", "آيفون", "لابتوب", "كمبيوتر", "تابلت", "سماعات", "شاحن", "كيبل", "بطارية", "شاشة", "كاميرا", "تلفزيون", "راوتر", "ساعة ذكية", "إلكتروني", "مكنسة"],
     "fashion": ["shirt", "t-shirt", "pants", "jeans", "jacket", "hoodie", "dress", "skirt", "socks", "shoes", "sneakers", "boots", "sandals", "slippers", "cap", "hat", "bag", "backpack", "wallet", "belt", "tie", "scarf", "gloves", "clothing", "apparel", "wear", "fashion", "معطف", "قميص", "تيشيرت", "بنطلون", "جاكيت", "فستان", "تنورة", "حذاء", "شنطة", "حقيبة", "محفظة", "حزام", "كاب", "ملابس", "أزياء"],
@@ -73,33 +82,46 @@ def translate_to_arabic(text):
     result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
     return result
 
-def extract_smart_highlight(full_title):
+def format_attractive_title(full_title):
     if not full_title:
-        return "منتج مميز وعالي الطلب"
+        return "🔥 **منتج مميز وعليها طلب عالي**"
     
-    # البحث عن تفاصيل جذابة داخل العنوان مثل (الحجم، العدد، المقاس، القوة) لاختيارها كمعلومة مفيدة
-    extra_info = ""
+    # استخراج البراند إن وجد وإبرازه بـ Bold
+    found_brand = ""
+    for brand in POPULAR_BRANDS:
+        if brand.lower() in full_title.lower():
+            found_brand = f"**{brand.upper()}** "
+            break
+
+    # استخراج معلومة مفيدة (حجم، كمية، سعة)
+    extra_detail = ""
     size_match = re.search(r'(\d+\s*(لتر|مل|قطعة|عبوة|كيلو|جرام|واط|ساعة|سم|إنش|مقاس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
     if size_match:
-        extra_info = f" ({size_match.group(1)})"
+        extra_detail = f" 📦 ({size_match.group(1)})"
 
-    # تنظيف العنوان واستخراج الكốt الأساسي بذكاء بدون قطع الكلمات المفيدة
+    # تنظيف العنوان واختصاره بشكل جذاب
     clean_title = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', full_title)
     parts = re.split(r'[-–,|/]', clean_title)
     main_part = parts[0].strip()
     
-    if len(main_part) < 12 and len(parts) > 1:
+    if len(main_part) < 10 and len(parts) > 1:
         main_part = f"{parts[0].strip()} {parts[1].strip()}"
 
     if re.search(r'[A-Za-z]', main_part):
         translated = translate_to_arabic(main_part)
         words = translated.split()
-        title_res = " ".join(words[:8])
+        title_res = " ".join(words[:7])
     else:
         words = main_part.split()
-        title_res = " ".join(words[:8])
+        title_res = " ".join(words[:7])
 
-    return f"{title_res}{extra_info}"
+    # إذا كان البراند موجوداً مسبقاً في النص لا نكرره، وإذا لم يوجد نضيفه في البداية
+    if found_brand and found_brand.strip().lower() in title_res.lower():
+        final_name = f"**{title_res}**{extra_detail}"
+    else:
+        final_name = f"{found_brand}**{title_res}**{extra_detail}"
+
+    return final_name
 
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🏡", "sports": "⚡"}
@@ -238,14 +260,14 @@ def get_product(asin):
             old_price = old_price_elem.text.strip() if old_price_elem else None
 
             image = get_high_quality_image(soup)
-            smart_name = extract_smart_highlight(title)
+            formatted_name = format_attractive_title(title)
             category = detect_product_category(title)
             current_price_num = extract_number(price)
             promos = extract_promos_and_discounts(soup)
 
             return {
                 "full_title": title,
-                "name": smart_name,
+                "name": formatted_name,
                 "price": price if price else "0",
                 "old_price": old_price,
                 "image": image,
@@ -277,17 +299,18 @@ def generate_post(product_data, original_url):
         if calc_pct < 100:
             discount_pct = calc_pct
 
-    # تشكيلة واسعة وعشوائية تماماً لجعل أسلوب كل بوست مختلف عن الآخر
+    # عناوين جذابة وقصيرة مع تنويع كامل
     hooks = [
-        f"🔥 **صفقة مميزة ولا تفوتك!**\n{emoji} **{name}**",
-        f"🚨 **تخفيض قوي وعليها إقبال عالي:**\n{emoji} **{name}**",
-        f"⚡ **لقطة اليوم السريعة.. استغل الفرصة:**\n{emoji} **{name}**",
-        f"🎯 **منتج يستهل الطلب بسعر مميز:**\n{emoji} **{name}**",
-        f"💥 **خصم طازج وفرصة ذهبية للتوفير:**\n{emoji} **{name}**",
-        f"✨ **طلب مسبق وعليها خصم واو:**\n{emoji} **{name}**"
+        f"🔥 **صفقة نارية ولا تفوتك!**\n{emoji} {name}",
+        f"🚨 **تخفيض قوي وعليها إقبال جبار:**\n{emoji} {name}",
+        f"⚡ **لقطة السريع.. استغل الفرصة الآن:**\n{emoji} {name}",
+        f"🎯 **قطعة مميزة وطلبها عالي جداً:**\n{emoji} {name}",
+        f"💥 **خصم صاروخي وفرصة ذهبية للتوفير:**\n{emoji} {name}",
+        f"✨ **عرض خاص يستحق التجربة:**\n{emoji} {name}"
     ]
     selected_hook = random.choice(hooks)
     
+    # تنسيق السعر بـ Bold ووضع الخصم بشكل واضح
     if clean_current:
         if clean_old and discount_pct > 0:
             price_phrases = [
@@ -297,9 +320,9 @@ def generate_post(product_data, original_url):
             ]
             price_section = random.choice(price_phrases)
         else:
-            price_section = f"💰 السعر الحالي المميز: **{clean_current}**"
+            price_section = f"💰 السعر الحالي المذهل: **{clean_current}**"
     else:
-        price_section = f"💰 **شاهد السعر الحالي والخصم المباشر هنا 👇**"
+        price_section = f"💰 **شاهد السعر الحالي والخصم المباشر بالداخل 👇**"
 
     post_lines = [
         selected_hook,
@@ -312,9 +335,9 @@ def generate_post(product_data, original_url):
 
     cta_phrases = [
         f"🛒 **اطلبها الآن قبل نفاد الكمية:**\n{original_url}",
-        f"🏃‍♂️ **رابط الشراء السريع:**\n{original_url}",
+        f"🏃‍♂️ **رابط الشراء السريع (الحق العرض):**\n{original_url}",
         f"🔗 **لطلب المنتج مباشرة:**\n{original_url}",
-        f"👇 **الحق العرض من هنا:**\n{original_url}"
+        f"👇 **فعل العرض واطلبه من هنا:**\n{original_url}"
     ]
     
     post_lines.extend([
@@ -344,7 +367,7 @@ def handler(msg):
             bot.reply_to(msg, "❌ تعذر استخراج رقم المنتج من الرابط.")
             continue
 
-        wait = bot.reply_to(msg, "⏳ جاري استخلاص أهم تفاصيل المنتج وصياغة بوست حصري...")
+        wait = bot.reply_to(msg, "⏳ جاري اصطياد أقوى تفاصيل المنتج وتنسيق بوست احترافي وجذاب...")
 
         product = get_product(asin)
         if not product:
