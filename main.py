@@ -9,7 +9,6 @@ import os
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
 
-# قائمة أشهر البراندات للبحث عنها وإبرازها في بداية البوست
 POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex", 
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec", 
@@ -86,20 +85,17 @@ def format_attractive_title(full_title):
     if not full_title:
         return "🔥 **منتج مميز وعليها طلب عالي**"
     
-    # استخراج البراند إن وجد وإبرازه بـ Bold
     found_brand = ""
     for brand in POPULAR_BRANDS:
         if brand.lower() in full_title.lower():
             found_brand = f"**{brand.upper()}** "
             break
 
-    # استخراج معلومة مفيدة (حجم، كمية، سعة)
     extra_detail = ""
     size_match = re.search(r'(\d+\s*(لتر|مل|قطعة|عبوة|كيلو|جرام|واط|ساعة|سم|إنش|مقاس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
     if size_match:
         extra_detail = f" 📦 ({size_match.group(1)})"
 
-    # تنظيف العنوان واختصاره بشكل جذاب
     clean_title = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', full_title)
     parts = re.split(r'[-–,|/]', clean_title)
     main_part = parts[0].strip()
@@ -115,7 +111,6 @@ def format_attractive_title(full_title):
         words = main_part.split()
         title_res = " ".join(words[:7])
 
-    # إذا كان البراند موجوداً مسبقاً في النص لا نكرره، وإذا لم يوجد نضيفه في البداية
     if found_brand and found_brand.strip().lower() in title_res.lower():
         final_name = f"**{title_res}**{extra_detail}"
     else:
@@ -202,11 +197,13 @@ def get_high_quality_image(soup):
 
 def extract_promos_and_discounts(soup):
     promos = []
+    coupon_text_raw = ""
     coupon_elems = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon']")
     for elem in coupon_elems:
         text = elem.text.strip()
         if text and "تسجيل الدخول" not in text and "الشروط" not in text:
             if len(text) < 50 and text not in promos:
+                coupon_text_raw = text
                 promos.append(f"🎟️ **قسيمة خصم إضافية:** `{text}`")
 
     bank_codes = ["SAB20", "ANB", "ALJ", "STCPAY", "VISA", "MASTERCARD"]
@@ -216,7 +213,7 @@ def extract_promos_and_discounts(soup):
         if code in page_text and f"كود `{code}`" not in promos:
             promos.append(f"💳 **كود خصم بنكي:** استخدم الرمز `{code}` عند الدفع")
 
-    return promos[:1]
+    return promos[:1], coupon_text_raw
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -263,7 +260,7 @@ def get_product(asin):
             formatted_name = format_attractive_title(title)
             category = detect_product_category(title)
             current_price_num = extract_number(price)
-            promos = extract_promos_and_discounts(soup)
+            promos, coupon_text = extract_promos_and_discounts(soup)
 
             return {
                 "full_title": title,
@@ -273,7 +270,8 @@ def get_product(asin):
                 "image": image,
                 "category": category,
                 "current_price_num": current_price_num,
-                "promos": promos
+                "promos": promos,
+                "coupon_text": coupon_text
             }
         except:
             continue
@@ -282,24 +280,30 @@ def get_product(asin):
 def generate_post(product_data, original_url):
     name = product_data["name"]
     price = product_data["price"]
-    old_price = product_data["old_price"]
     category = product_data["category"]
     promos = product_data.get("promos", [])
+    coupon_text = product_data.get("coupon_text", "")
     
     clean_current = clean_price(price) if price and price != "0" else None
-    clean_old = clean_price(old_price) if old_price else ""
     emoji = get_category_emoji(category)
 
-    old_num = extract_number(old_price) if old_price else 0
     current_num = product_data["current_price_num"]
     
-    discount_pct = 0
-    if old_num > current_num and old_num > 0 and current_num > 0:
-        calc_pct = int(((old_num - current_num) / old_num) * 100)
-        if calc_pct < 100:
-            discount_pct = calc_pct
+    # حساب السعر بعد خصم القسيمة إذا وجدت نسبة مئوية أو قيمة ثابتة (مثل خصم 10% أو 20 ريال)
+    final_price_str = clean_current
+    if clean_current and current_num > 0 and coupon_text:
+        pct_match = re.search(r'(\d+)\s*%', coupon_text)
+        val_match = re.search(r'(\d+)\s*(ريال|رس|SAR)', coupon_text, re.IGNORECASE)
+        
+        if pct_match:
+            discount_val = int(pct_match.group(1))
+            new_val = current_num * (1 - discount_val / 100)
+            final_price_str = f"{int(new_val)} ريال"
+        elif val_match:
+            discount_val = float(val_match.group(1))
+            new_val = max(0, current_num - discount_val)
+            final_price_str = f"{int(new_val)} ريال"
 
-    # عناوين جذابة وقصيرة مع تنويع كامل
     hooks = [
         f"🔥 **صفقة نارية ولا تفوتك!**\n{emoji} {name}",
         f"🚨 **تخفيض قوي وعليها إقبال جبار:**\n{emoji} {name}",
@@ -310,17 +314,12 @@ def generate_post(product_data, original_url):
     ]
     selected_hook = random.choice(hooks)
     
-    # تنسيق السعر بـ Bold ووضع الخصم بشكل واضح
+    # تنسيق السعر الحالي ليكون Bold مع توضيح أنه بعد خصم البرومو كود إن وجد
     if clean_current:
-        if clean_old and discount_pct > 0:
-            price_phrases = [
-                f"💰 السعر الآن: **{clean_current}** (بدلاً من ~~{clean_old}~~) 🔥 وفر **{discount_pct}%**",
-                f"🏷️ خذها بـ **{clean_current}** فقط! (كانت ~~{clean_old}~~ بخصم **{discount_pct}%**)",
-                f"✨ السعر الحالي: **{clean_current}** | السعر السابق ~~{clean_old}~~ 📉 بنسبة خصم **{discount_pct}%**"
-            ]
-            price_section = random.choice(price_phrases)
+        if final_price_str != clean_current:
+            price_section = f"💰 السعر الحالي بعد خصم البرومو كود: **{final_price_str}** 🔥 (بدلاً من {clean_current})"
         else:
-            price_section = f"💰 السعر الحالي المذهل: **{clean_current}**"
+            price_section = f"💰 السعر الحالي المميز: **{clean_current}**"
     else:
         price_section = f"💰 **شاهد السعر الحالي والخصم المباشر بالداخل 👇**"
 
