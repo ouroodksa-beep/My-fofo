@@ -57,16 +57,13 @@ def clean_arabic_title(full_title, found_brand):
     if not full_title:
         return "منتج مميز"
     
-    # ترجمة النص إن كان بالإنجليزية
     if re.search(r'[A-Za-z]', full_title):
         clean = translate_to_arabic(full_title)
     else:
         clean = full_title
 
-    # إزالة الكلمات الزائدة والتسويقية العامة
     clean = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط|للرجال|للنساء)\b', '', clean)
     
-    # حذف اسم البراند من العنوان لمنع التكرار
     if found_brand:
         clean = re.sub(re.escape(found_brand), '', clean, flags=re.IGNORECASE)
 
@@ -75,7 +72,6 @@ def clean_arabic_title(full_title, found_brand):
     
     words = main_part.split()[:5]
     
-    # منع إنهاء العنوان بكلمات ناقصة
     bad_endings = ['من', 'عن', 'في', 'على', 'إلى', 'مع', 'أو', 'و', 'الخالي', 'ذو', 'ذات', 'يغذي', 'الدوار']
     while words and words[-1] in bad_endings:
         words.pop()
@@ -90,7 +86,6 @@ def extract_product_details(full_title):
             found_brand = brand
             break
 
-    # استخراج الحجم أو عدد القطع (مثال: 500 مل ، 10 كيلو)
     package_detail = ""
     size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|سم|حبة|موس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
     if size_match:
@@ -153,15 +148,39 @@ def extract_number(price_text):
         pass
     return 0
 
-def extract_real_coupon(soup):
-    # استخراج كود الخصم الحقيقي فقط بدون التكهن بأكواد وهمية
-    coupon_elem = soup.select_one(".promoPriceBlockMessage, #couponText, span.av-coupon-text")
-    if coupon_elem:
-        text = coupon_elem.text.strip()
-        code_match = re.search(r'\b([A-Z0-9]{4,10})\b', text)
-        if code_match and "OFF" not in code_match.group(1):
-            return code_match.group(1)
-    return None
+def extract_best_coupon(soup):
+    """
+    يبحث في الصفحة عن كل الأكواد ونسب الخصم المرتبطة بها،
+    ويختار الكود الذي يقدم أعلى نسبة خصم حقيقية.
+    """
+    coupons_found = [] # قائمة لتخزين (الكود، نسبة الخصم الرقمية)
+    
+    # استخراج النصوص من عناصر الكوبونات المحتملة في أمازون
+    elements = soup.select(".promoPriceBlockMessage, #couponText, span.av-coupon-text, div[id*='coupon'], .a-section .a-size-base")
+    for elem in elements:
+        text = elem.text.strip()
+        if not text or "تسجيل الدخول" in text or "الشروط" in text:
+            continue
+            
+        # البحث عن الكود (كلمة إنجليزية كبيرة من 4 إلى 10 حروف/أرقام)
+        code_matches = re.findall(r'\b([A-Z0-9]{4,10})\b', text)
+        # البحث عن نسبة الخصم الرقمية (مثل 15%, 20%)
+        pct_matches = re.findall(r'(\d+)\s*%', text)
+        
+        discount_value = 0
+        if pct_matches:
+            discount_value = int(pct_matches[0])
+            
+        for code in code_matches:
+            if code not in ["OFF", "SAR", "AED", "GET", "SAVE"]:
+                coupons_found.append((code, discount_value))
+                
+    if not coupons_found:
+        return None
+        
+    # ترتيب الكوبونات تنازلياً حسب أعلى نسبة خصم تم رصدها
+    coupons_found.sort(key=lambda x: x[1], reverse=True)
+    return coupons_found[0][0]
 
 def get_product(asin):
     url = f"https://www.amazon.sa/dp/{asin}"
@@ -194,7 +213,7 @@ def get_product(asin):
 
         title_res, brand_res, package_res = extract_product_details(title)
         category = detect_product_category(title)
-        real_coupon = extract_real_coupon(soup)
+        best_coupon = extract_best_coupon(soup)
 
         return {
             "title_clean": title_res,
@@ -205,7 +224,7 @@ def get_product(asin):
             "current_price_num": extract_number(price),
             "image": image,
             "category": category,
-            "real_coupon": real_coupon
+            "best_coupon": best_coupon
         }
     except:
         return None
@@ -218,15 +237,15 @@ def generate_post(product_data, original_url):
     category = product_data["category"]
     old_price_num = product_data["old_price_num"]
     current_num = product_data["current_price_num"]
-    coupon_code = product_data.get("real_coupon")
+    coupon_code = product_data.get("best_coupon")
     
     clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
 
-    # تجهيز سطر اسم المنتج بأسلوب راقي بدون تكرار
-    brand_part = f"{brand} " if brand else ""
-    package_part = f" ({package})" if package else ""
-    product_line = f"{emoji} <b>{brand_part}{title}{package_part}</b>"
+    # وضع اسم البراند في الصدارة وبشكل بارز مع اسم المنتج والعبوة
+    brand_part = f"<b>{brand}</b> " if brand else ""
+    package_part = f" <b>({package})</b>" if package else ""
+    product_line = f"{emoji} {brand_part}<b>{title}</b>{package_part}"
 
     # الجملة الأولى: عنوان جذاب وحصري
     hooks = [
@@ -237,7 +256,7 @@ def generate_post(product_data, original_url):
     ]
     sentence_1 = f"{random.choice(hooks)}\n\n{product_line}"
 
-    # الجملة الثانية: تفاصيل السعر والكود (بدون أكواد وهمية)
+    # الجملة الثانية: تفاصيل السعر وأعلى كود خصم تم سحبه من الصفحة إن وجد
     price_lines = []
     if clean_current:
         if old_price_num > current_num and old_price_num > 0:
@@ -246,7 +265,7 @@ def generate_post(product_data, original_url):
         else:
             price_lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱🔥")
         
-        # يظهر سطر الكود فقط وفقط إذا وجد كود حقيقي بالصفحة
+        # يظهر الكود الأعلى خصمًا المستخرج من الصفحة بدقة
         if coupon_code:
             price_lines.append(f"🎟️ الكود : <code>{html.escape(coupon_code)}</code>")
     else:
