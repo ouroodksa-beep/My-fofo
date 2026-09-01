@@ -27,10 +27,21 @@ CATEGORY_KEYWORDS = {
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "sport", "رياضة", "جيم", "تمارين", "دراجة"]
 }
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-    "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7"
-}
+# قائمة رؤوس طلبات متغيرة لتجاوز حظر أمازون
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+]
+
+def get_headers():
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "max-age=0",
+        "Upgrade-Insecure-Requests": "1"
+    }
 
 # ==================== DYNAMIC HOOK GENERATOR ====================
 def generate_dynamic_hook(brand=""):
@@ -166,7 +177,7 @@ def get_category_emoji(category):
 
 def expand_url(url):
     try:
-        r = requests.get(url, allow_redirects=True, timeout=15, headers=HEADERS)
+        r = requests.get(url, allow_redirects=True, timeout=15, headers=get_headers())
         return r.url
     except:
         return url
@@ -232,39 +243,60 @@ def extract_coupons_and_vouchers(soup):
                     break
     return coupon_info
 
-# ==================== استخراج صورة المنتج بأعلى جودة ====================
-def extract_high_res_image(soup):
+def extract_high_res_image(soup, asin):
+    # محاولة استخراج الصورة بدقة عالية من الصفحة
     img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront") or soup.select_one("#main-image")
     if img_elem:
-        # جلب رابط الصورة ذات الجودة العالية جداً من خاصية data-a-dynamic-image
         dynamic_img = img_elem.get("data-a-dynamic-image")
         if dynamic_img:
             try:
                 img_data = json.loads(dynamic_img)
-                # اختيار أطول رابط صورة (عادة يكون ذو أعلى دقة)
-                high_res_url = max(img_data.keys(), key=lambda k: img_data[k][0] * img_data[k][1])
-                return high_res_url
+                return max(img_data.keys(), key=lambda k: img_data[k][0] * img_data[k][1])
             except:
                 pass
         
-        # كحل بديل: تنظيف رابط الصورة العادي للحصول على الدقة الكاملة
         src = img_elem.get("src", "")
         if src:
             return re.sub(r'\._AC_.*_\.', '.', src)
 
+    # رابط صورة جودة عالية رئيسي ومضمون كبديل لجميع منتجات أمازون عن طريق ASIN
+    if asin:
+        return f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg"
+
     return None
 
-def fetch_product_details(url):
+def fetch_product_details(url, asin):
+    session = requests.Session()
+    session.headers.update(get_headers())
+    
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=10)
+        resp = session.get(url, timeout=12)
         soup = BeautifulSoup(resp.content, "html.parser")
+
+        # التحقق إن كانت أمازون أظهرت صفحة CAPTCHA
+        if "captcha" in resp.text.lower() or "validateCaptcha" in resp.text:
+            print("Amazon CAPTCHA Block Detected! Using fallback image.")
+            # استخدام الرابط المباشر للصورة عند ظهور الكابتشا
+            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg" if asin else None
+            return {
+                "title_clean": "منتج مميز من أمازون",
+                "brand": "",
+                "package": "",
+                "price": "",
+                "old_price_num": 0,
+                "current_price_num": 0,
+                "category": "general",
+                "coupon_code": None,
+                "voucher_text": None,
+                "image_url": img_url
+            }
 
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
         if not title_elem:
             return None
 
         title = title_elem.text.strip()
-        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice")
+        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice") or soup.select_one(".a-color-price")
         price = price_elem.text.strip() if price_elem else ""
 
         old_price_elem = soup.select_one(".a-text-price .a-offscreen")
@@ -273,7 +305,7 @@ def fetch_product_details(url):
         title_res, brand_res, package_res = extract_product_details(title, soup)
         category = detect_product_category(title)
         coupon_details = extract_coupons_and_vouchers(soup)
-        image_url = extract_high_res_image(soup)
+        image_url = extract_high_res_image(soup, asin)
 
         return {
             "title_clean": title_res,
@@ -355,7 +387,7 @@ def handler(msg):
         target_url = f"https://www.amazon.sa/dp/{asin}" if asin else expanded
         wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج وجلب الصورة...")
 
-        product = fetch_product_details(target_url)
+        product = fetch_product_details(target_url, asin)
 
         if not product:
             bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
