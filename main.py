@@ -34,7 +34,6 @@ def get_headers():
         "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
-# ==================== مولد الخطاف التفاعلي والمتنوع ====================
 def generate_dynamic_hook(brand=""):
     emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸", "😱", "📢"]
     openers = [
@@ -58,7 +57,6 @@ def generate_dynamic_hook(brand=""):
     else:
         return f"{emoji} <b>{opener}.. {action}!</b>"
 
-# ==================== مولد الكوبونات التفاعلي ====================
 def generate_dynamic_coupon_call(code):
     icons = ["🎟️", "🏷️", "🔑", "💥", "🎁", "✨", "📌", "💳"]
     verbs = ["استخدموا", "لا تنسوا استخدام", "تأكدوا من تطبيق", "ادخلوا", "انسخوا", "ضعوا", "فعّلوا"]
@@ -155,6 +153,32 @@ def extract_coupons_and_vouchers(soup):
                     break
     return coupon_info
 
+# ==================== استخراج الصورة المضمونة بجودة عالية بدقة ====================
+def extract_best_image(soup, asin):
+    # الطريقة 1: البحث عن جودة الصورة العالية من الـ HTML مباشرة
+    img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront") or soup.select_one("#main-image")
+    if img_elem:
+        dynamic_img = img_elem.get("data-a-dynamic-image")
+        if dynamic_img:
+            try:
+                img_data = json.loads(dynamic_img)
+                # جلب أعلى جودة ممكنة للصورة الحقيقية
+                best_url = max(img_data.keys(), key=lambda k: img_data[k][0] * img_data[k][1])
+                return best_url
+            except:
+                pass
+        
+        src = img_elem.get("src", "")
+        if src and "blank" not in src.lower():
+            # تحويل الرابط العادي إلى رابط عالي الجودة مقاس 1500px
+            return re.sub(r'\._AC_.*_\.', '._AC_SL1500_.', src)
+
+    # الطريقة 2: رابط صورة أمازون عالي الجودة المضمون (1500px) بدلاً من الرابط الأبيص
+    if asin:
+        return f"https://images-na.ssl-images-amazon.com/images/I/{asin}._AC_SL1500_.jpg"
+
+    return None
+
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🧼", "sports": "⚡"}
     return emojis.get(category, "🔥")
@@ -216,7 +240,7 @@ def fetch_product_details(url, asin):
             package_detail = size_match.group(1)
 
         coupon_details = extract_coupons_and_vouchers(soup)
-        image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg" if asin else None
+        image_url = extract_best_image(soup, asin)
 
         return {
             "title_clean": title_res,
@@ -234,7 +258,6 @@ def fetch_product_details(url, asin):
         print(f"Error: {e}")
         return None
 
-# ==================== توليد المنشور المتنوع والمتغير ====================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
@@ -258,7 +281,6 @@ def generate_post(product_data, original_url):
 
     has_discount = old_price_num > current_num and old_price_num > 0
     
-    # تنويع طريقة عرض السعر لمنع النمطية (تغيير الأسلوب في كل منشور)
     price_styles = ["old_and_new", "discount_percentage", "simple_price_with_words"]
     selected_style = random.choice(price_styles) if has_discount else "simple_price_with_words"
 
@@ -277,7 +299,6 @@ def generate_post(product_data, original_url):
         if clean_current:
             lines.append(f"🔥 {decoration}: <b>{clean_current}</b> 😱")
 
-    # إضافة الكوبونات إن وجدت
     if coupon_code:
         lines.append(generate_dynamic_coupon_call(coupon_code))
     elif voucher_text:
