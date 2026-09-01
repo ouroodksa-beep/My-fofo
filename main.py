@@ -6,7 +6,7 @@ import time
 import random
 import os
 import html
-import json
+from playwright.sync_api import sync_playwright
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
@@ -160,17 +160,8 @@ def get_category_emoji(category):
 
 def expand_url(url):
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        }
-        r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
-        final_url = r.url
-        if any(k in url.lower() for k in ['link.amazon', 'amzn.to', 'amzn.sa']):
-            soup = BeautifulSoup(r.text, "html.parser")
-            canonical = soup.select_one('link[rel="canonical"]')
-            if canonical and canonical.get('href'):
-                return canonical.get('href')
-        return final_url
+        r = requests.get(url, allow_redirects=True, timeout=15)
+        return r.url
     except:
         return url
 
@@ -216,7 +207,6 @@ def extract_number(price_text):
 def extract_coupons_and_vouchers(soup):
     coupon_info = {"code": None, "voucher_text": None}
     all_text = soup.get_text()
-    
     IGNORED_WORDS = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER", "SAVINGS"]
 
     code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code|Voucher|كوبون)[:\s\-]*([A-Za-z0-9]{3,15})', all_text, re.IGNORECASE)
@@ -225,116 +215,74 @@ def extract_coupons_and_vouchers(soup):
         if cand not in IGNORED_WORDS and len(cand) >= 3:
             coupon_info["code"] = cand
 
-    if not coupon_info["code"]:
-        selectors = [
-            "#couponText", ".promoPriceBlockMessage", ".vouchers-one-time-code", 
-            "#couponBadge", "span.a-declarative[data-action='a-modal']", ".sns-coupon-details",
-            "span.a-color-success", "div[id*='coupon']", ".coupon-code", "#unclippedCoupon",
-            ".a-section.vouchers-discount-text"
-        ]
-        for sel in selectors:
-            for elem in soup.select(sel):
-                text = elem.text.strip()
-                match = re.search(r'\b([A-Z0-9]{3,12})\b', text)
-                if match:
-                    val = match.group(1).upper()
-                    if val not in IGNORED_WORDS and not val.isdigit():
-                        coupon_info["code"] = val
-                        break
-            if coupon_info["code"]:
-                break
-
-    voucher_selectors = [
-        "label[for*='checkbox'] span", "#vpcButton", ".a-section .a-color-success", 
-        ".vouchers-discount-text", "#item_coupon_vt", ".badge-link", "span[id*='couponText']",
-        "#sp_detail"
-    ]
+    voucher_selectors = ["label[for*='checkbox'] span", "#vpcButton", ".vouchers-discount-text"]
     for sel in voucher_selectors:
         for elem in soup.select(sel):
             v_text = elem.text.strip()
-            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "توفير", "%", "ريال"]):
-                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال|Save\s*\d+%)', v_text, re.IGNORECASE)
+            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "%", "ريال"]):
+                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال)', v_text, re.IGNORECASE)
                 if discount_match:
                     coupon_info["voucher_text"] = discount_match.group(1)
                     break
-        if coupon_info["voucher_text"]:
-            break
-
     return coupon_info
 
-def get_product(asin, full_expanded_url=""):
-    url = f"https://www.amazon.sa/dp/{asin}" if asin else full_expanded_url
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8",
-        "Referer": "https://www.amazon.sa/"
-    }
-    try:
-        r = requests.get(url, headers=headers, timeout=20)
-        if r.status_code != 200:
-            r = requests.get(full_expanded_url, headers=headers, timeout=20)
-            if r.status_code != 200:
-                return None
-        
-        soup = BeautifulSoup(r.text, "html.parser")
-        
-        title_elem = soup.select_one("#productTitle")
-        if not title_elem:
-            return None
-        title = title_elem.text.strip()
-
-        price = ""
-        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice") or soup.select_one(".priceToPay")
-        if price_elem:
-            price = price_elem.text.strip()
-
-        old_price_elem = soup.select_one(".a-text-price .a-offscreen")
-        old_price = old_price_elem.text.strip() if old_price_elem else None
-
-        # ==================== استخرج الصورة بأعلى جودة ====================
-        image = None
-        img_elem = (
-            soup.select_one("#landingImage") or 
-            soup.select_one("#imgBlkFront") or 
-            soup.select_one("#main-image") or
-            soup.select_one(".imgTagWrapper img")
+# ==================== أخذ سكرين شوت بجودة Desktop View ====================
+def capture_desktop_screenshot_and_get_details(url, screenshot_path="product.png"):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        # تخصيص مقاس الشاشة كمتصفح ديسكتوب Desktop View
+        context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
         )
-        
-        if img_elem:
-            image = img_elem.get("data-old-hires") or img_elem.get("data-a-dynamic-image")
-            
-            if image and image.startswith("{"):
-                try:
-                    img_dict = json.loads(image)
-                    image = max(img_dict.items(), key=lambda x: x[1][0])[0]
-                except:
-                    image = None
+        page = context.new_page()
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            time.sleep(2)  # انتظر ثانيتين لضمان تحميل الصور والعناصر
 
-            if not image:
-                image = img_elem.get("src")
+            # 1. التقاط سكرين شوت لمنطقة المنتج الرئيسية (أو الصفحة كاملة)
+            product_container = page.query_selector("#ppd") or page.query_selector("#dp")
+            if product_container:
+                product_container.screenshot(path=screenshot_path)
+            else:
+                page.screenshot(path=screenshot_path)
 
-            if image:
-                image = re.sub(r'\._[A-Z0-9_]+_\.', '.', image)
-        # ===================================================================
+            # 2. استخراج كود الصفحة لمعالجة البيانات
+            html_content = page.content()
+            soup = BeautifulSoup(html_content, "html.parser")
+            browser.close()
 
-        title_res, brand_res, package_res = extract_product_details(title, soup)
-        category = detect_product_category(title)
-        coupon_details = extract_coupons_and_vouchers(soup)
+            title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
+            if not title_elem:
+                return None, None
 
-        return {
-            "title_clean": title_res,
-            "brand": brand_res,
-            "package": package_res,
-            "price": price,
-            "old_price_num": extract_number(old_price) if old_price else 0,
-            "current_price_num": extract_number(price),
-            "image": image,
-            "category": category,
-            "coupon_code": coupon_details["code"],
-            "voucher_text": coupon_details["voucher_text"]
-        }
-    except:
-        return None
+            title = title_elem.text.strip()
+            price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice")
+            price = price_elem.text.strip() if price_elem else ""
+
+            old_price_elem = soup.select_one(".a-text-price .a-offscreen")
+            old_price = old_price_elem.text.strip() if old_price_elem else None
+
+            title_res, brand_res, package_res = extract_product_details(title, soup)
+            category = detect_product_category(title)
+            coupon_details = extract_coupons_and_vouchers(soup)
+
+            product_data = {
+                "title_clean": title_res,
+                "brand": brand_res,
+                "package": package_res,
+                "price": price,
+                "old_price_num": extract_number(old_price) if old_price else 0,
+                "current_price_num": extract_number(price),
+                "category": category,
+                "coupon_code": coupon_details["code"],
+                "voucher_text": coupon_details["voucher_text"]
+            }
+            return product_data, screenshot_path
+        except Exception as e:
+            print(f"Error capturing screenshot: {e}")
+            browser.close()
+            return None, None
 
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
@@ -397,22 +345,28 @@ def handler(msg):
             continue
 
         asin = extract_asin(expanded)
-        wait = bot.reply_to(msg, "⏳ جاري جلب التفاصيل وقراءة الأكواد وتنسيق المنشور...")
+        target_url = f"https://www.amazon.sa/dp/{asin}" if asin else expanded
+        wait = bot.reply_to(msg, "📸 جاري التقاط سكرين شوت للسطح المكتب وقراءة البيانات...")
 
-        product = get_product(asin, expanded)
-        if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
+        screenshot_file = f"screenshot_{msg.chat.id}.png"
+        product, photo_path = capture_desktop_screenshot_and_get_details(target_url, screenshot_file)
+
+        if not product or not photo_path:
+            bot.edit_message_text("❌ تعذر التقاط سكرين شوت لصفحة المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
             continue
 
         post = generate_post(product, original_url)
 
         try:
-            if product["image"]:
-                bot.send_photo(msg.chat.id, product["image"], caption=post, parse_mode="HTML")
-            else:
-                bot.send_message(msg.chat.id, post, parse_mode="HTML")
+            with open(photo_path, 'rb') as photo:
+                bot.send_photo(msg.chat.id, photo, caption=post, parse_mode="HTML")
+            
+            # حذف الملف بعد الإرسال لتوفير المساحة
+            if os.path.exists(photo_path):
+                os.remove(photo_path)
+            
             bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception:
+        except Exception as e:
             bot.send_message(msg.chat.id, post, parse_mode="HTML")
             bot.delete_message(msg.chat.id, wait.message_id)
 
