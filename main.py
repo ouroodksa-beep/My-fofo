@@ -7,7 +7,6 @@ import random
 import os
 import html
 import json
-from playwright.sync_api import sync_playwright
 from flask import Flask, request
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
@@ -26,6 +25,11 @@ CATEGORY_KEYWORDS = {
     "beauty": ["perfume", "fragrance", "oud", "musk", "cream", "lotion", "shampoo", "conditioner", "soap", "makeup", "lipstick", "deodorant", "roll-on", "عطر", "عود", "مسك", "كريم", "لوشن", "شامبو", "بلسم", "صابون", "مزيل عرق", "مغذي", "رول", "حلاقة", "موس"],
     "home": ["refrigerator", "fridge", "washing machine", "vacuum cleaner", "air conditioner", "blender", "mixer", "oven", "microwave", "kettle", "coffee maker", "iron", "ارز", "رز", "حليب", "بسكويت", "منعم", "ثلاجة", "غسالة", "مكنسة", "مكيف", "خلاط", "فرن", "غلاية", "مطبخ", "غسول", "مطهر", "مناديل"],
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "sport", "رياضة", "جيم", "تمارين", "دراجة"]
+}
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7"
 }
 
 # ==================== DYNAMIC HOOK GENERATOR ====================
@@ -162,7 +166,7 @@ def get_category_emoji(category):
 
 def expand_url(url):
     try:
-        r = requests.get(url, allow_redirects=True, timeout=15)
+        r = requests.get(url, allow_redirects=True, timeout=15, headers=HEADERS)
         return r.url
     except:
         return url
@@ -228,75 +232,64 @@ def extract_coupons_and_vouchers(soup):
                     break
     return coupon_info
 
-# ==================== التقاط سكرين شوت خفيف مخصص للـ Desktop ====================
-def capture_desktop_screenshot_and_get_details(url, screenshot_path="product.png"):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process',
-                '--disable-gpu'
-            ]
-        )
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 800},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
-            time.sleep(1)
-
-            product_container = page.query_selector("#ppd") or page.query_selector("#dp")
-            if product_container:
-                product_container.screenshot(path=screenshot_path)
-            else:
-                page.screenshot(path=screenshot_path)
-
-            html_content = page.content()
-            soup = BeautifulSoup(html_content, "html.parser")
-            browser.close()
-
-            title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
-            if not title_elem:
-                return None, None
-
-            title = title_elem.text.strip()
-            price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice")
-            price = price_elem.text.strip() if price_elem else ""
-
-            old_price_elem = soup.select_one(".a-text-price .a-offscreen")
-            old_price = old_price_elem.text.strip() if old_price_elem else None
-
-            title_res, brand_res, package_res = extract_product_details(title, soup)
-            category = detect_product_category(title)
-            coupon_details = extract_coupons_and_vouchers(soup)
-
-            product_data = {
-                "title_clean": title_res,
-                "brand": brand_res,
-                "package": package_res,
-                "price": price,
-                "old_price_num": extract_number(old_price) if old_price else 0,
-                "current_price_num": extract_number(price),
-                "category": category,
-                "coupon_code": coupon_details["code"],
-                "voucher_text": coupon_details["voucher_text"]
-            }
-            return product_data, screenshot_path
-        except Exception as e:
-            print(f"Error capturing screenshot: {e}")
+# ==================== استخراج صورة المنتج بأعلى جودة ====================
+def extract_high_res_image(soup):
+    img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront") or soup.select_one("#main-image")
+    if img_elem:
+        # جلب رابط الصورة ذات الجودة العالية جداً من خاصية data-a-dynamic-image
+        dynamic_img = img_elem.get("data-a-dynamic-image")
+        if dynamic_img:
             try:
-                browser.close()
+                img_data = json.loads(dynamic_img)
+                # اختيار أطول رابط صورة (عادة يكون ذو أعلى دقة)
+                high_res_url = max(img_data.keys(), key=lambda k: img_data[k][0] * img_data[k][1])
+                return high_res_url
             except:
                 pass
-            return None, None
+        
+        # كحل بديل: تنظيف رابط الصورة العادي للحصول على الدقة الكاملة
+        src = img_elem.get("src", "")
+        if src:
+            return re.sub(r'\._AC_.*_\.', '.', src)
+
+    return None
+
+def fetch_product_details(url):
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        soup = BeautifulSoup(resp.content, "html.parser")
+
+        title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
+        if not title_elem:
+            return None
+
+        title = title_elem.text.strip()
+        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice")
+        price = price_elem.text.strip() if price_elem else ""
+
+        old_price_elem = soup.select_one(".a-text-price .a-offscreen")
+        old_price = old_price_elem.text.strip() if old_price_elem else None
+
+        title_res, brand_res, package_res = extract_product_details(title, soup)
+        category = detect_product_category(title)
+        coupon_details = extract_coupons_and_vouchers(soup)
+        image_url = extract_high_res_image(soup)
+
+        return {
+            "title_clean": title_res,
+            "brand": brand_res,
+            "package": package_res,
+            "price": price,
+            "old_price_num": extract_number(old_price) if old_price else 0,
+            "current_price_num": extract_number(price),
+            "category": category,
+            "coupon_code": coupon_details["code"],
+            "voucher_text": coupon_details["voucher_text"],
+            "image_url": image_url
+        }
+    except Exception as e:
+        print(f"Error fetching product: {e}")
+        return None
 
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
@@ -360,23 +353,21 @@ def handler(msg):
 
         asin = extract_asin(expanded)
         target_url = f"https://www.amazon.sa/dp/{asin}" if asin else expanded
-        wait = bot.reply_to(msg, "📸 جاري التقاط سكرين شوت للسطح المكتب وقراءة البيانات...")
+        wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج وجلب الصورة...")
 
-        screenshot_file = f"screenshot_{msg.chat.id}.png"
-        product, photo_path = capture_desktop_screenshot_and_get_details(target_url, screenshot_file)
+        product = fetch_product_details(target_url)
 
-        if not product or not photo_path:
-            bot.edit_message_text("❌ تعذر التقاط سكرين شوت لصفحة المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
+        if not product:
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
             continue
 
         post = generate_post(product, original_url)
 
         try:
-            with open(photo_path, 'rb') as photo:
-                bot.send_photo(msg.chat.id, photo, caption=post, parse_mode="HTML")
-            
-            if os.path.exists(photo_path):
-                os.remove(photo_path)
+            if product.get("image_url"):
+                bot.send_photo(msg.chat.id, product["image_url"], caption=post, parse_mode="HTML")
+            else:
+                bot.send_message(msg.chat.id, post, parse_mode="HTML")
             
             bot.delete_message(msg.chat.id, wait.message_id)
         except Exception as e:
