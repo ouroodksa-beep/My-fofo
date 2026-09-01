@@ -31,21 +31,22 @@ def get_headers():
     return {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Referer": "https://www.google.com/"
+        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
+# ==================== مولد الخطاف التفاعلي والمتنوع ====================
 def generate_dynamic_hook(brand=""):
-    emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸"]
+    emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸", "😱", "📢"]
     openers = [
         "تنبيه عاجل", "صيدة اليوم", "نزول مفاجئ بالسعر", "عرض لا يتكرر", "فرصة توفير جبارة",
         "لقطة ممتازة", "سعر حارق الآن", "صفقة استثنائية", "تخفيض قوي جداً", "انخفاض ممتاز",
-        "عروض اللحظة الأخيرة", "عينكم على الخصم", "صيدة رايقة", "توفير قوي", "خصم خيالي"
+        "عروض اللحظة الأخيرة", "عينكم على الخصم", "صيدة رايقة", "توفير قوي", "خصم خيالي",
+        "يارب لحقتوا عليه", "شوفوا العرض الخيالي", "يا بلاش والله"
     ]
     actions = [
         "الحقوا العرض قبل النفاد", "لا تفوتوا هذه الفرصة", "بسعر يابلاش الآن", "وفر فلوسك واطلب فوراً",
         "طايح السعر بشكل ممتاز", "السعر صار بلاش", "من أقوى صيدات الساعة", "فرصة ممتازة للطلب",
-        "تم تحديث الخصم ليكون الأفضل", "سعر ممتاز جداً لليوم"
+        "تم تحديث الخصم ليكون الأفضل", "سعر ممتاز جداً لليوم", "قبل ما يرجع لسعره الاصلي"
     ]
     
     emoji = random.choice(emojis)
@@ -57,6 +58,7 @@ def generate_dynamic_hook(brand=""):
     else:
         return f"{emoji} <b>{opener}.. {action}!</b>"
 
+# ==================== مولد الكوبونات التفاعلي ====================
 def generate_dynamic_coupon_call(code):
     icons = ["🎟️", "🏷️", "🔑", "💥", "🎁", "✨", "📌", "💳"]
     verbs = ["استخدموا", "لا تنسوا استخدام", "تأكدوا من تطبيق", "ادخلوا", "انسخوا", "ضعوا", "فعّلوا"]
@@ -68,7 +70,15 @@ def generate_dynamic_coupon_call(code):
     noun = random.choice(nouns)
     adj = random.choice(adjectives)
     
-    return f"{icon} <b>{verb} {noun} {adj}:</b> <code>{html.escape(code)}</code>"
+    style = random.choice([1, 2, 3])
+    if style == 1:
+        phrase = f"{verb} {noun} {adj}:"
+    elif style == 2:
+        phrase = f"{noun} {adj} للتوفير:"
+    else:
+        phrase = f"{verb} هذا الكود عند الدفع:"
+        
+    return f"{icon} <b>{phrase}</b> <code>{html.escape(code)}</code>"
 
 def detect_product_category(product_name):
     name_lower = product_name.lower()
@@ -102,7 +112,7 @@ def clean_arabic_title(full_title, found_brand):
         clean = re.sub(re.escape(found_brand), '', clean, flags=re.IGNORECASE)
 
     parts = re.split(r'[-–,|/]', clean)
-    words = parts[0].strip().split()[:6]
+    words = parts[0].strip().split()[:5]
     
     bad_endings = ['من', 'عن', 'في', 'على', 'إلى', 'مع', 'أو', 'و', 'الخالي', 'ذو', 'ذات', 'يغذي']
     while words and words[-1] in bad_endings:
@@ -116,12 +126,34 @@ def extract_brand_from_soup(soup, full_title):
         if brand.lower() in full_title.lower():
             return brand
 
-    brand_elem = soup.select_one("#bylineInfo, .po-brand .a-span9, #bylineInfo_feature_div")
+    brand_elem = soup.select_one("#bylineInfo, .po-brand .a-span9, #bylineInfo_feature_div, a#bylineInfo")
     if brand_elem:
         text = re.sub(r'^(Brand:|الماركة:|زيارة متجر|Visit the|Store|\s+)+', '', brand_elem.text.strip(), flags=re.IGNORECASE)
         if text and not re.search(r'[\u0600-\u06FF]', text):
             return text
     return ""
+
+def extract_coupons_and_vouchers(soup):
+    coupon_info = {"code": None, "voucher_text": None}
+    all_text = soup.get_text()
+    IGNORED = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER"]
+
+    code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code|Voucher|كوبون)[:\s\-]*([A-Za-z0-9]{3,15})', all_text, re.IGNORECASE)
+    if code_pattern:
+        cand = code_pattern.group(1).upper()
+        if cand not in IGNORED and len(cand) >= 3:
+            coupon_info["code"] = cand
+
+    voucher_selectors = ["label[for*='checkbox'] span", "#vpcButton", ".vouchers-discount-text"]
+    for sel in voucher_selectors:
+        for elem in soup.select(sel):
+            v_text = elem.text.strip()
+            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "%", "ريال"]):
+                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال)', v_text, re.IGNORECASE)
+                if discount_match:
+                    coupon_info["voucher_text"] = discount_match.group(1)
+                    break
+    return coupon_info
 
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🧼", "sports": "⚡"}
@@ -154,16 +186,13 @@ def extract_number(price_text):
     return float(nums[0].replace(",", "")) if nums else 0
 
 def fetch_product_details(url, asin):
-    # محاولة تجريف البيانات بشكل ناعم
     try:
         resp = requests.get(url, headers=get_headers(), timeout=10)
         soup = BeautifulSoup(resp.content, "html.parser")
 
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
         
-        # إذا تم كشف البوت من قبل أمازون، سنستخدم طريقة مجانية وسريعة للتخفي عبر ScraperAPI
         if not title_elem or "captcha" in resp.text.lower():
-            proxy_url = f"https://api.scraperapi.com?api_key=free&url={url}" # يتم استبدال الكلمة بـ Scraping proxy عند الحاجة
             resp = requests.get(f"https://corsproxy.io/?{url}", headers=get_headers(), timeout=12)
             soup = BeautifulSoup(resp.content, "html.parser")
             title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
@@ -182,11 +211,11 @@ def fetch_product_details(url, asin):
         title_res = clean_arabic_title(title, found_brand)
         
         package_detail = ""
-        size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|حبة))', title, re.IGNORECASE)
+        size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|حبة|موس|\bL\b|\bml\b|\bkg\b))', title, re.IGNORECASE)
         if size_match:
             package_detail = size_match.group(1)
 
-        # رابط جودة عالية رئيسي بدقة فائقة عبر ASIN
+        coupon_details = extract_coupons_and_vouchers(soup)
         image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg" if asin else None
 
         return {
@@ -197,12 +226,15 @@ def fetch_product_details(url, asin):
             "old_price_num": extract_number(old_price) if old_price else 0,
             "current_price_num": extract_number(price),
             "category": detect_product_category(title),
+            "coupon_code": coupon_details["code"],
+            "voucher_text": coupon_details["voucher_text"],
             "image_url": image_url
         }
     except Exception as e:
         print(f"Error: {e}")
         return None
 
+# ==================== توليد المنشور المتنوع والمتغير ====================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
@@ -211,6 +243,8 @@ def generate_post(product_data, original_url):
     category = product_data["category"]
     old_price_num = product_data["old_price_num"]
     current_num = product_data["current_price_num"]
+    coupon_code = product_data.get("coupon_code")
+    voucher_text = product_data.get("voucher_text")
     
     clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
@@ -222,10 +256,32 @@ def generate_post(product_data, original_url):
     dynamic_hook = generate_dynamic_hook(brand)
     lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
-    if old_price_num > current_num and old_price_num > 0 and clean_current:
-        lines.append(f"❌ قبل: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
-    elif clean_current:
-        lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱")
+    has_discount = old_price_num > current_num and old_price_num > 0
+    
+    # تنويع طريقة عرض السعر لمنع النمطية (تغيير الأسلوب في كل منشور)
+    price_styles = ["old_and_new", "discount_percentage", "simple_price_with_words"]
+    selected_style = random.choice(price_styles) if has_discount else "simple_price_with_words"
+
+    if selected_style == "old_and_new":
+        phrases = ["السعر السابق", "قبل الخصم", "كان بـ", "سعره الأول"]
+        phrase = random.choice(phrases)
+        lines.append(f"❌ {phrase}: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
+        
+    elif selected_style == "discount_percentage":
+        discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
+        lines.append(f"🔥 السعر الآن: <b>{clean_current}</b> (خصم ممتاز بنسبة {discount_percent}%) 😱")
+        
+    else:
+        word_decorations = ["السعر حالياً بـ", "نازل لـ", "مطلوب فيه الآن", "وصل لسعر"]
+        decoration = random.choice(word_decorations)
+        if clean_current:
+            lines.append(f"🔥 {decoration}: <b>{clean_current}</b> 😱")
+
+    # إضافة الكوبونات إن وجدت
+    if coupon_code:
+        lines.append(generate_dynamic_coupon_call(coupon_code))
+    elif voucher_text:
+        lines.append(f"🎟️ <b>لا تنسوا تفعيل قسيمة الخصم ({html.escape(voucher_text)}) بنفس الصفحة!</b>")
 
     lines.append(f"\n{original_url}")
     return "\n".join(lines)
@@ -248,12 +304,12 @@ def handler(msg):
             continue
 
         target_url = f"https://www.amazon.sa/dp/{asin}"
-        wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج واستخراج الصورة بأعلى جودة...")
+        wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج وصنع المنشور...")
 
         product = fetch_product_details(target_url, asin)
 
         if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج بسبب حظر أمازون الحالي، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
             continue
 
         post = generate_post(product, original_url)
