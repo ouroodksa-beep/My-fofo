@@ -6,7 +6,9 @@ import time
 import random
 import os
 import html
+import json
 from playwright.sync_api import sync_playwright
+from flask import Flask, request
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
@@ -226,28 +228,37 @@ def extract_coupons_and_vouchers(soup):
                     break
     return coupon_info
 
-# ==================== أخذ سكرين شوت بجودة Desktop View ====================
+# ==================== التقاط سكرين شوت خفيف مخصص للـ Desktop ====================
 def capture_desktop_screenshot_and_get_details(url, screenshot_path="product.png"):
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        # تخصيص مقاس الشاشة كمتصفح ديسكتوب Desktop View
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu'
+            ]
+        )
         context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
+            viewport={"width": 1280, "height": 800},
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
         )
         page = context.new_page()
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            time.sleep(2)  # انتظر ثانيتين لضمان تحميل الصور والعناصر
+            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            time.sleep(1)
 
-            # 1. التقاط سكرين شوت لمنطقة المنتج الرئيسية (أو الصفحة كاملة)
             product_container = page.query_selector("#ppd") or page.query_selector("#dp")
             if product_container:
                 product_container.screenshot(path=screenshot_path)
             else:
                 page.screenshot(path=screenshot_path)
 
-            # 2. استخراج كود الصفحة لمعالجة البيانات
             html_content = page.content()
             soup = BeautifulSoup(html_content, "html.parser")
             browser.close()
@@ -281,7 +292,10 @@ def capture_desktop_screenshot_and_get_details(url, screenshot_path="product.png
             return product_data, screenshot_path
         except Exception as e:
             print(f"Error capturing screenshot: {e}")
-            browser.close()
+            try:
+                browser.close()
+            except:
+                pass
             return None, None
 
 def generate_post(product_data, original_url):
@@ -361,7 +375,6 @@ def handler(msg):
             with open(photo_path, 'rb') as photo:
                 bot.send_photo(msg.chat.id, photo, caption=post, parse_mode="HTML")
             
-            # حذف الملف بعد الإرسال لتوفير المساحة
             if os.path.exists(photo_path):
                 os.remove(photo_path)
             
@@ -371,8 +384,6 @@ def handler(msg):
             bot.delete_message(msg.chat.id, wait.message_id)
 
 # ============ WEBHOOK SERVER ============
-from flask import Flask, request
-
 app = Flask(__name__)
 
 WEBHOOK_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
