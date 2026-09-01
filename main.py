@@ -6,6 +6,7 @@ import time
 import random
 import os
 import html
+import json
 
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
@@ -124,12 +125,10 @@ def clean_arabic_title(full_title, found_brand):
     return res if res else "منتج مميز"
 
 def extract_brand_from_soup(soup, full_title):
-    # 1. البحث في قائمة الماركات الشائعة
     for brand in POPULAR_BRANDS:
         if brand.lower() in full_title.lower():
             return brand
 
-    # 2. الاستخراج التلقائي للبراند بالإنجليزية من عناصر أمازون
     brand_selectors = [
         "#bylineInfo", ".po-brand .a-span9", "#bylineInfo_feature_div", "a#bylineInfo",
         "#brand", "tr.po-brand td.a-span9"
@@ -179,7 +178,6 @@ def is_saudi_amazon(url):
     return any(k in url.lower() for k in ["amazon.sa", "link.amazon", "amzn.to", "amzn.sa", "amazon.com"])
 
 def extract_asin(url):
-    # دعم ASIN الـ 10 خانات والروابط المباشرة مثل link.amazon/B0cuPFTVC (9 أو 10 خانات)
     patterns = [
         r'/dp/([A-Z0-9]{9,10})', 
         r'/gp/product/([A-Z0-9]{9,10})', 
@@ -192,7 +190,6 @@ def extract_asin(url):
         m = re.search(p, url, re.IGNORECASE)
         if m:
             val = m.group(1)
-            # تجنب الكلمات العامة في الرابط
             if val.upper() not in ["HTTPS", "HTTP", "AMAZON", "SAUDI", "PRODUCT"]:
                 return val.upper()
     return None
@@ -220,17 +217,14 @@ def extract_coupons_and_vouchers(soup):
     coupon_info = {"code": None, "voucher_text": None}
     all_text = soup.get_text()
     
-    # قائمة الفلاتر لتجنب الكلمات غير البروموكودية
     IGNORED_WORDS = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER", "SAVINGS"]
 
-    # 1. البحث في نص الصفحة بجميع الأنماط الشائعة (كود / رمز / Promo / Code / Coupon / Voucher)
     code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code|Voucher|كوبون)[:\s\-]*([A-Za-z0-9]{3,15})', all_text, re.IGNORECASE)
     if code_pattern:
         cand = code_pattern.group(1).upper()
         if cand not in IGNORED_WORDS and len(cand) >= 3:
             coupon_info["code"] = cand
 
-    # 2. فحص عناصر الـ HTML المخصصة للأكواد والقسائم
     if not coupon_info["code"]:
         selectors = [
             "#couponText", ".promoPriceBlockMessage", ".vouchers-one-time-code", 
@@ -250,7 +244,6 @@ def extract_coupons_and_vouchers(soup):
             if coupon_info["code"]:
                 break
 
-    # 3. استخراج تفاصيل قسائم التخفيض الضمنية (Vouchers)
     voucher_selectors = [
         "label[for*='checkbox'] span", "#vpcButton", ".a-section .a-color-success", 
         ".vouchers-discount-text", "#item_coupon_vt", ".badge-link", "span[id*='couponText']",
@@ -279,7 +272,6 @@ def get_product(asin, full_expanded_url=""):
     try:
         r = requests.get(url, headers=headers, timeout=20)
         if r.status_code != 200:
-            # تجربة جلب الرابط الموسع المباشر إذا فشل الـ dp
             r = requests.get(full_expanded_url, headers=headers, timeout=20)
             if r.status_code != 200:
                 return None
@@ -299,8 +291,31 @@ def get_product(asin, full_expanded_url=""):
         old_price_elem = soup.select_one(".a-text-price .a-offscreen")
         old_price = old_price_elem.text.strip() if old_price_elem else None
 
-        img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront")
-        image = img_elem.get("src") if img_elem else None
+        # ==================== استخرج الصورة بأعلى جودة ====================
+        image = None
+        img_elem = (
+            soup.select_one("#landingImage") or 
+            soup.select_one("#imgBlkFront") or 
+            soup.select_one("#main-image") or
+            soup.select_one(".imgTagWrapper img")
+        )
+        
+        if img_elem:
+            image = img_elem.get("data-old-hires") or img_elem.get("data-a-dynamic-image")
+            
+            if image and image.startswith("{"):
+                try:
+                    img_dict = json.loads(image)
+                    image = max(img_dict.items(), key=lambda x: x[1][0])[0]
+                except:
+                    image = None
+
+            if not image:
+                image = img_elem.get("src")
+
+            if image:
+                image = re.sub(r'\._[A-Z0-9_]+_\.', '.', image)
+        # ===================================================================
 
         title_res, brand_res, package_res = extract_product_details(title, soup)
         category = detect_product_category(title)
