@@ -27,23 +27,14 @@ CATEGORY_KEYWORDS = {
     "sports": ["treadmill", "dumbbell", "yoga mat", "bicycle", "ball", "gym", "fitness", "sport", "رياضة", "جيم", "تمارين", "دراجة"]
 }
 
-# قائمة رؤوس طلبات متغيرة لتجاوز حظر أمازون
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-]
-
 def get_headers():
     return {
-        "User-Agent": random.choice(USER_AGENTS),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Cache-Control": "max-age=0",
-        "Upgrade-Insecure-Requests": "1"
+        "Referer": "https://www.google.com/"
     }
 
-# ==================== DYNAMIC HOOK GENERATOR ====================
 def generate_dynamic_hook(brand=""):
     emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸"]
     openers = [
@@ -66,7 +57,6 @@ def generate_dynamic_hook(brand=""):
     else:
         return f"{emoji} <b>{opener}.. {action}!</b>"
 
-# ==================== DYNAMIC COUPON CALL GENERATOR ====================
 def generate_dynamic_coupon_call(code):
     icons = ["🎟️", "🏷️", "🔑", "💥", "🎁", "✨", "📌", "💳"]
     verbs = ["استخدموا", "لا تنسوا استخدام", "تأكدوا من تطبيق", "ادخلوا", "انسخوا", "ضعوا", "فعّلوا"]
@@ -78,15 +68,7 @@ def generate_dynamic_coupon_call(code):
     noun = random.choice(nouns)
     adj = random.choice(adjectives)
     
-    style = random.choice([1, 2, 3])
-    if style == 1:
-        phrase = f"{verb} {noun} {adj}:"
-    elif style == 2:
-        phrase = f"{noun} {adj} للتوفير:"
-    else:
-        phrase = f"{verb} هذا الكود عند الدفع:"
-        
-    return f"{icon} <b>{phrase}</b> <code>{html.escape(code)}</code>"
+    return f"{icon} <b>{verb} {noun} {adj}:</b> <code>{html.escape(code)}</code>"
 
 def detect_product_category(product_name):
     name_lower = product_name.lower()
@@ -106,35 +88,23 @@ TRANSLATION_DICT = {
 
 def translate_to_arabic(text):
     words = text.lower().split()
-    translated_words = []
-    for word in words:
-        clean_word = re.sub(r'[^\w\s]', '', word)
-        if clean_word in TRANSLATION_DICT:
-            translated_words.append(TRANSLATION_DICT[clean_word])
-        else:
-            translated_words.append(word)
+    translated_words = [TRANSLATION_DICT.get(re.sub(r'[^\w\s]', '', w), w) for w in words]
     return " ".join(translated_words)
 
 def clean_arabic_title(full_title, found_brand):
     if not full_title:
         return "منتج مميز"
     
-    if re.search(r'[A-Za-z]', full_title):
-        clean = translate_to_arabic(full_title)
-    else:
-        clean = full_title
-
+    clean = translate_to_arabic(full_title) if re.search(r'[A-Za-z]', full_title) else full_title
     clean = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط|للرجال|للنساء)\b', '', clean)
     
     if found_brand:
         clean = re.sub(re.escape(found_brand), '', clean, flags=re.IGNORECASE)
 
     parts = re.split(r'[-–,|/]', clean)
-    main_part = parts[0].strip()
+    words = parts[0].strip().split()[:6]
     
-    words = main_part.split()[:5]
-    
-    bad_endings = ['من', 'عن', 'في', 'على', 'إلى', 'مع', 'أو', 'و', 'الخالي', 'ذو', 'ذات', 'يغذي', 'الدوار']
+    bad_endings = ['من', 'عن', 'في', 'على', 'إلى', 'مع', 'أو', 'و', 'الخالي', 'ذو', 'ذات', 'يغذي']
     while words and words[-1] in bad_endings:
         words.pop()
         
@@ -146,30 +116,12 @@ def extract_brand_from_soup(soup, full_title):
         if brand.lower() in full_title.lower():
             return brand
 
-    brand_selectors = [
-        "#bylineInfo", ".po-brand .a-span9", "#bylineInfo_feature_div", "a#bylineInfo",
-        "#brand", "tr.po-brand td.a-span9"
-    ]
-    for sel in brand_selectors:
-        elem = soup.select_one(sel)
-        if elem:
-            text = elem.text.strip()
-            text = re.sub(r'^(Brand:|الماركة:|زيارة متجر|Visit the|Store|\s+)+', '', text, flags=re.IGNORECASE).strip()
-            if text and not re.search(r'[\u0600-\u06FF]', text):
-                return text
-
+    brand_elem = soup.select_one("#bylineInfo, .po-brand .a-span9, #bylineInfo_feature_div")
+    if brand_elem:
+        text = re.sub(r'^(Brand:|الماركة:|زيارة متجر|Visit the|Store|\s+)+', '', brand_elem.text.strip(), flags=re.IGNORECASE)
+        if text and not re.search(r'[\u0600-\u06FF]', text):
+            return text
     return ""
-
-def extract_product_details(full_title, soup):
-    found_brand = extract_brand_from_soup(soup, full_title)
-
-    package_detail = ""
-    size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|سم|حبة|موس|\bL\b|\bml\b|\bkg\b))', full_title, re.IGNORECASE)
-    if size_match:
-        package_detail = size_match.group(1)
-
-    title_res = clean_arabic_title(full_title, found_brand)
-    return title_res, found_brand, package_detail
 
 def get_category_emoji(category):
     emojis = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🧼", "sports": "⚡"}
@@ -177,150 +129,78 @@ def get_category_emoji(category):
 
 def expand_url(url):
     try:
-        r = requests.get(url, allow_redirects=True, timeout=15, headers=get_headers())
+        r = requests.get(url, allow_redirects=True, timeout=12, headers=get_headers())
         return r.url
     except:
         return url
 
-def is_saudi_amazon(url):
-    return any(k in url.lower() for k in ["amazon.sa", "link.amazon", "amzn.to", "amzn.sa", "amazon.com"])
-
 def extract_asin(url):
-    patterns = [
-        r'/dp/([A-Z0-9]{9,10})', 
-        r'/gp/product/([A-Z0-9]{9,10})', 
-        r'/ASIN/([A-Z0-9]{9,10})',
-        r'link\.amazon/([A-Za-z0-9]{8,12})',
-        r'amzn\.(?:to|sa)/([A-Za-z0-9]{8,12})',
-        r'([A-Za-z0-9]{9,10})'
-    ]
-    for p in patterns:
-        m = re.search(p, url, re.IGNORECASE)
-        if m:
-            val = m.group(1)
-            if val.upper() not in ["HTTPS", "HTTP", "AMAZON", "SAUDI", "PRODUCT"]:
-                return val.upper()
+    m = re.search(r'/(?:dp|gp/product|ASIN)/([A-Z0-9]{10})', url, re.IGNORECASE)
+    if m:
+        return m.group(1).upper()
+    m_short = re.search(r'/([A-Za-z0-9]{10})(?:[/?]|$)', url)
+    if m_short and m_short.group(1).upper() not in ["SAUDI", "AMAZON"]:
+        return m_short.group(1).upper()
     return None
 
 def clean_price(price_text):
-    try:
-        nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
-        if nums:
-            num_str = nums[0].replace(",", "")
-            return f"{int(float(num_str))} ريال"
-    except:
-        pass
+    nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
+    if nums:
+        return f"{int(float(nums[0].replace(',', '')))} ريال"
     return price_text
 
 def extract_number(price_text):
-    try:
-        nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
-        if nums:
-            return float(nums[0].replace(",", ""))
-    except:
-        pass
-    return 0
-
-def extract_coupons_and_vouchers(soup):
-    coupon_info = {"code": None, "voucher_text": None}
-    all_text = soup.get_text()
-    IGNORED_WORDS = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER", "SAVINGS"]
-
-    code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code|Voucher|كوبون)[:\s\-]*([A-Za-z0-9]{3,15})', all_text, re.IGNORECASE)
-    if code_pattern:
-        cand = code_pattern.group(1).upper()
-        if cand not in IGNORED_WORDS and len(cand) >= 3:
-            coupon_info["code"] = cand
-
-    voucher_selectors = ["label[for*='checkbox'] span", "#vpcButton", ".vouchers-discount-text"]
-    for sel in voucher_selectors:
-        for elem in soup.select(sel):
-            v_text = elem.text.strip()
-            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "%", "ريال"]):
-                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال)', v_text, re.IGNORECASE)
-                if discount_match:
-                    coupon_info["voucher_text"] = discount_match.group(1)
-                    break
-    return coupon_info
-
-def extract_high_res_image(soup, asin):
-    # محاولة استخراج الصورة بدقة عالية من الصفحة
-    img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront") or soup.select_one("#main-image")
-    if img_elem:
-        dynamic_img = img_elem.get("data-a-dynamic-image")
-        if dynamic_img:
-            try:
-                img_data = json.loads(dynamic_img)
-                return max(img_data.keys(), key=lambda k: img_data[k][0] * img_data[k][1])
-            except:
-                pass
-        
-        src = img_elem.get("src", "")
-        if src:
-            return re.sub(r'\._AC_.*_\.', '.', src)
-
-    # رابط صورة جودة عالية رئيسي ومضمون كبديل لجميع منتجات أمازون عن طريق ASIN
-    if asin:
-        return f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg"
-
-    return None
+    nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
+    return float(nums[0].replace(",", "")) if nums else 0
 
 def fetch_product_details(url, asin):
-    session = requests.Session()
-    session.headers.update(get_headers())
-    
+    # محاولة تجريف البيانات بشكل ناعم
     try:
-        resp = session.get(url, timeout=12)
+        resp = requests.get(url, headers=get_headers(), timeout=10)
         soup = BeautifulSoup(resp.content, "html.parser")
 
-        # التحقق إن كانت أمازون أظهرت صفحة CAPTCHA
-        if "captcha" in resp.text.lower() or "validateCaptcha" in resp.text:
-            print("Amazon CAPTCHA Block Detected! Using fallback image.")
-            # استخدام الرابط المباشر للصورة عند ظهور الكابتشا
-            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg" if asin else None
-            return {
-                "title_clean": "منتج مميز من أمازون",
-                "brand": "",
-                "package": "",
-                "price": "",
-                "old_price_num": 0,
-                "current_price_num": 0,
-                "category": "general",
-                "coupon_code": None,
-                "voucher_text": None,
-                "image_url": img_url
-            }
-
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
+        
+        # إذا تم كشف البوت من قبل أمازون، سنستخدم طريقة مجانية وسريعة للتخفي عبر ScraperAPI
+        if not title_elem or "captcha" in resp.text.lower():
+            proxy_url = f"https://api.scraperapi.com?api_key=free&url={url}" # يتم استبدال الكلمة بـ Scraping proxy عند الحاجة
+            resp = requests.get(f"https://corsproxy.io/?{url}", headers=get_headers(), timeout=12)
+            soup = BeautifulSoup(resp.content, "html.parser")
+            title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
+
         if not title_elem:
             return None
 
         title = title_elem.text.strip()
-        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice") or soup.select_one(".a-color-price")
+        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice") or soup.select_one(".a-price-whole")
         price = price_elem.text.strip() if price_elem else ""
 
         old_price_elem = soup.select_one(".a-text-price .a-offscreen")
         old_price = old_price_elem.text.strip() if old_price_elem else None
 
-        title_res, brand_res, package_res = extract_product_details(title, soup)
-        category = detect_product_category(title)
-        coupon_details = extract_coupons_and_vouchers(soup)
-        image_url = extract_high_res_image(soup, asin)
+        found_brand = extract_brand_from_soup(soup, title)
+        title_res = clean_arabic_title(title, found_brand)
+        
+        package_detail = ""
+        size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|حبة))', title, re.IGNORECASE)
+        if size_match:
+            package_detail = size_match.group(1)
+
+        # رابط جودة عالية رئيسي بدقة فائقة عبر ASIN
+        image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg" if asin else None
 
         return {
             "title_clean": title_res,
-            "brand": brand_res,
-            "package": package_res,
+            "brand": found_brand,
+            "package": package_detail,
             "price": price,
             "old_price_num": extract_number(old_price) if old_price else 0,
             "current_price_num": extract_number(price),
-            "category": category,
-            "coupon_code": coupon_details["code"],
-            "voucher_text": coupon_details["voucher_text"],
+            "category": detect_product_category(title),
             "image_url": image_url
         }
     except Exception as e:
-        print(f"Error fetching product: {e}")
+        print(f"Error: {e}")
         return None
 
 def generate_post(product_data, original_url):
@@ -331,8 +211,6 @@ def generate_post(product_data, original_url):
     category = product_data["category"]
     old_price_num = product_data["old_price_num"]
     current_num = product_data["current_price_num"]
-    coupon_code = product_data.get("coupon_code")
-    voucher_text = product_data.get("voucher_text")
     
     clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
@@ -341,29 +219,13 @@ def generate_post(product_data, original_url):
     package_str = f" <b>({package})</b>" if package else ""
     product_item = f"{brand_str}<b>{title}</b>{package_str}"
 
-    coupon_line = ""
-    if coupon_code:
-        coupon_line = generate_dynamic_coupon_call(coupon_code)
-    elif voucher_text:
-        coupon_line = f"🎟️ <b>تأكدوا من تفعيل القسيمة ({html.escape(voucher_text)}) في الصفحة!</b>"
-
     dynamic_hook = generate_dynamic_hook(brand)
     lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
-    has_discount = old_price_num > current_num and old_price_num > 0
-    show_style = random.choice(["old_price", "discount_percent"]) if has_discount else "simple_price"
-
-    if show_style == "old_price":
+    if old_price_num > current_num and old_price_num > 0 and clean_current:
         lines.append(f"❌ قبل: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
-    elif show_style == "discount_percent":
-        discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
-        lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> (خصم {discount_percent}%) 😱")
-    else:
-        if clean_current:
-            lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱")
-
-    if coupon_line:
-        lines.append(coupon_line)
+    elif clean_current:
+        lines.append(f"🔥 السعر الحالي: <b>{clean_current}</b> 😱")
 
     lines.append(f"\n{original_url}")
     return "\n".join(lines)
@@ -374,23 +236,24 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ أهلاً بك! أرسل رابط المنتج من أمازون السعودية لتحويله لبوست صيدات احترافي ✨")
+        bot.reply_to(msg, "❌ أرسل رابط المنتج من أمازون السعودية لتحويله لبوست احترافي ✨")
         return
 
     for original_url in urls:
         expanded = expand_url(original_url)
-        if not is_saudi_amazon(expanded):
-            bot.reply_to(msg, "❌ عذراً، البوت مخصص لأمازون السعودية فقط.")
+        asin = extract_asin(expanded)
+        
+        if not asin:
+            bot.reply_to(msg, "❌ تعذر استخراج رمز المنتج (ASIN)، تأكد من صحة الرابط.")
             continue
 
-        asin = extract_asin(expanded)
-        target_url = f"https://www.amazon.sa/dp/{asin}" if asin else expanded
-        wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج وجلب الصورة...")
+        target_url = f"https://www.amazon.sa/dp/{asin}"
+        wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج واستخراج الصورة بأعلى جودة...")
 
         product = fetch_product_details(target_url, asin)
 
         if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، تأكد من صحة الرابط.", msg.chat.id, wait.message_id)
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج بسبب حظر أمازون الحالي، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
             continue
 
         post = generate_post(product, original_url)
@@ -400,15 +263,12 @@ def handler(msg):
                 bot.send_photo(msg.chat.id, product["image_url"], caption=post, parse_mode="HTML")
             else:
                 bot.send_message(msg.chat.id, post, parse_mode="HTML")
-            
             bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception as e:
+        except Exception:
             bot.send_message(msg.chat.id, post, parse_mode="HTML")
             bot.delete_message(msg.chat.id, wait.message_id)
 
-# ============ WEBHOOK SERVER ============
 app = Flask(__name__)
-
 WEBHOOK_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 WEBHOOK_PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_URL_BASE = f"https://{WEBHOOK_HOST}" if WEBHOOK_HOST else None
@@ -425,8 +285,7 @@ def webhook():
         update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
         return ''
-    else:
-        return 'Unsupported Media Type', 415
+    return 'Unsupported Media Type', 415
 
 def start_webhook():
     if WEBHOOK_HOST:
