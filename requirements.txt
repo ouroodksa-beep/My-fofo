@@ -4,3 +4,4 @@ beautifulsoup4
 groq
 flask
 playwright
+gunicorn
