@@ -153,16 +153,13 @@ def extract_coupons_and_vouchers(soup):
                     break
     return coupon_info
 
-# ==================== استخراج الصورة المضمونة بجودة عالية بدقة ====================
 def extract_best_image(soup, asin):
-    # الطريقة 1: البحث عن جودة الصورة العالية من الـ HTML مباشرة
     img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront") or soup.select_one("#main-image")
     if img_elem:
         dynamic_img = img_elem.get("data-a-dynamic-image")
         if dynamic_img:
             try:
                 img_data = json.loads(dynamic_img)
-                # جلب أعلى جودة ممكنة للصورة الحقيقية
                 best_url = max(img_data.keys(), key=lambda k: img_data[k][0] * img_data[k][1])
                 return best_url
             except:
@@ -170,10 +167,8 @@ def extract_best_image(soup, asin):
         
         src = img_elem.get("src", "")
         if src and "blank" not in src.lower():
-            # تحويل الرابط العادي إلى رابط عالي الجودة مقاس 1500px
             return re.sub(r'\._AC_.*_\.', '._AC_SL1500_.', src)
 
-    # الطريقة 2: رابط صورة أمازون عالي الجودة المضمون (1500px) بدلاً من الرابط الأبيص
     if asin:
         return f"https://images-na.ssl-images-amazon.com/images/I/{asin}._AC_SL1500_.jpg"
 
@@ -199,15 +194,54 @@ def extract_asin(url):
         return m_short.group(1).upper()
     return None
 
-def clean_price(price_text):
-    nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
-    if nums:
-        return f"{int(float(nums[0].replace(',', '')))} ريال"
-    return price_text
-
 def extract_number(price_text):
-    nums = re.findall(r'[\d,]+(?:.\d+)?', price_text)
-    return float(nums[0].replace(",", "")) if nums else 0
+    if not price_text:
+        return 0.0
+    nums = re.findall(r'[\d,]+(?:.\d+)?', str(price_text))
+    return float(nums[0].replace(",", "")) if nums else 0.0
+
+# ==================== الدالة المحسنة لجلب الأسعار بدقة متناهية ====================
+def extract_prices(soup):
+    current_price = None
+    old_price = None
+
+    # قائمة محددات السعر الحالي
+    curr_selectors = [
+        ".apexPriceToPay .a-offscreen",
+        "#corePrice_feature_div .a-price .a-offscreen",
+        "#corePriceDisplay_desktop_feature_div .a-price-whole",
+        ".a-price .a-offscreen",
+        "#priceblock_ourprice",
+        "#priceblock_dealprice",
+        ".a-color-price"
+    ]
+    
+    for sel in curr_selectors:
+        elem = soup.select_one(sel)
+        if elem and elem.text.strip():
+            txt = elem.text.strip()
+            if extract_number(txt) > 0:
+                current_price = txt
+                break
+
+    # قائمة محددات السعر القديم
+    old_selectors = [
+        ".a-basisPrice .a-offscreen",
+        "#corePriceDisplay_desktop_feature_div .a-text-price .a-offscreen",
+        ".a-text-price .a-offscreen",
+        "#listPrice",
+        "#priceblock_listprice"
+    ]
+    
+    for sel in old_selectors:
+        elem = soup.select_one(sel)
+        if elem and elem.text.strip():
+            txt = elem.text.strip()
+            if extract_number(txt) > extract_number(current_price):
+                old_price = txt
+                break
+
+    return current_price, old_price
 
 def fetch_product_details(url, asin):
     try:
@@ -225,11 +259,7 @@ def fetch_product_details(url, asin):
             return None
 
         title = title_elem.text.strip()
-        price_elem = soup.select_one(".a-price .a-offscreen") or soup.select_one("#priceblock_ourprice") or soup.select_one(".a-price-whole")
-        price = price_elem.text.strip() if price_elem else ""
-
-        old_price_elem = soup.select_one(".a-text-price .a-offscreen")
-        old_price = old_price_elem.text.strip() if old_price_elem else None
+        price, old_price = extract_prices(soup)
 
         found_brand = extract_brand_from_soup(soup, title)
         title_res = clean_arabic_title(title, found_brand)
@@ -246,8 +276,8 @@ def fetch_product_details(url, asin):
             "title_clean": title_res,
             "brand": found_brand,
             "package": package_detail,
-            "price": price,
-            "old_price_num": extract_number(old_price) if old_price else 0,
+            "price_raw": price,
+            "old_price_num": extract_number(old_price),
             "current_price_num": extract_number(price),
             "category": detect_product_category(title),
             "coupon_code": coupon_details["code"],
@@ -262,14 +292,12 @@ def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
     package = html.escape(product_data["package"])
-    price = product_data["price"]
     category = product_data["category"]
     old_price_num = product_data["old_price_num"]
     current_num = product_data["current_price_num"]
     coupon_code = product_data.get("coupon_code")
     voucher_text = product_data.get("voucher_text")
     
-    clean_current = clean_price(price) if price and price != "0" else None
     emoji = get_category_emoji(category)
 
     brand_str = f"<b>{brand}</b> " if brand else ""
@@ -279,24 +307,26 @@ def generate_post(product_data, original_url):
     dynamic_hook = generate_dynamic_hook(brand)
     lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
-    has_discount = old_price_num > current_num and old_price_num > 0
-    
-    price_styles = ["old_and_new", "discount_percentage", "simple_price_with_words"]
-    selected_style = random.choice(price_styles) if has_discount else "simple_price_with_words"
+    # التعامل مع السعر ومنع ظهور None أو النسب الخاطئة
+    if current_num > 0:
+        clean_current = f"{int(current_num)} ريال"
+        has_discount = old_price_num > current_num and old_price_num > 0
+        
+        price_styles = ["old_and_new", "discount_percentage", "simple_price_with_words"]
+        selected_style = random.choice(price_styles) if has_discount else "simple_price_with_words"
 
-    if selected_style == "old_and_new":
-        phrases = ["السعر السابق", "قبل الخصم", "كان بـ", "سعره الأول"]
-        phrase = random.choice(phrases)
-        lines.append(f"❌ {phrase}: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
-        
-    elif selected_style == "discount_percentage":
-        discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
-        lines.append(f"🔥 السعر الآن: <b>{clean_current}</b> (خصم ممتاز بنسبة {discount_percent}%) 😱")
-        
-    else:
-        word_decorations = ["السعر حالياً بـ", "نازل لـ", "مطلوب فيه الآن", "وصل لسعر"]
-        decoration = random.choice(word_decorations)
-        if clean_current:
+        if selected_style == "old_and_new":
+            phrases = ["السعر السابق", "قبل الخصم", "كان بـ", "سعره الأول"]
+            phrase = random.choice(phrases)
+            lines.append(f"❌ {phrase}: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
+            
+        elif selected_style == "discount_percentage":
+            discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
+            lines.append(f"🔥 السعر الآن: <b>{clean_current}</b> (خصم ممتاز بنسبة {discount_percent}%) 😱")
+            
+        else:
+            word_decorations = ["السعر حالياً بـ", "نازل لـ", "مطلوب فيه الآن", "وصل لسعر"]
+            decoration = random.choice(word_decorations)
             lines.append(f"🔥 {decoration}: <b>{clean_current}</b> 😱")
 
     if coupon_code:
