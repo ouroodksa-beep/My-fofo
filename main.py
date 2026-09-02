@@ -201,12 +201,10 @@ def extract_number(price_text):
     nums = re.findall(r'[\d,]+(?:.\d+)?', str(price_text))
     return float(nums[0].replace(",", "")) if nums else 0.0
 
-# ==================== استخراج السعر المتقدم (محرك ثلاثي الجلب) ====================
 def extract_prices_advanced(soup, html_content):
     current_price = 0.0
     old_price = 0.0
 
-    # 1. محاولة الاستخراج عبر JSON-LD المخفي في الصفحة
     try:
         scripts = soup.find_all('script', type='application/ld+json')
         for script in scripts:
@@ -221,7 +219,6 @@ def extract_prices_advanced(soup, html_content):
     except Exception:
         pass
 
-    # 2. محاولة الاستخراج باستخدام Regex عبر نصوص JS داخل الصفحة
     if current_price == 0.0:
         price_patterns = [
             r'"priceAmount"\s*:\s*([\d\.]+)',
@@ -237,7 +234,6 @@ def extract_prices_advanced(soup, html_content):
                     current_price = val
                     break
 
-    # 3. محاولة الاستخراج من عناصر الـ HTML التقليدية
     if current_price == 0.0:
         curr_selectors = [
             ".apexPriceToPay .a-offscreen",
@@ -255,7 +251,6 @@ def extract_prices_advanced(soup, html_content):
                     current_price = val
                     break
 
-    # استخراج السعر القديم
     old_selectors = [
         ".a-basisPrice .a-offscreen",
         "#corePriceDisplay_desktop_feature_div .a-text-price .a-offscreen",
@@ -280,7 +275,6 @@ def fetch_product_details(url, asin):
 
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
         
-        # استخدام البروكسي كخيار احتياطي إذا واجهنا CAPTCHA
         if not title_elem or "captcha" in html_text.lower():
             proxy_url = f"https://corsproxy.io/?{url}"
             resp = requests.get(proxy_url, headers=get_headers(), timeout=12)
@@ -339,7 +333,6 @@ def generate_post(product_data, original_url):
     dynamic_hook = generate_dynamic_hook(brand)
     lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
-    # صياغة السعر بناءً على القيمة المستخرجة
     if current_num > 0:
         clean_current = f"{int(current_num)} ريال"
         has_discount = old_price_num > current_num and old_price_num > 0
@@ -408,30 +401,30 @@ def handler(msg):
             bot.delete_message(msg.chat.id, wait.message_id)
 
 app = Flask(__name__)
-WEBHOOK_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-WEBHOOK_PORT = int(os.environ.get("PORT", 10000))
-WEBHOOK_URL_BASE = f"https://{WEBHOOK_HOST}" if WEBHOOK_HOST else None
-WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بأعلى كفاءة 🔥"
+    return "🤖 البوت يعمل بأعلى كفاءة 🔥", 200
 
-@app.route(WEBHOOK_URL_PATH, methods=['POST'])
+@app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
         json_string = request.get_data().decode('utf-8')
         update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
-        return ''
+        return '', 200
     return 'Unsupported Media Type', 415
 
-def start_webhook():
-    if WEBHOOK_HOST:
+# إعداد الـ Webhook مباشرة عند تشغيل الملف بدون تعطيل خادم الاستضافة
+WEBHOOK_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if WEBHOOK_HOST:
+    try:
+        webhook_url = f"https://{WEBHOOK_HOST}/webhook"
         bot.remove_webhook()
-        time.sleep(1)
-        bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH)
-    app.run(host='0.0.0.0', port=WEBHOOK_PORT)
+        bot.set_webhook(url=webhook_url)
+    except Exception as e:
+        print(f"Webhook setup failed: {e}")
 
 if __name__ == '__main__':
-    start_webhook()
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
