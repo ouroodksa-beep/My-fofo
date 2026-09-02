@@ -31,7 +31,8 @@ def get_headers():
     return {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7"
+        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache"
     }
 
 def generate_dynamic_hook(brand=""):
@@ -200,58 +201,90 @@ def extract_number(price_text):
     nums = re.findall(r'[\d,]+(?:.\d+)?', str(price_text))
     return float(nums[0].replace(",", "")) if nums else 0.0
 
-# ==================== الدالة المحسنة لجلب الأسعار بدقة متناهية ====================
-def extract_prices(soup):
-    current_price = None
-    old_price = None
+# ==================== استخراج السعر المتقدم (محرك ثلاثي الجلب) ====================
+def extract_prices_advanced(soup, html_content):
+    current_price = 0.0
+    old_price = 0.0
 
-    # قائمة محددات السعر الحالي
-    curr_selectors = [
-        ".apexPriceToPay .a-offscreen",
-        "#corePrice_feature_div .a-price .a-offscreen",
-        "#corePriceDisplay_desktop_feature_div .a-price-whole",
-        ".a-price .a-offscreen",
-        "#priceblock_ourprice",
-        "#priceblock_dealprice",
-        ".a-color-price"
-    ]
-    
-    for sel in curr_selectors:
-        elem = soup.select_one(sel)
-        if elem and elem.text.strip():
-            txt = elem.text.strip()
-            if extract_number(txt) > 0:
-                current_price = txt
-                break
+    # 1. محاولة الاستخراج عبر JSON-LD المخفي في الصفحة
+    try:
+        scripts = soup.find_all('script', type='application/ld+json')
+        for script in scripts:
+            if script.string:
+                data = json.loads(script.string)
+                if isinstance(data, dict) and 'offers' in data:
+                    offers = data['offers']
+                    if isinstance(offers, list) and len(offers) > 0:
+                        current_price = float(offers[0].get('price', 0))
+                    elif isinstance(offers, dict):
+                        current_price = float(offers.get('price', 0))
+    except Exception:
+        pass
 
-    # قائمة محددات السعر القديم
+    # 2. محاولة الاستخراج باستخدام Regex عبر نصوص JS داخل الصفحة
+    if current_price == 0.0:
+        price_patterns = [
+            r'"priceAmount"\s*:\s*([\d\.]+)',
+            r'"buyingPrice"\s*:\s*([\d\.]+)',
+            r'"amount"\s*:\s*([\d\.]+)',
+            r'priceToPay.*?[\$SRSAR\s]+([\d\.,]+)'
+        ]
+        for pat in price_patterns:
+            match = re.search(pat, html_content, re.IGNORECASE)
+            if match:
+                val = extract_number(match.group(1))
+                if val > 0:
+                    current_price = val
+                    break
+
+    # 3. محاولة الاستخراج من عناصر الـ HTML التقليدية
+    if current_price == 0.0:
+        curr_selectors = [
+            ".apexPriceToPay .a-offscreen",
+            "#corePrice_feature_div .a-price .a-offscreen",
+            "#corePriceDisplay_desktop_feature_div .a-price-whole",
+            ".a-price .a-offscreen",
+            "#priceblock_ourprice",
+            "#priceblock_dealprice"
+        ]
+        for sel in curr_selectors:
+            elem = soup.select_one(sel)
+            if elem and elem.text.strip():
+                val = extract_number(elem.text.strip())
+                if val > 0:
+                    current_price = val
+                    break
+
+    # استخراج السعر القديم
     old_selectors = [
         ".a-basisPrice .a-offscreen",
         "#corePriceDisplay_desktop_feature_div .a-text-price .a-offscreen",
         ".a-text-price .a-offscreen",
-        "#listPrice",
-        "#priceblock_listprice"
+        "#listPrice"
     ]
-    
     for sel in old_selectors:
         elem = soup.select_one(sel)
         if elem and elem.text.strip():
-            txt = elem.text.strip()
-            if extract_number(txt) > extract_number(current_price):
-                old_price = txt
+            val = extract_number(elem.text.strip())
+            if val > current_price:
+                old_price = val
                 break
 
     return current_price, old_price
 
 def fetch_product_details(url, asin):
     try:
-        resp = requests.get(url, headers=get_headers(), timeout=10)
+        resp = requests.get(url, headers=get_headers(), timeout=12)
+        html_text = resp.text
         soup = BeautifulSoup(resp.content, "html.parser")
 
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
         
-        if not title_elem or "captcha" in resp.text.lower():
-            resp = requests.get(f"https://corsproxy.io/?{url}", headers=get_headers(), timeout=12)
+        # استخدام البروكسي كخيار احتياطي إذا واجهنا CAPTCHA
+        if not title_elem or "captcha" in html_text.lower():
+            proxy_url = f"https://corsproxy.io/?{url}"
+            resp = requests.get(proxy_url, headers=get_headers(), timeout=12)
+            html_text = resp.text
             soup = BeautifulSoup(resp.content, "html.parser")
             title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
 
@@ -259,7 +292,7 @@ def fetch_product_details(url, asin):
             return None
 
         title = title_elem.text.strip()
-        price, old_price = extract_prices(soup)
+        current_p, old_p = extract_prices_advanced(soup, html_text)
 
         found_brand = extract_brand_from_soup(soup, title)
         title_res = clean_arabic_title(title, found_brand)
@@ -276,9 +309,8 @@ def fetch_product_details(url, asin):
             "title_clean": title_res,
             "brand": found_brand,
             "package": package_detail,
-            "price_raw": price,
-            "old_price_num": extract_number(old_price),
-            "current_price_num": extract_number(price),
+            "old_price_num": old_p,
+            "current_price_num": current_p,
             "category": detect_product_category(title),
             "coupon_code": coupon_details["code"],
             "voucher_text": coupon_details["voucher_text"],
@@ -307,7 +339,7 @@ def generate_post(product_data, original_url):
     dynamic_hook = generate_dynamic_hook(brand)
     lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
-    # التعامل مع السعر ومنع ظهور None أو النسب الخاطئة
+    # صياغة السعر بناءً على القيمة المستخرجة
     if current_num > 0:
         clean_current = f"{int(current_num)} ريال"
         has_discount = old_price_num > current_num and old_price_num > 0
