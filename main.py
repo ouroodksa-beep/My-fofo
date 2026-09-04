@@ -23,10 +23,13 @@ CHAT_ID = "432826122"
 # 🔑 ScraperAPI Key
 SCRAPER_API_KEY = "f56b509d66fa5a0f2b234473858004b7"
 
-# 🎟️ البرومو كود
+# 🎟️ إعدادات البرومو كود ونسبة الخصم الإضافية
 PROMO_CODE = "SAVE10"
+PROMO_DISCOUNT_PERCENT = 10.0  # نسبة الخصم الإضافي من البرومو كود (%)
 
-# إعدادات الفحص
+# إعدادات الفحص والتنبيه
+MIN_DISCOUNT_PERCENT = 25.0  # الحد الأدنى لنسبة الخصم المقبولة (25%)
+MIN_HISTORY = 1             # عدد مرات تسجيل السعر السابقة للتأكد من الخصم
 MAX_PRODUCTS = 300
 REQUEST_DELAY = 2.0
 SCAN_INTERVAL_MINUTES = 60
@@ -43,7 +46,9 @@ DISCOVERY_URLS = [
     "https://www.amazon.sa/gp/bestsellers/computers",
     "https://www.amazon.sa/gp/bestsellers/kitchen",
     "https://www.amazon.sa/gp/bestsellers/beauty",
-    "https://www.amazon.sa/gp/bestsellers/supermarket"
+    "https://www.amazon.sa/gp/bestsellers/supermarket",
+    "https://www.amazon.sa/gp/movers-and-shakers/electronics",
+    "https://www.amazon.sa/gp/movers-and-shakers/mobile-phones"
 ]
 
 # ============================================================
@@ -78,43 +83,20 @@ def telegram_send(message):
         return False
 
 # ============================================================
-# CLEAN URL BUILDER & PRICE PARSER
+# CLEAN URL BUILDER
 # ============================================================
 def get_clean_url(url):
+    """استخراج رابط المنتج المباشر بالنظام القياسي المباشر لـ ASIN"""
     asin_match = re.search(r"/(dp|gp/product)/([A-Z0-9]{10})", url)
     if asin_match:
         asin = asin_match.group(2)
         return f"https://www.amazon.sa/dp/{asin}"
     return url.split("?")[0]
 
-def parse_price(value):
-    if value is None:
-        return None
-    value = str(value)
-    value = re.sub(r"(SAR|ر\.س|ريال|AED|USD|\$|€|£)", "", value, flags=re.I)
-    value = re.sub(r"[^\d,\.]", "", value)
-    if not value:
-        return None
-    try:
-        if "," in value and "." in value:
-            if value.rfind(",") > value.rfind("."):
-                value = value.replace(".", "").replace(",", ".")
-            else:
-                value = value.replace(",", "")
-        elif "," in value:
-            parts = value.split(",")
-            if len(parts[-1]) == 2:
-                value = value.replace(",", ".")
-            else:
-                value = value.replace(",", "")
-        return float(value)
-    except Exception:
-        return None
-
 # ============================================================
 # DATABASE MANAGEMENT
 # ============================================================
-PRICE_COLUMNS = ["product_id", "product", "url", "new_price", "timestamp"]
+PRICE_COLUMNS = ["product_id", "product", "url", "price", "timestamp"]
 
 def load_database():
     global prices, sent_alerts
@@ -147,56 +129,68 @@ def save_database():
 load_database()
 
 # ============================================================
-# SCRAPERAPI FETCH & REAL PRICE CALCULATION
+# FETCH VIA SCRAPERAPI & PARSE
 # ============================================================
-def fetch_page_content(url):
+def parse_price(value):
+    if value is None:
+        return None
+    value = str(value)
+    value = re.sub(r"(SAR|ر\.س|ريال|AED|USD|\$|€|£)", "", value, flags=re.I)
+    value = re.sub(r"[^\d,\.]", "", value)
+    if not value:
+        return None
+    try:
+        if "," in value and "." in value:
+            if value.rfind(",") > value.rfind("."):
+                value = value.replace(".", "").replace(",", ".")
+            else:
+                value = value.replace(",", "")
+        elif "," in value:
+            parts = value.split(",")
+            if len(parts[-1]) == 2:
+                value = value.replace(",", ".")
+            else:
+                value = value.replace(",", "")
+        return float(value)
+    except Exception:
+        return None
+
+def fetch_direct(url, retries=2):
+    """جلب الصفحة من خلال ScraperAPI لتجاوز الحظر كلياً"""
     payload = {
         'api_key': SCRAPER_API_KEY,
         'url': url,
-        'country_code': 'sa'
+        'country_code': 'sa',
+        'render': 'false'
     }
-    try:
-        resp = session.get('http://api.scraperapi.com', params=payload, timeout=60)
-        if resp.status_code == 200:
-            return resp.text
-    except Exception as e:
-        logger.error(f"Fetch error: {e}")
+    
+    for attempt in range(retries + 1):
+        try:
+            logger.info(f"Fetching via ScraperAPI (Attempt {attempt + 1}): {url}")
+            resp = session.get('http://api.scraperapi.com', params=payload, timeout=60)
+            
+            if resp.status_code == 200 and len(resp.text) > 5000:
+                logger.info(f"Successfully fetched | Length: {len(resp.text)}")
+                return resp.text
+            
+            logger.warning(f"ScraperAPI status: {resp.status_code}")
+            time.sleep(3)
+        except Exception as e:
+            logger.warning(f"Fetch error: {e}")
+            time.sleep(3)
+            
     return None
 
-def calculate_real_promo_price(asin, base_price):
+def calculate_real_promo_price(original_price):
     """
-    يحسب السعر الجديد الحقيقي بطلب السلة وتطبيق الكود
+    حساب السعر الجديد بعد الخصم الإضافي الخاص بالبرومو كود
     """
-    cart_url = f"https://www.amazon.sa/gp/item-dispatch/ref=dp_start-bgr?asin.1={asin}&action=addToCart&promoCode={PROMO_CODE}"
+    if not original_price or original_price <= 0:
+        return original_price
     
-    payload = {
-        'api_key': SCRAPER_API_KEY,
-        'url': cart_url,
-        'country_code': 'sa'
-    }
-    
-    try:
-        resp = session.get('http://api.scraperapi.com', params=payload, timeout=60)
-        if resp.status_code == 200:
-            soup = BeautifulSoup(resp.text, "lxml")
-            
-            price_selectors = [
-                "span#sc-subtotal-amount-buybox span",
-                "span#sc-subtotal-amount-activecart span",
-                "span.sc-price",
-                "span.a-color-price"
-            ]
-            
-            for selector in price_selectors:
-                tag = soup.select_one(selector)
-                if tag:
-                    calc_price = parse_price(tag.get_text(strip=True))
-                    if calc_price and calc_price > 0:
-                        return calc_price
-    except Exception as e:
-        logger.warning(f"Failed to calculate promo price for {asin}: {e}")
-    
-    return base_price
+    discount_amount = original_price * (PROMO_DISCOUNT_PERCENT / 100.0)
+    final_price = round(original_price - discount_amount, 2)
+    return final_price
 
 def extract_bestsellers_from_html(html):
     soup = BeautifulSoup(html, "lxml")
@@ -207,107 +201,166 @@ def extract_bestsellers_from_html(html):
         "div[class*='zg-grid-general-faceout'], "
         "div[class*='p13n-sc-unselected-item'], "
         "div.zg-carousel-general-faceout, "
-        "div[data-component-type='s-search-result']"
+        "div[data-component-type='s-search-result'], "
+        "div.p13n-sc-shoveler div[class*='a-cardui']"
     )
+
+    if not cards:
+        cards = soup.select("div.a-section.p13n-asin, div[data-asin]")
+
+    logger.info(f"HTML Cards found: {len(cards)}")
 
     for card in cards:
         try:
+            # 1. استخراج الاسم
             name = None
-            for selector in ["span.zg-text-js-truncate", "a.a-link-normal span", "h2 span", ".a-size-base-plus"]:
+            for selector in [
+                "span.zg-text-js-truncate",
+                "div._cDE1C_truncate_3qMTh",
+                "a.a-link-normal span",
+                "h2 span",
+                "div[class*='p13n-sc-css-line-clamp']",
+                ".a-size-base-plus",
+                "span.a-size-medium"
+            ]:
                 tag = card.select_one(selector)
                 if tag and len(tag.get_text(strip=True)) > 3:
                     name = tag.get_text(strip=True)
                     break
 
-            page_price = None
-            for selector in ["span.a-price span.a-offscreen", "span.p13n-sc-price", "span.a-color-price"]:
+            # 2. استخراج السعر
+            price = None
+            for selector in [
+                "span._cDE1C_p13n-sc-price_3m33M",
+                "span.a-price span.a-offscreen",
+                "span.a-price-whole",
+                "span.p13n-sc-price",
+                "span.a-color-price"
+            ]:
                 tag = card.select_one(selector)
                 if tag:
-                    page_price = parse_price(tag.get_text(strip=True))
-                    if page_price and page_price > 0:
+                    price = parse_price(tag.get_text(strip=True))
+                    if price and price > 0:
                         break
 
-            link_tag = card.select_one("a.a-link-normal[href*='/dp/']")
+            # 3. استخراج الرابط والـ ASIN
+            raw_url = None
+            link_tag = card.select_one("a.a-link-normal[href*='/dp/'], a.a-link-normal[href*='/gp/product/']")
+            if not link_tag:
+                link_tag = card.select_one("a.a-link-normal")
+
             if link_tag and link_tag.get("href"):
-                raw_url = "https://www.amazon.sa" + link_tag["href"] if link_tag["href"].startswith("/") else link_tag["href"]
+                href = link_tag["href"]
+                raw_url = "https://www.amazon.sa" + href if href.startswith("/") else href
+
+            if name and price and price > 0 and raw_url:
                 clean_url = get_clean_url(raw_url)
                 
                 asin_match = re.search(r"/(dp|gp/product)/([A-Z0-9]{10})", raw_url)
-                if asin_match and name and page_price:
-                    asin = asin_match.group(2)
-                    products.append({
-                        "product_id": asin,
-                        "product": str(name).strip()[:180],
-                        "url": clean_url,
-                        "page_price": page_price
-                    })
+                if asin_match:
+                    product_id = asin_match.group(2)
+                else:
+                    product_id = card.get("data-asin") or hashlib.md5(raw_url.encode()).hexdigest()[:16]
+
+                products.append({
+                    "product_id": product_id,
+                    "product": str(name).strip()[:180],
+                    "url": clean_url,
+                    "price": price
+                })
         except Exception:
             continue
 
-    return list({p["product_id"]: p for p in products}.values())
+    unique_in_page = {}
+    for p in products:
+        unique_in_page[p["product_id"]] = p
+
+    return list(unique_in_page.values())
 
 # ============================================================
-# PROCESSING & NOTIFICATIONS
+# PROCESSING & GLITCH SCAN
 # ============================================================
-def run_scan():
+def process_and_check_deals(discovered_products):
     global prices
-    logger.info("STARTING SCAN WITH REAL PROMO PRICE CALCULATION...")
+    alerts_to_send = []
 
-    all_discovered = []
-    for url in DISCOVERY_URLS:
-        html = fetch_page_content(url)
-        if html:
-            items = extract_bestsellers_from_html(html)
-            all_discovered.extend(items)
-        time.sleep(REQUEST_DELAY)
+    for item in discovered_products:
+        pid = item["product_id"]
+        base_price = item["price"]
 
-    unique_products = list({p["product_id"]: p for p in all_discovered}.values())
-    logger.info(f"Discovered {len(unique_products)} unique products.")
+        # 🧮 حساب السعر الحقيقي الجديد بعد الخصم المباشر للبرومو كود
+        real_new_price = calculate_real_promo_price(base_price)
 
-    new_alerts_count = 0
-    for item in unique_products:
-        asin = item["product_id"]
-
-        # 🧮 حساب السعر الجديد الحقيقي المخصوم
-        real_new_price = calculate_real_promo_price(asin, item["page_price"])
-
-        # حفظ البيانات
         new_row = pd.DataFrame([{
-            "product_id": asin,
+            "product_id": pid,
             "product": item["product"],
             "url": item["url"],
-            "new_price": real_new_price,
+            "price": real_new_price,
             "timestamp": datetime.now()
         }])
         prices = pd.concat([prices, new_row], ignore_index=True)
 
-        alert_id = f"{asin}_{real_new_price}"
+        alert_id = f"{pid}_{real_new_price}"
         if alert_id not in sent_alerts:
-            # ✉️ التنسيق الجديد: السعر الجديد الحقيقي فقط مع الكود تحته
-            msg = (
-                f"🛍 <b>المنتج:</b> {item['product']}\n"
-                f"💵 <b>السعر الجديد:</b> <code>{real_new_price}</code> ر.س\n\n"
-                f"📌 <b>كود الخصم:</b> <code>{PROMO_CODE}</code>\n"
-                f"🔗 <b>الرابط:</b>\n{item['url']}"
-            )
-            if telegram_send(msg):
-                sent_alerts.add(alert_id)
-                new_alerts_count += 1
-                time.sleep(1)
+            alerts_to_send.append({
+                "alert_id": alert_id,
+                "product": item["product"],
+                "real_new_price": real_new_price,
+                "url": item["url"]
+            })
 
+    return alerts_to_send
+
+def run_scan():
+    logger.info("=" * 60)
+    logger.info("STARTING AMAZON SA BESTSELLERS SCAN")
+    logger.info("=" * 60)
+
+    all_discovered = []
+
+    for url in DISCOVERY_URLS:
+        html = fetch_direct(url)
+        if html:
+            items = extract_bestsellers_from_html(html)
+            all_discovered.extend(items)
+            logger.info(f"Extracted {len(items)} items from: {url}")
+        time.sleep(REQUEST_DELAY)
+
+    if not all_discovered:
+        logger.warning("No products found across all URLs.")
+        telegram_send("⚠️ <b>تنبيه البوت:</b> لم يتم العثور على منتجات. يرجى التأكد من مفتاح ScraperAPI.")
+        return 0
+
+    unique_products = list({p["product_id"]: p for p in all_discovered}.values())
+    logger.info(f"Unique products extracted: {len(unique_products)}")
+
+    deals = process_and_check_deals(unique_products)
     save_database()
-    logger.info(f"Scan complete. New alerts sent: {new_alerts_count}")
-    return new_alerts_count
+
+    for deal in deals:
+        msg = (
+            f"🛍 <b>المنتج:</b> {deal['product']}\n"
+            f"💵 <b>السعر الجديد:</b> <code>{deal['real_new_price']}</code> ر.س\n\n"
+            f"📌 <b>كود الخصم:</b> <code>{PROMO_CODE}</code>\n"
+            f"🔗 <b>الرابط:</b>\n{deal['url']}"
+        )
+        if telegram_send(msg):
+            sent_alerts.add(deal["alert_id"])
+            save_database()
+            time.sleep(1)
+
+    logger.info(f"Scan finished. New deals sent: {len(deals)}")
+    return len(deals)
 
 # ============================================================
-# SCHEDULER & FLASK
+# BACKGROUND SCHEDULER & KEEP-ALIVE
 # ============================================================
 def background_scanner():
     while True:
         try:
             run_scan()
         except Exception as e:
-            logger.error(f"Background scanner error: {e}")
+            logger.error(f"Error in background scan: {e}")
         time.sleep(SCAN_INTERVAL_MINUTES * 60)
 
 def self_ping():
@@ -315,23 +368,47 @@ def self_ping():
         try:
             url = os.environ.get("RENDER_EXTERNAL_URL", "http://localhost:5000")
             session.get(url.rstrip("/") + "/ping", timeout=10)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Self-ping failed: {e}")
         time.sleep(SELF_PING_INTERVAL)
 
+# ============================================================
+# FLASK ENDPOINTS
+# ============================================================
 @app.route("/")
 def home():
-    return jsonify({"status": "online", "mode": "Real Promo Price Extraction Only"})
+    return jsonify({
+        "status": "online",
+        "bot": "Amazon SA Best Sellers Hunter",
+        "tracked_products": len(prices["product_id"].unique()) if not prices.empty else 0
+    })
 
 @app.route("/ping")
 def ping():
-    return jsonify({"status": "alive"})
+    return jsonify({"status": "alive", "timestamp": datetime.now().isoformat()})
 
 @app.route("/scan")
 def manual_scan():
     deals_count = run_scan()
     return jsonify({"status": "success", "deals_sent": deals_count})
 
+@app.route("/test-fetch")
+def test_fetch():
+    url = DISCOVERY_URLS[0]
+    html = fetch_direct(url)
+    if html:
+        products = extract_bestsellers_from_html(html)
+        return jsonify({
+            "success": True,
+            "html_length": len(html),
+            "products_found": len(products),
+            "sample": products[:2] if products else []
+        })
+    return jsonify({"success": False, "error": "Fetch failed"}), 500
+
+# ============================================================
+# MAIN
+# ============================================================
 if __name__ == "__main__":
     threading.Thread(target=background_scanner, daemon=True).start()
     threading.Thread(target=self_ping, daemon=True).start()
