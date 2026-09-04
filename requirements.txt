@@ -5,3 +5,5 @@ groq
 flask
 playwright
 gunicorn
+pandas
+lxml
