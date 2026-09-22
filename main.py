@@ -185,14 +185,14 @@ def extract_brand_from_soup(soup, full_title):
 
     return ""
 
-def extract_coupons_and_vouchers(soup):
+def extract_coupons_and_vouchers(soup, current_price=0.0):
     coupon_info = {
         "code": None,
         "voucher_text": None,
         "discount_percent": None,
         "discount_amount": None,
     }
-    all_text = soup.get_text()
+    all_text = soup.get_text(" ", strip=True)
     IGNORED = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER"]
 
     code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code|Voucher|كوبون)[:\s\-]*([A-Za-z0-9]{3,15})', all_text, re.IGNORECASE)
@@ -201,26 +201,83 @@ def extract_coupons_and_vouchers(soup):
         if cand not in IGNORED and len(cand) >= 3:
             coupon_info["code"] = cand
 
-    voucher_selectors = ["label[for*='checkbox'] span", "#vpcButton", ".vouchers-discount-text"]
+    # عناصر قسم الكوبونات/القسائم المعتادة في أمازون (قد تختلف صياغتها بين صفحة وأخرى)
+    voucher_selectors = [
+        "label[for*='checkbox'] span",
+        "#vpcButton",
+        ".vouchers-discount-text",
+        "#promoPriceBlockMessage_feature_div",
+        "#coupon_feature_div",
+        ".couponBadge",
+        ".couponText",
+        ".a-color-success",
+        "#promotion_feature_div",
+        "[id*='coupon']",
+        "[class*='coupon']",
+    ]
+    voucher_candidates = []
     for sel in voucher_selectors:
         for elem in soup.select(sel):
-            v_text = elem.text.strip()
-            if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "%", "ريال"]):
-                discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال)', v_text, re.IGNORECASE)
-                if discount_match:
-                    matched_text = discount_match.group(1)
-                    coupon_info["voucher_text"] = matched_text
+            v_text = elem.get_text(" ", strip=True)
+            if v_text:
+                voucher_candidates.append(v_text)
 
-                    # استخراج نسبة الخصم كرقم (لو موجودة)
-                    percent_match = re.search(r'(\d+)\s*%', matched_text)
-                    if percent_match:
-                        coupon_info["discount_percent"] = float(percent_match.group(1))
-                    else:
-                        # أو استخراج قيمة خصم بالريال
-                        amount_match = re.search(r'(\d+)\s*ريال', matched_text)
-                        if amount_match:
-                            coupon_info["discount_amount"] = float(amount_match.group(1))
-                    break
+    # fallback: نص الصفحة كامل، عشان لو أمازون غيّرت الكلاسات
+    voucher_candidates.append(all_text)
+
+    KEYWORDS = r'(?:كوبون|قسيمة|خصم\s*إضافي|خصم|وفّر|وفر|Coupon|Voucher|Save|Extra|off)'
+
+    percent_patterns = [
+        rf'{KEYWORDS}\D{{0,40}}?(\d{{1,2}})\s*%',
+        rf'(\d{{1,2}})\s*%\D{{0,40}}?{KEYWORDS}',
+    ]
+    amount_patterns = [
+        rf'{KEYWORDS}\D{{0,40}}?(\d+(?:\.\d+)?)\s*(?:ريال|ر\.س|SAR)',
+        rf'(\d+(?:\.\d+)?)\s*(?:ريال|ر\.س|SAR)\D{{0,40}}?{KEYWORDS}',
+    ]
+
+    # نجمع كل النسب وكل القيم اللي لقيناها في الصفحة (مش أول تطابق بس)
+    found_percents = set()
+    found_amounts = set()
+
+    for text in voucher_candidates:
+        for pat in percent_patterns:
+            for m in re.finditer(pat, text, re.IGNORECASE):
+                try:
+                    val = float(m.group(1))
+                    if 0 < val <= 90:  # استبعاد أرقام غير منطقية كنسبة خصم
+                        found_percents.add(val)
+                except (ValueError, IndexError):
+                    pass
+        for pat in amount_patterns:
+            for m in re.finditer(pat, text, re.IGNORECASE):
+                try:
+                    val = float(m.group(1))
+                    if val > 0:
+                        found_amounts.add(val)
+                except (ValueError, IndexError):
+                    pass
+
+    best_percent = max(found_percents) if found_percents else None
+    best_amount = max(found_amounts) if found_amounts else None
+
+    # لو لقينا نسبة ومبلغ ثابت مع بعض، نختار اللي بيدي أكبر توفير فعلي على السعر الحالي
+    if best_percent is not None and best_amount is not None and current_price > 0:
+        percent_saving = current_price * (best_percent / 100)
+        if percent_saving >= best_amount:
+            coupon_info["discount_percent"] = best_percent
+        else:
+            coupon_info["discount_amount"] = best_amount
+    elif best_percent is not None:
+        coupon_info["discount_percent"] = best_percent
+    elif best_amount is not None:
+        coupon_info["discount_amount"] = best_amount
+
+    if coupon_info["discount_percent"] is not None:
+        coupon_info["voucher_text"] = f"خصم إضافي {int(coupon_info['discount_percent'])}%"
+    elif coupon_info["discount_amount"] is not None:
+        coupon_info["voucher_text"] = f"خصم إضافي {coupon_info['discount_amount']:.0f} ريال"
+
     return coupon_info
 
 def extract_best_image(soup, asin):
@@ -365,7 +422,7 @@ def fetch_product_details(url, asin):
         if size_match:
             package_detail = size_match.group(1)
 
-        coupon_details = extract_coupons_and_vouchers(soup)
+        coupon_details = extract_coupons_and_vouchers(soup, current_p)
         image_url = extract_best_image(soup, asin)
 
         # === حساب السعر النهائي الفعلي بعد تطبيق خصم الكوبون/القسيمة على السعر الحالي ===
