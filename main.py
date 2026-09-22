@@ -120,20 +120,78 @@ def clean_arabic_title(full_title, found_brand):
     res = " ".join(words).strip()
     return res if res else "منتج مميز"
 
+# ============================================================
+# استخراج البراند — أهم نقطة: بنجرب أكتر من مصدر بالترتيب
+# 1) قائمة البراندات المعروفة داخل العنوان
+# 2) بيانات JSON-LD المنظمة (schema.org Product -> brand)
+# 3) عنصر bylineInfo / صف "الماركة" في صفحة المنتج
+# 4) جدول تفاصيل المنتج (Product overview / Detail bullets)
+# ============================================================
 def extract_brand_from_soup(soup, full_title):
+    # 1) مطابقة من قائمة البراندات المشهورة (كلمة كاملة، بدون حساسية لحالة الأحرف)
     for brand in POPULAR_BRANDS:
-        if brand.lower() in full_title.lower():
+        if re.search(r'\b' + re.escape(brand) + r'\b', full_title, re.IGNORECASE):
             return brand
 
-    brand_elem = soup.select_one("#bylineInfo, .po-brand .a-span9, #bylineInfo_feature_div, a#bylineInfo")
-    if brand_elem:
-        text = re.sub(r'^(Brand:|الماركة:|زيارة متجر|Visit the|Store|\s+)+', '', brand_elem.text.strip(), flags=re.IGNORECASE)
-        if text and not re.search(r'[\u0600-\u06FF]', text):
-            return text
+    # 2) البحث في JSON-LD structured data
+    try:
+        for script in soup.find_all('script', type='application/ld+json'):
+            if not script.string:
+                continue
+            data = json.loads(script.string)
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if isinstance(item, dict) and 'brand' in item:
+                    b = item['brand']
+                    if isinstance(b, dict):
+                        b = b.get('name', '')
+                    if isinstance(b, str) and b.strip() and not re.search(r'[\u0600-\u06FF]', b):
+                        return b.strip()
+    except Exception:
+        pass
+
+    # 3) عناصر الـ byline المعتادة في صفحة أمازون
+    brand_selectors = [
+        "#bylineInfo",
+        "#bylineInfo_feature_div a",
+        "a#bylineInfo",
+        ".po-brand .po-break-word",
+        "tr.po-brand td.a-span9",
+    ]
+    for sel in brand_selectors:
+        elem = soup.select_one(sel)
+        if elem:
+            text = elem.get_text(strip=True)
+            text = re.sub(r'^(Brand:|الماركة:|العلامة التجارية:|زيارة متجر|Visit the)\s*', '', text, flags=re.IGNORECASE)
+            text = re.sub(r'\s*(Store|متجر)$', '', text, flags=re.IGNORECASE).strip()
+            if text and not re.search(r'[\u0600-\u06FF]', text) and len(text) < 40:
+                return text
+
+    # 4) جدول "نظرة عامة على المنتج" أو تفاصيل المنتج
+    detail_rows = soup.select(
+        "#productOverview_feature_div tr, "
+        "#detailBullets_feature_div li, "
+        "#productDetails_techSpec_section_1 tr, "
+        "#productDetails_detailBullets_sections1 tr"
+    )
+    for row in detail_rows:
+        row_text = row.get_text(" ", strip=True)
+        m = re.search(r'(?:Brand|العلامة التجارية|الماركة)\s*[:\-]?\s*(.+)', row_text, re.IGNORECASE)
+        if m:
+            candidate = m.group(1).strip()
+            candidate = re.split(r'\s{2,}', candidate)[0].strip()
+            if candidate and len(candidate) < 40:
+                return candidate
+
     return ""
 
 def extract_coupons_and_vouchers(soup):
-    coupon_info = {"code": None, "voucher_text": None}
+    coupon_info = {
+        "code": None,
+        "voucher_text": None,
+        "discount_percent": None,
+        "discount_amount": None,
+    }
     all_text = soup.get_text()
     IGNORED = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER"]
 
@@ -150,7 +208,18 @@ def extract_coupons_and_vouchers(soup):
             if any(k in v_text for k in ["كوبون", "خصم", "voucher", "coupon", "%", "ريال"]):
                 discount_match = re.search(r'(\d+%\s*خصم|خصم\s*\d+%|\d+\s*ريال\s*خصم|خصم\s*\d+\s*ريال)', v_text, re.IGNORECASE)
                 if discount_match:
-                    coupon_info["voucher_text"] = discount_match.group(1)
+                    matched_text = discount_match.group(1)
+                    coupon_info["voucher_text"] = matched_text
+
+                    # استخراج نسبة الخصم كرقم (لو موجودة)
+                    percent_match = re.search(r'(\d+)\s*%', matched_text)
+                    if percent_match:
+                        coupon_info["discount_percent"] = float(percent_match.group(1))
+                    else:
+                        # أو استخراج قيمة خصم بالريال
+                        amount_match = re.search(r'(\d+)\s*ريال', matched_text)
+                        if amount_match:
+                            coupon_info["discount_amount"] = float(amount_match.group(1))
                     break
     return coupon_info
 
@@ -299,12 +368,24 @@ def fetch_product_details(url, asin):
         coupon_details = extract_coupons_and_vouchers(soup)
         image_url = extract_best_image(soup, asin)
 
+        # === حساب السعر النهائي الفعلي بعد تطبيق خصم الكوبون/القسيمة على السعر الحالي ===
+        price_before_coupon = current_p
+        final_price = current_p
+
+        if current_p > 0:
+            if coupon_details.get("discount_percent"):
+                final_price = round(current_p * (1 - coupon_details["discount_percent"] / 100), 2)
+            elif coupon_details.get("discount_amount"):
+                final_price = max(round(current_p - coupon_details["discount_amount"], 2), 0)
+
         return {
             "title_clean": title_res,
             "brand": found_brand,
             "package": package_detail,
             "old_price_num": old_p,
-            "current_price_num": current_p,
+            "current_price_num": final_price,
+            # السعر قبل تطبيق خصم الكوبون (يُستخدم فقط لو فعلاً فيه فرق)
+            "price_before_coupon_num": price_before_coupon if final_price != price_before_coupon else 0.0,
             "category": detect_product_category(title),
             "coupon_code": coupon_details["code"],
             "voucher_text": coupon_details["voucher_text"],
@@ -320,6 +401,7 @@ def generate_post(product_data, original_url):
     package = html.escape(product_data["package"])
     category = product_data["category"]
     old_price_num = product_data["old_price_num"]
+    price_before_coupon = product_data.get("price_before_coupon_num", 0.0)
     current_num = product_data["current_price_num"]
     coupon_code = product_data.get("coupon_code")
     voucher_text = product_data.get("voucher_text")
@@ -335,7 +417,9 @@ def generate_post(product_data, original_url):
 
     if current_num > 0:
         clean_current = f"{int(current_num)} ريال"
-        has_discount = old_price_num > current_num and old_price_num > 0
+        # نفضّل السعر قبل الكوبون كسعر "قبل" لو موجود، وإلا نرجع للسعر المشطوب الأصلي من الموقع
+        effective_old_price = price_before_coupon if price_before_coupon > current_num else old_price_num
+        has_discount = effective_old_price > current_num and effective_old_price > 0
         
         price_styles = ["old_and_new", "discount_percentage", "simple_price_with_words"]
         selected_style = random.choice(price_styles) if has_discount else "simple_price_with_words"
@@ -343,10 +427,10 @@ def generate_post(product_data, original_url):
         if selected_style == "old_and_new":
             phrases = ["السعر السابق", "قبل الخصم", "كان بـ", "سعره الأول"]
             phrase = random.choice(phrases)
-            lines.append(f"❌ {phrase}: <s>{int(old_price_num)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
+            lines.append(f"❌ {phrase}: <s>{int(effective_old_price)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
             
         elif selected_style == "discount_percentage":
-            discount_percent = int(((old_price_num - current_num) / old_price_num) * 100)
+            discount_percent = int(((effective_old_price - current_num) / effective_old_price) * 100)
             lines.append(f"🔥 السعر الآن: <b>{clean_current}</b> (خصم ممتاز بنسبة {discount_percent}%) 😱")
             
         else:
@@ -357,7 +441,7 @@ def generate_post(product_data, original_url):
     if coupon_code:
         lines.append(generate_dynamic_coupon_call(coupon_code))
     elif voucher_text:
-        lines.append(f"🎟️ <b>لا تنسوا تفعيل قسيمة الخصم ({html.escape(voucher_text)}) بنفس الصفحة!</b>")
+        lines.append("🎟️ <b>السعر أعلاه شامل خصم القسيمة — فعّلها من نفس صفحة المنتج قبل الطلب ✅</b>")
 
     lines.append(f"\n{original_url}")
     return "\n".join(lines)
