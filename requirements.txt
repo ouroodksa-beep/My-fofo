@@ -7,3 +7,4 @@ playwright
 gunicorn
 pandas
 lxml
+deep-translator
