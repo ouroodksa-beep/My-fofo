@@ -35,6 +35,9 @@ def get_headers():
         "Cache-Control": "no-cache"
     }
 
+# ============================================================
+# الجملة الافتتاحية — كلمات جديدة، جملة واحدة فقط
+# ============================================================
 def generate_dynamic_hook(brand=""):
     emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸", "😱", "📢"]
     openers = [
@@ -98,39 +101,194 @@ def detect_product_category(product_name):
                 return category
     return "general"
 
-TRANSLATION_DICT = {
-    "deodorant": "مزيل عرق", "roll-on": "مزيل عرق رول", "cream": "كريم", "lotion": "لوشن",
-    "shampoo": "شامبو", "soap": "صابون", "hand wash": "غسول يدين", "body wash": "غسول جسم",
-    "perfume": "عطر", "shoes": "حذاء", "t-shirt": "تيشيرت", "bag": "حقيبة", "watch": "ساعة",
-    "headphones": "سماعات", "charger": "شاحن", "laptop": "لابتوب", "whitening": "مبيض",
-    "nourishing": "مغذي", "original": "أصلي", "men": "رجالي", "women": "نسائي"
+# ============================================================
+# ترجمة الأصناف — عبارات أولاً ثم كلمات، مع إعادة ترتيب الصفات
+# ============================================================
+PHRASE_TRANSLATIONS = {
+    "roll on": "مزيل عرق رول", "roll-on": "مزيل عرق رول",
+    "body wash": "غسول جسم", "hand wash": "غسول يدين",
+    "face wash": "غسول وجه", "hair wash": "شامبو",
+    "shower gel": "جل استحمام", "body lotion": "لوشن جسم",
+    "face cream": "كريم وجه", "eye cream": "كريم عيون",
+    "hair oil": "زيت شعر", "hair serum": "سيرم شعر",
+    "hair dryer": "مجفف شعر", "hair straightener": "مملس شعر",
+    "air fryer": "قلاية هوائية", "washing machine": "غسالة ملابس",
+    "vacuum cleaner": "مكنسة كهربائية", "air conditioner": "مكيف",
+    "coffee maker": "صانعة قهوة", "electric kettle": "غلاية كهربائية",
+    "power bank": "باور بانك", "smart watch": "ساعة ذكية",
+    "wireless earbuds": "سماعات لاسلكية", "wireless headphones": "سماعات رأس لاسلكية",
+    "bluetooth speaker": "مكبر صوت بلوتوث", "phone case": "كفر جوال",
+    "screen protector": "حماية شاشة", "charging cable": "كيبل شحن",
+    "wall charger": "شاحن جداري", "car charger": "شاحن سيارة",
+    "gaming mouse": "ماوس قيمنق", "gaming keyboard": "كيبورد قيمنق",
+    "baby diapers": "حفاضات أطفال", "baby wipes": "مناديل أطفال",
+    "baby lotion": "لوشن أطفال", "baby shampoo": "شامبو أطفال",
+    "tooth paste": "معجون أسنان", "tooth brush": "فرشاة أسنان",
+    "mouth wash": "غسول فم", "beard oil": "زيت لحية",
+    "shaving foam": "رغوة حلاقة", "shaving gel": "جل حلاقة",
+    "after shave": "بعد الحلاقة", "body spray": "بخاخ جسم",
+    "eau de parfum": "عطر", "eau de toilette": "عطر",
+    "liquid detergent": "مسحوق غسيل سائل", "dish soap": "سائل جلي",
+    "floor cleaner": "منظف أرضيات", "glass cleaner": "منظف زجاج",
+    "fabric softener": "منعم أقمشة", "stain remover": "مزيل بقع",
+    "sports shoes": "حذاء رياضي", "running shoes": "حذاء جري",
+    "t shirt": "تيشيرت", "polo shirt": "قميص بولو",
+    "winter jacket": "جاكيت شتوي", "summer dress": "فستان صيفي",
+    "school bag": "شنطة مدرسة", "travel bag": "شنطة سفر",
+    "sunscreen": "واقي شمس", "sun block": "واقي شمس",
+    "makeup remover": "مزيل مكياج", "foundation": "كريم أساس",
+    "lip stick": "أحمر شفاه", "eye liner": "آيلاينر",
+    "face mask": "ماسك وجه", "sheet mask": "ماسك ورقي",
+    "anti aging": "مضاد للشيخوخة", "anti dandruff": "ضد القشرة",
+    "extra virgin olive oil": "زيت زيتون بكر", "olive oil": "زيت زيتون"
+}
+
+WORD_TRANSLATIONS = {
+    # عناية شخصية
+    "deodorant": "مزيل عرق", "cream": "كريم", "lotion": "لوشن",
+    "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون",
+    "perfume": "عطر", "fragrance": "عطر", "oud": "عود", "musk": "مسك",
+    "makeup": "مكياج", "lipstick": "أحمر شفاه", "gloss": "ملمع شفاه",
+    "mascara": "ماسكارا", "blush": "بلاشر", "serum": "سيرم",
+    "scrub": "مقشر", "toner": "تونر", "cleanser": "غسول",
+    "moisturizer": "مرطب", "sunscreen": "واقي شمس", "gel": "جل",
+    "foam": "رغوة", "spray": "بخاخ", "powder": "بودرة",
+    "mask": "ماسك", "wipes": "مناديل", "tissues": "مناديل",
+    "toothpaste": "معجون أسنان", "toothbrush": "فرشاة أسنان",
+    "razor": "ماكينة حلاقة", "trimmer": "ماكينة تشذيب",
+    # ملابس وإكسسوارات
+    "shirt": "قميص", "tshirt": "تيشيرت", "pants": "بنطلون",
+    "jeans": "جينز", "jacket": "جاكيت", "hoodie": "هودي",
+    "dress": "فستان", "skirt": "تنورة", "socks": "شرابات",
+    "shoes": "حذاء", "sneakers": "سنيكرز", "boots": "بوت",
+    "sandals": "صنادل", "slippers": "شباشب", "cap": "كاب",
+    "hat": "قبعة", "bag": "شنطة", "backpack": "شنطة ظهر",
+    "wallet": "محفظة", "belt": "حزام", "scarf": "شال",
+    "sunglasses": "نظارة شمس", "watch": "ساعة", "gloves": "قفازات",
+    # إلكترونيات
+    "phone": "جوال", "iphone": "آيفون", "laptop": "لابتوب",
+    "computer": "كمبيوتر", "tablet": "تابلت", "ipad": "آيباد",
+    "headphones": "سماعات", "earbuds": "سماعات", "speaker": "مكبر صوت",
+    "camera": "كاميرا", "tv": "تلفزيون", "screen": "شاشة",
+    "monitor": "شاشة", "keyboard": "كيبورد", "mouse": "ماوس",
+    "charger": "شاحن", "cable": "كيبل", "battery": "بطارية",
+    "router": "راوتر", "modem": "مودم", "console": "جهاز ألعاب",
+    "controller": "يد تحكم", "stand": "ستاند", "holder": "حامل",
+    # منزل ومطبخ
+    "refrigerator": "ثلاجة", "fridge": "ثلاجة", "blender": "خلاط",
+    "mixer": "عجانة", "oven": "فرن", "microwave": "مايكرويف",
+    "kettle": "غلاية", "iron": "مكواة", "fan": "مروحة",
+    "heater": "دفاية", "lamp": "لمبة", "light": "إضاءة",
+    "mattress": "مرتبة", "pillow": "مخدة", "blanket": "بطانية",
+    "towel": "منشفة", "curtain": "ستارة", "carpet": "سجادة",
+    "laundry": "غسيل", "detergent": "مسحوق غسيل", "softener": "منعم",
+    "cleaner": "منظف", "disinfectant": "مطهر", "bleach": "مبيض",
+    # أطعمة ومشروبات
+    "rice": "أرز", "milk": "حليب", "biscuits": "بسكويت", "cookies": "كوكيز",
+    "chocolate": "شوكولاتة", "candy": "حلاوة", "honey": "عسل",
+    "coffee": "قهوة", "tea": "شاي", "juice": "عصير", "water": "مياه",
+    "oil": "زيت", "sugar": "سكر", "salt": "ملح", "flour": "دقيق",
+    "pasta": "مكرونة", "noodles": "نودلز", "sauce": "صلصة",
+    "cereal": "كورن فليكس", "oats": "شوفان", "nuts": "مكسرات",
+    # رياضة
+    "treadmill": "سير كهربائي", "dumbbell": "دمبل", "yoga": "يوجا",
+    "bicycle": "دراجة", "ball": "كرة", "gym": "جيم",
+    "supplement": "مكمل", "protein": "بروتين",
+    # صفات شائعة
+    "whitening": "مبيض", "nourishing": "مغذي", "moisturizing": "مرطب",
+    "hydrating": "مرطب", "revitalizing": "منعش", "refreshing": "منعش",
+    "sensitive": "للبشرة الحساسة", "original": "أصلي", "genuine": "أصلي",
+    "men": "رجالي", "women": "نسائي", "kids": "أطفال", "baby": "أطفال",
+    "sport": "رياضي", "sports": "رياضي",
+    "electric": "كهربائي", "digital": "رقمي", "portable": "محمول",
+    "wireless": "لاسلكي", "waterproof": "مقاوم للماء", "rechargeable": "قابل للشحن"
+}
+
+UNITS_MAP = {
+    "ml": "مل", "l": "لتر", "kg": "كيلو", "g": "جرام",
+    "pcs": "قطعة", "pc": "قطعة", "pack": "عبوة", "packs": "عبوات",
+    "pair": "زوج", "pairs": "أزواج", "set": "طقم", "sets": "أطقم"
+}
+
+ARABIC_ADJECTIVES = {
+    "مبيض", "مغذي", "مرطب", "منعش", "أصلي", "رجالي", "نسائي",
+    "أطفال", "رياضي", "كهربائي", "رقمي", "محمول", "لاسلكي",
+    "مقاوم للماء", "قابل للشحن", "للبشرة الحساسة", "ضد القشرة", "مضاد للشيخوخة"
 }
 
 def translate_to_arabic(text):
-    words = text.lower().split()
-    translated_words = [TRANSLATION_DICT.get(re.sub(r'[^\w\s]', '', w), w) for w in words]
-    return " ".join(translated_words)
+    if not text or not re.search(r'[A-Za-z]', text):
+        return text
+
+    original = text.lower()
+    clean = re.sub(r'[^\w\s]', ' ', original)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+
+    # 1) ترجمة العبارات (الأطول أولاً)
+    for phrase in sorted(PHRASE_TRANSLATIONS.keys(), key=len, reverse=True):
+        if f" {phrase} " in f" {clean} ":
+            clean = re.sub(r'\b' + re.escape(phrase) + r'\b', PHRASE_TRANSLATIONS[phrase], clean)
+
+    words = clean.split()
+    translated = []
+    for w in words:
+        if not w:
+            continue
+        # أرقام ووحدات تفضل كما هي أو تترجم وحداتها فقط
+        num_unit = re.match(r'^(\d+(?:\.\d+)?)(ml|l|kg|g|pcs|pc|pack|packs|pair|pairs|set|sets)?$', w)
+        if num_unit:
+            num = num_unit.group(1)
+            unit = num_unit.group(2)
+            translated.append(num + (UNITS_MAP.get(unit, unit) if unit else ""))
+            continue
+        if re.match(r'^\d+$', w):
+            translated.append(w)
+            continue
+        translated.append(WORD_TRANSLATIONS.get(w, w))
+
+    # 2) إعادة الترتيب: [صفة + اسم] <- [اسم + صفة] حسب القواعد العربية
+    reordered = []
+    i = 0
+    while i < len(translated):
+        if (i + 1 < len(translated)
+                and translated[i] in ARABIC_ADJECTIVES
+                and translated[i + 1] not in ARABIC_ADJECTIVES
+                and not re.match(r'^\d', translated[i + 1])):
+            reordered.append(translated[i + 1])
+            reordered.append(translated[i])
+            i += 2
+        else:
+            reordered.append(translated[i])
+            i += 1
+
+    result = " ".join(reordered).strip()
+    result = re.sub(r'\s+', ' ', result)
+    return result
 
 def clean_arabic_title(full_title, found_brand):
     if not full_title:
         return "منتج مميز"
 
+    # إزالة البراند أولاً عشان ما يدخل في الترجمة
+    if found_brand:
+        full_title = re.sub(re.escape(found_brand), '', full_title, flags=re.IGNORECASE)
+
     clean = translate_to_arabic(full_title) if re.search(r'[A-Za-z]', full_title) else full_title
     clean = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط|للرجال|للنساء)\b', '', clean)
 
-    if found_brand:
-        clean = re.sub(re.escape(found_brand), '', clean, flags=re.IGNORECASE)
-
     parts = re.split(r'[-–,|/]', clean)
-    words = parts[0].strip().split()[:5]
+    words = parts[0].strip().split()[:6]
 
-    bad_endings = ['من', 'عن', 'في', 'على', 'إلى', 'مع', 'أو', 'و', 'الخالي', 'ذو', 'ذات', 'يغذي']
+    bad_endings = ['من', 'عن', 'في', 'على', 'إلى', 'مع', 'أو', 'و', 'الخالي', 'ذو', 'ذات', 'يغذي', 'للبشرة']
     while words and words[-1] in bad_endings:
         words.pop()
 
     res = " ".join(words).strip()
     return res if res else "منتج مميز"
 
+# ============================================================
+# استخراج البراند
+# ============================================================
 def extract_brand_from_soup(soup, full_title):
     for brand in POPULAR_BRANDS:
         if re.search(r'\b' + re.escape(brand) + r'\b', full_title, re.IGNORECASE):
@@ -403,7 +561,6 @@ def extract_prices_advanced(soup, html_content):
                 page_discount_percent = float(m.group(1))
                 break
 
-    # fallback: نص الصفحة — نسبة خصم معلنة
     if page_discount_percent == 0.0:
         m = re.search(r'(?:خصم|وفّر|وفر|Save)\s*(\d{1,2})\s*%', soup.get_text(" ", strip=True), re.IGNORECASE)
         if m:
@@ -491,7 +648,7 @@ def generate_post(product_data, original_url):
 
     if current_num > 0:
         clean_current = f"{int(current_num)} ريال"
-        # السعر السابق الموجود في الصفحة كما هو — بدون تعديل أو تفضيل لسعر الكوبون
+        # السعر السابق الموجود في الصفحة كما هو
         effective_old_price = old_price_num
         has_discount = effective_old_price > current_num and effective_old_price > 0
 
