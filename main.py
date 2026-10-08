@@ -11,6 +11,11 @@ from flask import Flask, request
 TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
 
+# مفتاح Gemini المجاني: https://aistudio.google.com/apikey
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or "AIzaSyAD68JzBWieLXb9kE-7qOg-8p10_EkY518"
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+AED_TO_SAR = 3.75 / 3.6725  # الدرهم والريال مربوطين بالدولار
+
 POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex",
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec",
@@ -512,6 +517,7 @@ def fetch_product_details(url, asin):
 
         return {
             "title_clean": title_res,
+            "title_raw": title,
             "brand": brand,
             "package": package_detail,
             "price": final_price,
@@ -528,6 +534,112 @@ def fetch_product_details(url, asin):
 
 def format_price(price):
     return str(int(price)) if float(price).is_integer() else f"{price:.2f}"
+
+
+def fetch_uae_price(asin):
+    """سعر نفس المنتج في أمازون الإمارات بالدرهم، أو 0 لو غير متوفر/محجوب."""
+    try:
+        resp = requests.get(f"https://www.amazon.ae/dp/{asin}", headers=get_headers(), timeout=12)
+        if resp.status_code != 200 or "captcha" in resp.text.lower():
+            return 0.0
+        soup = BeautifulSoup(resp.content, "html.parser")
+        if not soup.select_one("#productTitle"):
+            return 0.0
+        return extract_current_price(soup, resp.text)
+    except Exception:
+        return 0.0
+
+
+def parse_extras(text):
+    """
+    يقرأ أسعار المقارنة اليدوية من رسالتك، مثال:
+    <الرابط> سوبرماركت 90
+    <الرابط> صيدلية 23
+    """
+    t = re.sub(r'https?://\S+', ' ', text)
+    t = re.sub(r'سوبر\s+ماركت', 'سوبرماركت', t)
+    return [(label, float(p)) for label, p in
+            re.findall(r'([\u0600-\u06FF]+)\s*[:=]?\s*(\d+(?:\.\d+)?)', t)]
+
+
+AI_SYSTEM_PROMPT = """أنت كاتب بوستات لقناة عروض أمازون السعودية على تيليجرام. اكتب بلهجة سعودية خليجية طبيعية فقط، بدون أي كلمة مصرية أو شامية.
+
+قواعد صارمة:
+- استخدم فقط الأرقام والمعلومات الموجودة في "المعطيات". ممنوع تخترع سعر أو خصم أو كود أو مقارنة.
+- اسم البراند يبقى بالإنجليزي كما هو ولا يُترجم أبداً.
+- اكتب اسم المنتج بعربي طبيعي قصير (مثل: شامبو، رز، ماكينة قهوة)، ولا تترجم حرفياً.
+- لو فيه سعر مقارنة (سوبرماركت، صيدلية، أمازون الإمارات) اعرضه بسطر ❌ وسعرنا بسطر ✅ أو 😱.
+- لو فيه كود خصم اكتبه كما هو. لو ما فيه كود لا تذكر أكواد.
+- لا تكتب الرابط، يضاف تلقائياً.
+- من 3 إلى 6 أسطر قصيرة، إيموجي بسيطة، بدون عناوين وبدون شرح.
+
+أمثلة على الأسلوب (للأسلوب فقط، لا تنسخ أرقامها):
+
+🔥 شامبو كلير.. صيييدة!
+❌ الحبة بالصيدلية بـ 23 ريال
+😱 الآن 3 حبات بـ 28 ريال فقط!
+
+🔥 رحت أمازون الإمارات أقارن لكم!
+🇦🇪 عندهم بـ 70 درهم❌
+🇸🇦 عندنا نفس الشي بـ 24 ريال!
+
+🎯🔥 تم القنص بنجاح!
+👟 نايك نسائي | مقاس 38
+🔥 بـ 140 ريال
+❌ باقي المقاسات بـ 450 ريال!
+
+☕🔥 ماكينة قهوة من نيسبريسو
+💰 بـ 272 ريال
+"""
+
+
+def build_facts(product, extras, uae_aed):
+    price = product["price"]
+    facts = [f"اسم المنتج بالإنجليزي: {product.get('title_raw', '')}"]
+    if product["brand"]:
+        facts.append(f"البراند: {product['brand']}")
+    if price > 0:
+        facts.append(f"السعر الحالي: {format_price(price)} ريال")
+    if product.get("price_before_coupon"):
+        facts.append(f"السعر قبل القسيمة: {format_price(product['price_before_coupon'])} ريال")
+    if product.get("coupon_code"):
+        facts.append(f"كود الخصم: {product['coupon_code']}")
+    elif product.get("voucher_text"):
+        facts.append(f"فيه قسيمة تتفعّل من صفحة المنتج ({product['voucher_text']}) والسعر أعلاه بعدها")
+    for label, p in extras:
+        facts.append(f"سعره في {label}: {format_price(p)} ريال")
+    if uae_aed > 0 and price > 0:
+        uae_sar = round(uae_aed * AED_TO_SAR)
+        if uae_sar > price:
+            facts.append(f"سعره في أمازون الإمارات: {format_price(uae_aed)} درهم (حوالي {uae_sar} ريال)")
+    return "\n".join(facts)
+
+
+def ai_write_post(facts_text):
+    """يكتب البوست عبر Gemini. يرجع None لو فشل أو لو ذكر أرقام مو في المعطيات."""
+    if not GEMINI_API_KEY or GEMINI_API_KEY.startswith("PUT_"):
+        return None
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+        body = {
+            "system_instruction": {"parts": [{"text": AI_SYSTEM_PROMPT}]},
+            "contents": [{"parts": [{"text": "المعطيات:\n" + facts_text + "\n\nاكتب البوست."}]}],
+            "generationConfig": {"temperature": 0.8},
+        }
+        r = requests.post(url, json=body, headers={"x-goog-api-key": GEMINI_API_KEY}, timeout=30)
+        r.raise_for_status()
+        text = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        # حماية: أي رقم في البوست لازم يكون موجود في المعطيات
+        allowed = set(re.findall(r'\d+(?:\.\d+)?', facts_text))
+        used = set(re.findall(r'\d+(?:\.\d+)?', text))
+        if not used.issubset(allowed):
+            print("AI used numbers not in facts:", used - allowed)
+            return None
+        return text
+    except Exception as e:
+        print(f"Gemini error: {e}")
+        return None
 
 
 def generate_post(product, original_url):
@@ -591,7 +703,15 @@ def handler(msg):
             bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
             continue
 
-        post = generate_post(product, original_url)
+        extras = parse_extras(text)
+        uae_aed = fetch_uae_price(asin)
+        facts_text = build_facts(product, extras, uae_aed)
+
+        ai_text = ai_write_post(facts_text)
+        if ai_text:
+            post = html.escape(ai_text) + "\n\n" + original_url
+        else:
+            post = generate_post(product, original_url)
 
         try:
             if product.get("image_url"):
