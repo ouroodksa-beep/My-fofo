@@ -12,7 +12,7 @@ TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
 
 # مفتاح Gemini المجاني: https://aistudio.google.com/apikey
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or "PUT_YOUR_GEMINI_KEY_HERE"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or "AIzaSyAD68JzBWieLXb9kE-7qOg-8p10_EkY518"
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 AED_TO_SAR = 3.75 / 3.6725  # الدرهم والريال مربوطين بالدولار
 
