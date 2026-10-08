@@ -12,7 +12,7 @@ TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
 
 # مفتاح Gemini المجاني: https://aistudio.google.com/apikey
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or "AIzaSyAD68JzBWieLXb9kE-7qOg-8p10_EkY518"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or "PUT_YOUR_GEMINI_KEY_HERE"
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 AED_TO_SAR = 3.75 / 3.6725  # الدرهم والريال مربوطين بالدولار
 
@@ -46,23 +46,23 @@ def get_headers():
 # الجملة الافتتاحية — لهجة سعودية، جمل قصيرة وواضحة، بدون ادعاءات
 # ============================================================
 HOOKS = [
-    "عرض جديد على أمازون",
+    "عرض جديد ما يتفوّت",
     "شوفوا هالعرض",
-    "لقطة اليوم من أمازون السعودية",
+    "لقطة اليوم",
     "وصلنا عرض حلو لكم",
     "جبنا لكم عرض جديد",
     "عرض يستاهل نظرة",
     "سعر حلو لهالمنتج",
     "هذا المنتج سعره اليوم مناسب",
     "إذا كنتم تدورون عليه، شوفوا سعره الحين",
-    "عرض اليوم على أمازون",
+    "صيدة اليوم",
 ]
 
 HOOKS_WITH_BRAND = [
     "عرض جديد من {brand}",
     "شوفوا هالعرض من {brand}",
     "جبنا لكم عرض من {brand}",
-    "عرض من {brand} على أمازون",
+    "صيدة من {brand}",
 ]
 
 EMOJIS = ["🔥", "⚡", "🎯", "🛍️", "📣", "✨", "🏷️", "🚨"]
@@ -518,6 +518,7 @@ def fetch_product_details(url, asin):
         return {
             "title_clean": title_res,
             "title_raw": title,
+            **extract_variants(soup),
             "brand": brand,
             "package": package_detail,
             "price": final_price,
@@ -536,6 +537,24 @@ def format_price(price):
     return str(int(price)) if float(price).is_integer() else f"{price:.2f}"
 
 
+def extract_variants(soup):
+    """اللون والمقاس المختارين في الصفحة (لو موجودين)."""
+    def first_text(selectors):
+        for sel in selectors:
+            e = soup.select_one(sel)
+            if e:
+                t = e.get_text(" ", strip=True)
+                if t and not re.search(r'select|اختر', t, re.IGNORECASE) and len(t) < 40:
+                    return t
+        return ""
+    color = first_text(["#variation_color_name .selection",
+                        "#inline-twister-expanded-dimension-text-color_name"])
+    size = first_text(["#native_dropdown_selected_size_name",
+                       "#variation_size_name .selection",
+                       "#inline-twister-expanded-dimension-text-size_name"])
+    return {"color": color, "size": size}
+
+
 def fetch_uae_price(asin):
     """سعر نفس المنتج في أمازون الإمارات بالدرهم، أو 0 لو غير متوفر/محجوب."""
     try:
@@ -550,6 +569,9 @@ def fetch_uae_price(asin):
         return 0.0
 
 
+REF_LABELS = r'(سوبرماركت|السوبرماركت|صيدلية|الصيدلية|محلات|المحلات|الموقع|نون|جرير|بنده|النهدي|الدواء)'
+
+
 def parse_extras(text):
     """
     يقرأ أسعار المقارنة اليدوية من رسالتك، مثال:
@@ -559,41 +581,64 @@ def parse_extras(text):
     t = re.sub(r'https?://\S+', ' ', text)
     t = re.sub(r'سوبر\s+ماركت', 'سوبرماركت', t)
     return [(label, float(p)) for label, p in
-            re.findall(r'([\u0600-\u06FF]+)\s*[:=]?\s*(\d+(?:\.\d+)?)', t)]
+            re.findall(REF_LABELS + r'\s*[:=]?\s*(\d+(?:\.\d+)?)', t)]
 
 
-AI_SYSTEM_PROMPT = """أنت كاتب بوستات لقناة عروض أمازون السعودية على تيليجرام. اكتب بلهجة سعودية خليجية طبيعية فقط، بدون أي كلمة مصرية أو شامية.
+def parse_note(text):
+    """أي كلام حر تكتبينه مع الرابط (غير أسعار المقارنة) يوصل للكاتب كملاحظة."""
+    t = re.sub(r'https?://\S+', ' ', text)
+    t = re.sub(r'سوبر\s+ماركت', 'سوبرماركت', t)
+    t = re.sub(REF_LABELS + r'\s*[:=]?\s*\d+(?:\.\d+)?', ' ', t)
+    return re.sub(r'\s+', ' ', t).strip()
+
+
+AI_SYSTEM_PROMPT = """أنت كاتب محترف لبوستات قناة عروض على تيليجرام جمهورها سعودي. اكتب بلهجة سعودية خليجية طبيعية فقط، بدون أي كلمة مصرية أو شامية.
 
 قواعد صارمة:
-- استخدم فقط الأرقام والمعلومات الموجودة في "المعطيات". ممنوع تخترع سعر أو خصم أو كود أو مقارنة.
-- اسم البراند يبقى بالإنجليزي كما هو ولا يُترجم أبداً.
-- اكتب اسم المنتج بعربي طبيعي قصير (مثل: شامبو، رز، ماكينة قهوة)، ولا تترجم حرفياً.
-- لو فيه سعر مقارنة (سوبرماركت، صيدلية، أمازون الإمارات) اعرضه بسطر ❌ وسعرنا بسطر ✅ أو 😱.
-- لو فيه كود خصم اكتبه كما هو. لو ما فيه كود لا تذكر أكواد.
-- لا تكتب الرابط، يضاف تلقائياً.
-- من 3 إلى 6 أسطر قصيرة، إيموجي بسيطة، بدون عناوين وبدون شرح.
+1. ممنوع تكتب كلمة "أمازون" أو "السعودية" أو "Amazon" نهائياً. الجمهور يعرف.
+2. استخدم فقط الأرقام والمعلومات الموجودة في "المعطيات". ممنوع تخترع سعر أو خصم أو كود أو مقارنة أو مقاس أو لون.
+3. اسم البراند يبقى بالإنجليزي كما هو بالضبط ولا يُترجم. اكتبه بخط عريض.
+4. اسم المنتج بعربي طبيعي قصير بدل الترجمة الحرفية (مثل: شامبو، حفاضات أطفال، طقم أواني، حليب طويل الأجل). حط العدد أو الحجم بين أقواس مثل ( 400 مل ).
+5. الجملة الافتتاحية سطر واحد قصير يشدّ، بخط عريض، وغيّرها كل مرة. لا تكرر نفس الصياغة.
+6. فيه سعر مقارنة (سوبرماركت، صيدلية، موقع آخر، أمازون الإمارات)؟ اعرضه بسطر ❌ وسعرنا بسطر ✅ أو 😱. الإمارات: 🇦🇪 عندهم ... ❌ و 🇸🇦 عندنا ... ✅. لا تذكر مقارنة غير موجودة في المعطيات.
+7. فيه كود خصم؟ اكتبه بين `` كما هو. فيه قسيمة؟ اكتب سطر: فعّلوا القسيمة من صفحة المنتج قبل الطلب. ما فيه؟ لا تذكر أكواد ولا قسائم.
+8. فيه لون أو مقاس في المعطيات؟ اذكره، ونبّه إن الفرق بين الألوان/المقاسات ممكن يكون في السعر فقط لو الملاحظة قالت كذا.
+9. لو فيه "ملاحظة من صاحب القناة" التزم بها وضمّنها بأسلوبك.
+10. من 4 إلى 7 أسطر قصيرة، كل سطر فكرة، إيموجي بسيطة، بدون شرح وبدون ختام. لا تكتب الرابط، يضاف تلقائياً.
 
-أمثلة على الأسلوب (للأسلوب فقط، لا تنسخ أرقامها):
+أمثلة على الروح والأسلوب فقط (منتجات وأرقام من الخيال، لا تنسخها):
 
-🔥 شامبو كلير.. صيييدة!
-❌ الحبة بالصيدلية بـ 23 ريال
-😱 الآن 3 حبات بـ 28 ريال فقط!
+🔥 **صيدة للبنات!**
+**Real Techniques** طقم فرش مكياج ( 5 قطع )
+❌ بالصيدلية بـ 89 ريال
+😱 الحين بـ 52 ريال بس!
 
-🔥 رحت أمازون الإمارات أقارن لكم!
-🇦🇪 عندهم بـ 70 درهم❌
-🇸🇦 عندنا نفس الشي بـ 24 ريال!
+👶 **يا أمهات، هذي لكم!**
+**Pampers** حفاضات أطفال مقاس 4 ( 70 حبة )
+🇦🇪 عندهم بـ 98 درهم ❌
+🇸🇦 عندنا بـ 79 ريال ✅
+🎟️ فعّلوا القسيمة من صفحة المنتج قبل الطلب
 
-🎯🔥 تم القنص بنجاح!
-👟 نايك نسائي | مقاس 38
-🔥 بـ 140 ريال
-❌ باقي المقاسات بـ 450 ريال!
+🎯 **تم القنص بنجاح!**
+**Skechers** حذاء رياضي رجالي
+👟 مقاس 43 | اللون الأسود
+💰 بـ 159 ريال بس
+❌ باقي الألوان أغلى، انتبهوا للون!
 
-☕🔥 ماكينة قهوة من نيسبريسو
-💰 بـ 272 ريال
+🛒 **لقطة للمطبخ يا بنات!**
+**Tefal** طقم أواني ( 10 قطع )
+❌ بالسوبرماركت بـ 320 ريال
+✅ الحين بـ 235 ريال
+👀 فعّلوا العرض قبل الدفع
+
+🔥 **عرض ما يتكرر!**
+**Almarai** حليب طويل الأجل ( 12 حبة )
+💰 بـ 42 ريال بس
+🎟️ كود الخصم: `SAVE10`
 """
 
 
-def build_facts(product, extras, uae_aed):
+def build_facts(product, extras, uae_aed, note=""):
     price = product["price"]
     facts = [f"اسم المنتج بالإنجليزي: {product.get('title_raw', '')}"]
     if product["brand"]:
@@ -602,6 +647,12 @@ def build_facts(product, extras, uae_aed):
         facts.append(f"السعر الحالي: {format_price(price)} ريال")
     if product.get("price_before_coupon"):
         facts.append(f"السعر قبل القسيمة: {format_price(product['price_before_coupon'])} ريال")
+    if product.get("size"):
+        facts.append(f"المقاس: {product['size']}")
+    if product.get("color"):
+        facts.append(f"اللون: {product['color']}")
+    if note:
+        facts.append(f"ملاحظة من صاحب القناة: {note}")
     if product.get("coupon_code"):
         facts.append(f"كود الخصم: {product['coupon_code']}")
     elif product.get("voucher_text"):
@@ -629,6 +680,10 @@ def ai_write_post(facts_text):
         r = requests.post(url, json=body, headers={"x-goog-api-key": GEMINI_API_KEY}, timeout=30)
         r.raise_for_status()
         text = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        if re.search(r'أمازون|امازون|السعودية|amazon', text, re.IGNORECASE):
+            print("AI mentioned forbidden word")
+            return None
 
         # حماية: أي رقم في البوست لازم يكون موجود في المعطيات
         allowed = set(re.findall(r'\d+(?:\.\d+)?', facts_text))
@@ -704,12 +759,16 @@ def handler(msg):
             continue
 
         extras = parse_extras(text)
+        note = parse_note(text)
         uae_aed = fetch_uae_price(asin)
-        facts_text = build_facts(product, extras, uae_aed)
+        facts_text = build_facts(product, extras, uae_aed, note)
 
         ai_text = ai_write_post(facts_text)
         if ai_text:
-            post = html.escape(ai_text) + "\n\n" + original_url
+            safe = html.escape(ai_text)
+            safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', safe)
+            safe = re.sub(r'`(.+?)`', r'<code>\1</code>', safe)
+            post = safe + "\n\n" + original_url
         else:
             post = generate_post(product, original_url)
 
