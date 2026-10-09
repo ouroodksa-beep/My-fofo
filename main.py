@@ -12,7 +12,7 @@ TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
 bot = telebot.TeleBot(TOKEN)
 
 # مفتاح Gemini المجاني: https://aistudio.google.com/apikey
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or "AIzaSyAD68JzBWieLXb9kE-7qOg-8p10_EkY518"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or "PUT_YOUR_GEMINI_KEY_HERE"
 # موديل gemini-2.5-flash مجدول للإيقاف 16 أكتوبر 2026، فنجرب الأحدث أولاً وننزل تلقائياً للباقي
 GEMINI_MODELS = [m for m in [
     os.environ.get("GEMINI_MODEL"),
@@ -20,6 +20,13 @@ GEMINI_MODELS = [m for m in [
     "gemini-3.1-flash-lite",
     "gemini-flash-latest",
     "gemini-2.5-flash",
+] if m]
+# Groq (مجاني): https://console.groq.com/keys — الأول في الترتيب، وGemini احتياطي
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or "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"
+GROQ_MODELS = [m for m in [
+    os.environ.get("GROQ_MODEL"),
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
 ] if m]
 AED_TO_SAR = 3.75 / 3.6725  # الدرهم والريال مربوطين بالدولار
 
@@ -280,6 +287,10 @@ def clean_arabic_title(full_title, found_brand):
 # ============================================================
 # استخراج البراند
 # ============================================================
+JUNK_BRANDS = {"other", "others", "generic", "unknown", "no brand", "unbranded", "n/a", "none",
+               "أخرى", "اخرى", "غير معروف", "بدون علامة تجارية", "عام"}
+
+
 def extract_brand_from_soup(soup, full_title):
     for brand in POPULAR_BRANDS:
         if re.search(r'\b' + re.escape(brand) + r'\b', full_title, re.IGNORECASE):
@@ -508,6 +519,8 @@ def fetch_product_details(url, asin):
         price = extract_current_price(soup, html_text)
 
         brand = extract_brand_from_soup(soup, title)
+        if brand.strip().lower() in JUNK_BRANDS:
+            brand = guess_brand_from_title(title)
         title_res = clean_arabic_title(title, brand)
 
         package_detail = ""
@@ -607,6 +620,7 @@ AI_SYSTEM_PROMPT = """أنت كاتب محترف لبوستات قناة عرو�
 1. ممنوع تكتب كلمة "أمازون" أو "السعودية" أو "Amazon" نهائياً. الجمهور يعرف.
 2. استخدم فقط الأرقام والمعلومات الموجودة في "المعطيات". ممنوع تخترع سعر أو خصم أو كود أو مقارنة أو مقاس أو لون.
 3. اسم البراند يبقى بالإنجليزي كما هو بالضبط ولا يُترجم. اكتبه بخط عريض.
+3ب. لو ما فيه "البراند" في المعطيات وكان اسم المنتج عربي وفيه براند عالمي معروف (مثل بامبرز، نيفيا، فيليبس)، اكتبه بالحروف الإنجليزية الصحيحة (Pampers, Nivea, Philips). لو مو متأكد من البراند لا تخترع.
 4. اسم المنتج بعربي طبيعي قصير بدل الترجمة الحرفية (مثل: شامبو، حفاضات أطفال، طقم أواني، حليب طويل الأجل). حط العدد أو الحجم بين أقواس مثل ( 400 مل ).
 5. الجملة الافتتاحية سطر واحد قصير يشدّ، بخط عريض، وغيّرها كل مرة. لا تكرر نفس الصياغة.
 6. فيه سعر مقارنة (سوبرماركت، صيدلية، موقع آخر، أمازون الإمارات)؟ اعرضه بسطر ❌ وسعرنا بسطر ✅ أو 😱. الإمارات: 🇦🇪 عندهم ... ❌ و 🇸🇦 عندنا ... ✅. لا تذكر مقارنة غير موجودة في المعطيات.
@@ -675,26 +689,73 @@ def build_facts(product, extras, uae_aed, note=""):
     return "\n".join(facts)
 
 
-def ai_write_post(facts_text):
-    """يكتب البوست عبر Gemini. يرجع (النص, None) أو (None, سبب الفشل)."""
-    if not GEMINI_API_KEY or GEMINI_API_KEY.startswith("PUT_"):
-        return None, "مفتاح Gemini غير مضاف"
+def _key_ok(key):
+    return bool(key) and not key.startswith("PUT_")
 
+
+def _user_prompt(facts_text):
+    return "المعطيات:\n" + facts_text + "\n\nاكتب البوست."
+
+
+def _groq_generate(facts_text):
+    """يرجع (نص, None) أو (None, سبب) أو (None, None) لو المفتاح غير مضاف."""
+    if not _key_ok(GROQ_API_KEY):
+        return None, None
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    last_error = "Groq: لا يوجد موديل متاح"
+    for model in GROQ_MODELS:
+        try:
+            body = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": AI_SYSTEM_PROMPT},
+                    {"role": "user", "content": _user_prompt(facts_text)},
+                ],
+                "temperature": 0.8,
+                "max_completion_tokens": 2000,
+            }
+            r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                              json=body, headers=headers, timeout=30)
+            if r.status_code in (404, 413, 429, 500, 503):
+                last_error = f"Groq {model}: HTTP {r.status_code}"
+                print("Groq skip:", last_error)
+                continue
+            if r.status_code in (400, 401, 403):
+                msg = ""
+                try:
+                    msg = r.json().get("error", {}).get("message", "")[:100]
+                except Exception:
+                    pass
+                return None, f"Groq: المفتاح أو الطلب مرفوض (HTTP {r.status_code}) {msg}"
+            r.raise_for_status()
+            text = (r.json()["choices"][0]["message"].get("content") or "").strip()
+            if not text:
+                last_error = f"Groq {model}: رد فارغ"
+                continue
+            return text, None
+        except Exception as e:
+            last_error = f"Groq {model}: {str(e)[:100]}"
+            print("Groq error:", last_error)
+            continue
+    return None, last_error
+
+
+def _gemini_generate(facts_text):
+    if not _key_ok(GEMINI_API_KEY):
+        return None, None
     body = {
         "system_instruction": {"parts": [{"text": AI_SYSTEM_PROMPT}]},
-        "contents": [{"parts": [{"text": "المعطيات:\n" + facts_text + "\n\nاكتب البوست."}]}],
+        "contents": [{"parts": [{"text": _user_prompt(facts_text)}]}],
         "generationConfig": {"temperature": 0.8, "maxOutputTokens": 1024},
     }
     headers = {"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}
-    last_error = "لا يوجد موديل متاح"
-
+    last_error = "Gemini: لا يوجد موديل متاح"
     for model in GEMINI_MODELS:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
             r = requests.post(url, json=body, headers=headers, timeout=30)
-
             if r.status_code in (404, 429, 500, 503):
-                last_error = f"{model}: HTTP {r.status_code}"
+                last_error = f"Gemini {model}: HTTP {r.status_code}"
                 print("Gemini skip:", last_error)
                 continue
             if r.status_code in (400, 401, 403):
@@ -703,33 +764,49 @@ def ai_write_post(facts_text):
                     msg = r.json().get("error", {}).get("message", "")[:100]
                 except Exception:
                     pass
-                return None, f"المفتاح مرفوض أو الطلب غير صحيح (HTTP {r.status_code}) {msg}"
+                return None, f"Gemini: المفتاح أو الطلب مرفوض (HTTP {r.status_code}) {msg}"
             r.raise_for_status()
-
-            data = r.json()
-            parts = data["candidates"][0]["content"]["parts"]
+            parts = r.json()["candidates"][0]["content"]["parts"]
             text = "".join(pt.get("text", "") for pt in parts if not pt.get("thought")).strip()
             if not text:
-                last_error = f"{model}: رد فارغ"
+                last_error = f"Gemini {model}: رد فارغ"
                 continue
-
-            if re.search(r'أمازون|امازون|السعودية|amazon', text, re.IGNORECASE):
-                print("AI mentioned forbidden word")
-                return None, "النص ذكر كلمة ممنوعة"
-
-            # حماية: أي رقم في البوست لازم يكون موجود في المعطيات
-            allowed = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', facts_text)}
-            used = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', text)}
-            if not used.issubset(allowed):
-                print("AI used numbers not in facts:", used - allowed)
-                return None, "النص ذكر أرقام غير موجودة في بيانات المنتج"
             return text, None
         except Exception as e:
-            last_error = f"{model}: {str(e)[:100]}"
+            last_error = f"Gemini {model}: {str(e)[:100]}"
             print("Gemini error:", last_error)
             continue
-
     return None, last_error
+
+
+def validate_ai_text(text, facts_text):
+    """يرجع سبب الرفض أو None لو النص سليم."""
+    if re.search(r'أمازون|امازون|السعودية|amazon', text, re.IGNORECASE):
+        return "النص ذكر كلمة ممنوعة"
+    allowed = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', facts_text)}
+    used = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', text)}
+    if not used.issubset(allowed):
+        print("AI used numbers not in facts:", used - allowed)
+        return "النص ذكر أرقام غير موجودة في بيانات المنتج"
+    return None
+
+
+def ai_write_post(facts_text):
+    """Groq أولاً ثم Gemini. يرجع (النص, None) أو (None, سبب الفشل)."""
+    errors = []
+    for generate in (_groq_generate, _gemini_generate):
+        text, err = generate(facts_text)
+        if text:
+            bad = validate_ai_text(text, facts_text)
+            if bad:
+                errors.append(bad)
+                continue
+            return text, None
+        if err:
+            errors.append(err)
+    if not errors:
+        return None, "لا يوجد مفتاح ذكاء اصطناعي مضاف"
+    return None, " | ".join(errors)
 
 
 def generate_post(product, original_url):
