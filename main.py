@@ -59,35 +59,64 @@ def get_headers():
 # ============================================================
 # الجملة الافتتاحية — لهجة سعودية، جمل قصيرة وواضحة، بدون ادعاءات
 # ============================================================
+# عبارات افتتاحية كثيرة ومتنوعة. نخزّن آخر العبارات المستخدمة حتى لا تتكرر
+# مباشرةً، وحتى بعد إعادة تشغيل البوت.
 HOOKS = [
-    "صيييدة اليوم!",
-    "قنص سريع!",
-    "شوفوا هالعرض",
-    "لقطة اليوم",
-    "وصلنا عرض حلو لكم",
-    "جبنا لكم عرض جديد",
-    "عرض يستاهل نظرة",
-    "سعر حلو لهالمنتج",
-    "هذا المنتج سعره اليوم مناسب",
-    "إذا كنتم تدورون عليه، شوفوا سعره الحين",
-    "صيدة اليوم",
+    "صيييدة اليوم!", "قنص سريع!", "لقطة اليوووم!", "شوفوا هالسعر!",
+    "يا زين هاللقطة!", "عرض يستاهل تشيكون عليه!", "صيدتنا لكم اليوم!",
+    "لقينا لكم هالعرض!", "سعره اليوم يلفت النظر!", "هذي من الصيدات الحلوة!",
+    "تدرون وش لقينا؟", "مرّوا على هالعرض!", "لقطة تستاهل الوقفة!",
+    "هالعرض دخل مزاجنا!", "شوفوا وش طلع لنا!", "صيدة جديدة وصلت!",
+    "يا سلام على السعر!", "عرض اليوم بين أيديكم!", "خذوا نظرة على هالصيدة!",
+    "من الصيدات اللي تستاهل تشوفونها!", "لقينا لكم سعر حلو!",
+    "هذي تستاهل تنحط بالقائمة!", "عرض جديد يستحق النظرة!",
+    "للّي يدور هالمنتج، شوفوا هنا!", "نشارككم هاللقطة!",
+    "صيد اليوم وصل!", "هالسعر يستحق المقارنة!", "جديد الصيدات!",
+    "لقطة حلوة للي مهتم!", "شوفوا تفاصيل هالعرض!", "عرض لفت انتباهنا!",
+    "هذي لقطة اليوم عندنا!", "تعالوا شوفوا هالصيدة!", "سعر يستاهل تشوفونه!",
+    "منو كان يدور هالمنتج؟", "هذي يمكن تكون صيدتكم!", "عرض جديد على الرادار!",
+    "حطّوا عينكم على هالعرض!", "نظرة سريعة على هالسعر!", "صيدة تستاهل المشاركة!",
+    "وصلت لقطة ثانية!", "هالعرض يستاهل تعرفون عنه!", "شوفوا السعر والتفاصيل!",
+    "لقطة جديدة لكم!", "جبنا لكم شي يستاهل النظرة!", "هذي من اختيارات اليوم!",
+    "خلّونا نشوف هالعرض!", "سعر اليوم يستحق التوقف!", "صيدة على السريع!",
+    "عرض جديد يستاهل التشييك!", "يا حلو هالصيد!", "هذي لقطة ثانية من صيداتنا!",
 ]
-
 HOOKS_WITH_BRAND = [
-    "عرض جديد من {brand}",
-    "شوفوا هالعرض من {brand}",
-    "جبنا لكم عرض من {brand}",
-    "صيدة من {brand}",
+    "صيدة من {brand}!", "لقطة حلوة من {brand}!", "شوفوا هالعرض من {brand}!",
+    "هالسعر على منتج من {brand}!", "جديد الصيدات من {brand}!",
+    "لقينا لكم هاللقطة من {brand}!", "عرض يستاهل النظرة من {brand}!",
+    "من صيدات {brand} اليوم!", "شوفوا سعر هالمنتج من {brand}!",
+    "لقطة اليوم من {brand}!",
 ]
+EMOJIS = ["🔥", "⚡", "🎯", "🛍️", "📣", "✨", "🏷️", "🚨", "💥", "🌟", "👀", "🧡"]
+HOOK_HISTORY_FILE = os.environ.get("HOOK_HISTORY_FILE", "hook_history.json")
 
-EMOJIS = ["🔥", "⚡", "🎯", "🛍️", "📣", "✨", "🏷️", "🚨"]
+
+def _load_hook_history():
+    try:
+        with open(HOOK_HISTORY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except (OSError, ValueError, TypeError):
+        return []
 
 
 def generate_hook(brand=""):
     pool = list(HOOKS)
     if brand:
         pool += [h.format(brand=brand) for h in HOOKS_WITH_BRAND]
-    return f"{random.choice(EMOJIS)} <b>{random.choice(pool)}</b>"
+    history = _load_hook_history()
+    available = [h for h in pool if h not in history] or pool
+    chosen = random.choice(available)
+    history.append(chosen)
+    # ما نعيد العبارة إلا بعد دورة طويلة من العبارات المختلفة.
+    history = history[-len(pool):]
+    try:
+        with open(HOOK_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
+    return f"{random.choice(EMOJIS)} <b>{html.escape(chosen)}</b>"
 
 
 def detect_product_category(product_name):
@@ -624,18 +653,19 @@ def parse_note(text):
 
 AI_SYSTEM_PROMPT = """أنت كاتب بوستات محترف لقناة صيدات على تيليجرام جمهورها سعودي. الهدف: بوست قصير، راقي، يشدّ من أول سطر، بلهجة سعودية خليجية فقط (بدون أي كلمة مصرية أو شامية).
 
-الشكل (من 3 إلى 5 أسطر فقط):
-1) سطر افتتاحي قصير بخط عريض فيه حماس ومدّ حروف، مثل: صيييدة! / لقطة اليوووم! / قنص سريع! / هالسعر ما يتفوّت! — غيّره كل مرة ولا تكرر نفس الصياغة.
-2) سطر المنتج: **البراند** بالإنجليزي كما هو (لا تترجمه) + اسم المنتج بعربي طبيعي قصير + العدد أو الحجم بين أقواس.
-3) سطر السعر: 💰 بـ ... ريال بس
-4) اختياري فقط لو موجود في المعطيات: سطر المقارنة، سطر القسيمة أو الكود، سطر المقاس أو اللون.
+اكتب بأسلوب منشورات قنوات الصيدات السعودية الظاهر في المثال: عنوان حماسي واضح، ثم المنتج، ثم السعر، ثم المقارنة إن وجدت. خلّ الصياغة طبيعية ومتنوعة، واستخدم افتتاحيات كثيرة مختلفة ولا تكرر نفس العبارة الافتتاحية في المنشورات المتقاربة.
+الشكل:
+1) افتتاحية قصيرة ملفتة بخط عريض مع إيموجي، وبدّل بين أساليب مثل: صيييدة! / لقطة اليوووم! / يا زين هالسعر! / شوفوا وش لقينا! / قنص سريع! / عرض يستاهل النظرة! ولا تنسخ الأمثلة حرفياً كل مرة.
+2) اسم المنتج: **البراند** بالإنجليزي كما هو + اسم عربي مختصر طبيعي + العدد/الحجم بين أقواس إن توفر.
+3) السعر بسطر مستقل وواضح: 💰 بـ ... ريال بس.
+4) المقارنة بسطر مستقل إذا كانت موجودة في المعطيات، ثم القسيمة أو الكود أو اللون/المقاس إذا توفر.
+استخدم فواصل أسطر واضحة مثل منشور تيليجرام، ولا تكدّس كل المعلومات في فقرة واحدة.
 
 ممنوع منعاً باتاً:
 - أي رغي أو وصف تسويقي أو مميزات (مثل: جودة عالية، امتصاص قوي، موفر للطاقة، توصيل سريع، مثالي لـ...). لا تكتب إلا المعلومات الموجودة في المعطيات.
 - أي ادعاء ندرة أو استعجال (قبل ما يخلص، آخر قطع، لفترة محدودة).
 - أي خصم أو سعر قبل أو نسبة أو كود أو قسيمة غير موجودة في المعطيات. لو ما فيه قسيمة لا تذكرها نهائياً.
-- كلمة "أمازون" أو "السعودية" أو "Amazon".
-- كتابة أي رابط.
+- لا تكتب أي رابط داخل نص البوست؛ رابط المنتج يضاف بعد النص تلقائياً. يمكن ذكر اسم المتجر إذا كان ذلك طبيعياً ومفيداً، دون اختلاق معلومة أو خصم.
 
 المقارنة: لو فيه مقارنة في المعطيات، اكتبها بجملة واحدة بالكلام وليس بأعمدة، مثل:
 🔎 نفس المنتج عند غيرنا بحوالي 54 ريال، يعني توفرون 10 ريال
@@ -803,8 +833,6 @@ def _gemini_generate(facts_text):
 
 def validate_ai_text(text, facts_text):
     """يرجع سبب الرفض أو None لو النص سليم."""
-    if re.search(r'أمازون|امازون|السعودية|amazon', text, re.IGNORECASE):
-        return "النص ذكر كلمة ممنوعة"
     allowed = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', facts_text)}
     used = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', text)}
     if not used.issubset(allowed):
@@ -900,6 +928,9 @@ def handler(msg):
         note = parse_note(text)
         uae_aed = fetch_uae_price(asin)
         facts_text, compare_sources = build_facts(product, extras, uae_aed, asin, source_urls)
+        recent_hooks = _load_hook_history()[-15:]
+        if recent_hooks:
+            facts_text += "\nافتتاحيات استُخدمت مؤخراً ويُفضّل عدم تكرارها: " + " | ".join(recent_hooks)
         if note:
             facts_text += f"\nملاحظة من صاحب القناة: {note}"
 
@@ -910,9 +941,7 @@ def handler(msg):
             safe = html.escape(ai_text)
             safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', safe)
             safe = re.sub(r'`(.+?)`', r'<code>\1</code>', safe)
-            if compare_sources:
-                safe += "\n" + "\n".join(f"🔗 مصدر المقارنة: {html.escape(u)}" for u in compare_sources)
-            post = safe + "\n\n" + original_url
+            post = safe + "\n\n" + html.escape(original_url)
         else:
             post = generate_post(product, original_url)
 
@@ -921,8 +950,18 @@ def handler(msg):
                 bot.send_photo(msg.chat.id, product["image_url"], caption=post, parse_mode="HTML")
             else:
                 bot.send_message(msg.chat.id, post, parse_mode="HTML")
-        except Exception:
-            bot.send_message(msg.chat.id, post, parse_mode="HTML")
+            # رابط المقارنة في رسالة مستقلة بعد منشور المنتج، وليس داخل الكابشن.
+            sent_sources = []
+            for source_url in compare_sources:
+                if source_url and source_url not in sent_sources and source_url != original_url:
+                    bot.send_message(msg.chat.id, f"🔎 رابط مصدر المقارنة:\n{html.escape(source_url)}", parse_mode="HTML", disable_web_page_preview=True)
+                    sent_sources.append(source_url)
+        except Exception as send_error:
+            print(f"Telegram send error: {send_error}")
+            try:
+                bot.send_message(msg.chat.id, post, parse_mode="HTML")
+            except Exception as fallback_error:
+                print(f"Telegram fallback send error: {fallback_error}")
         finally:
             try:
                 bot.delete_message(msg.chat.id, wait.message_id)
