@@ -60,7 +60,8 @@ def get_headers():
 # الجملة الافتتاحية — لهجة سعودية، جمل قصيرة وواضحة، بدون ادعاءات
 # ============================================================
 HOOKS = [
-    "عرض جديد ما يتفوّت",
+    "صيييدة اليوم!",
+    "قنص سريع!",
     "شوفوا هالعرض",
     "لقطة اليوم",
     "وصلنا عرض حلو لكم",
@@ -392,6 +393,13 @@ def extract_coupons_and_vouchers(soup, current_price=0.0):
     best_percent = max(percents) if percents else None
     best_amount = max(amounts) if amounts else None
 
+    # حماية: خصم القسيمة غير منطقي -> نتجاهله بدل ما ننشر خصم مش حقيقي
+    if current_price > 0:
+        if best_amount is not None and best_amount > current_price * 0.5:
+            best_amount = None
+        if best_percent is not None and best_percent > 60:
+            best_percent = None
+
     if best_percent is not None and best_amount is not None and current_price > 0:
         if current_price * best_percent / 100 >= best_amount:
             info["discount_percent"] = best_percent
@@ -614,55 +622,59 @@ def parse_note(text):
     return re.sub(r'\s+', ' ', t).strip()
 
 
-AI_SYSTEM_PROMPT = """أنت كاتب محترف لبوستات قناة عروض على تيليجرام جمهورها سعودي. اكتب بلهجة سعودية خليجية طبيعية فقط، بدون أي كلمة مصرية أو شامية.
+AI_SYSTEM_PROMPT = """أنت كاتب بوستات محترف لقناة صيدات على تيليجرام جمهورها سعودي. الهدف: بوست قصير، راقي، يشدّ من أول سطر، بلهجة سعودية خليجية فقط (بدون أي كلمة مصرية أو شامية).
 
-قواعد صارمة:
-1. ممنوع تكتب كلمة "أمازون" أو "السعودية" أو "Amazon" نهائياً. الجمهور يعرف.
-2. استخدم فقط الأرقام والمعلومات الموجودة في "المعطيات". ممنوع تخترع سعر أو خصم أو كود أو مقارنة أو مقاس أو لون.
-3. اسم البراند يبقى بالإنجليزي كما هو بالضبط ولا يُترجم. اكتبه بخط عريض.
-3ب. لو ما فيه "البراند" في المعطيات وكان اسم المنتج عربي وفيه براند عالمي معروف (مثل بامبرز، نيفيا، فيليبس)، اكتبه بالحروف الإنجليزية الصحيحة (Pampers, Nivea, Philips). لو مو متأكد من البراند لا تخترع.
-4. اسم المنتج بعربي طبيعي قصير بدل الترجمة الحرفية (مثل: شامبو، حفاضات أطفال، طقم أواني، حليب طويل الأجل). حط العدد أو الحجم بين أقواس مثل ( 400 مل ).
-5. الجملة الافتتاحية سطر واحد قصير يشدّ، بخط عريض، وغيّرها كل مرة. لا تكرر نفس الصياغة.
-6. فيه سعر مقارنة (سوبرماركت، صيدلية، موقع آخر، أمازون الإمارات)؟ اعرضه بسطر ❌ وسعرنا بسطر ✅ أو 😱. الإمارات: 🇦🇪 عندهم ... ❌ و 🇸🇦 عندنا ... ✅. لا تذكر مقارنة غير موجودة في المعطيات.
-7. فيه كود خصم؟ اكتبه بين `` كما هو. فيه قسيمة؟ اكتب سطر: فعّلوا القسيمة من صفحة المنتج قبل الطلب. ما فيه؟ لا تذكر أكواد ولا قسائم.
-8. فيه لون أو مقاس في المعطيات؟ اذكره، ونبّه إن الفرق بين الألوان/المقاسات ممكن يكون في السعر فقط لو الملاحظة قالت كذا.
-9. لو فيه "ملاحظة من صاحب القناة" التزم بها وضمّنها بأسلوبك.
-10. من 4 إلى 7 أسطر قصيرة، كل سطر فكرة، إيموجي بسيطة، بدون شرح وبدون ختام. لا تكتب الرابط، يضاف تلقائياً.
+الشكل (من 3 إلى 5 أسطر فقط):
+1) سطر افتتاحي قصير بخط عريض فيه حماس ومدّ حروف، مثل: صيييدة! / لقطة اليوووم! / قنص سريع! / هالسعر ما يتفوّت! — غيّره كل مرة ولا تكرر نفس الصياغة.
+2) سطر المنتج: **البراند** بالإنجليزي كما هو (لا تترجمه) + اسم المنتج بعربي طبيعي قصير + العدد أو الحجم بين أقواس.
+3) سطر السعر: 💰 بـ ... ريال بس
+4) اختياري فقط لو موجود في المعطيات: سطر المقارنة، سطر القسيمة أو الكود، سطر المقاس أو اللون.
 
-أمثلة على الروح والأسلوب فقط (منتجات وأرقام من الخيال، لا تنسخها):
+ممنوع منعاً باتاً:
+- أي رغي أو وصف تسويقي أو مميزات (مثل: جودة عالية، امتصاص قوي، موفر للطاقة، توصيل سريع، مثالي لـ...). لا تكتب إلا المعلومات الموجودة في المعطيات.
+- أي ادعاء ندرة أو استعجال (قبل ما يخلص، آخر قطع، لفترة محدودة).
+- أي خصم أو سعر قبل أو نسبة أو كود أو قسيمة غير موجودة في المعطيات. لو ما فيه قسيمة لا تذكرها نهائياً.
+- كلمة "أمازون" أو "السعودية" أو "Amazon".
+- كتابة أي رابط.
 
-🔥 **صيدة للبنات!**
-**Real Techniques** طقم فرش مكياج ( 5 قطع )
-❌ بالصيدلية بـ 89 ريال
-😱 الحين بـ 52 ريال بس!
+المقارنة: لو فيه مقارنة في المعطيات، اكتبها بجملة واحدة بالكلام وليس بأعمدة، مثل:
+🔎 نفس المنتج عند غيرنا بحوالي 54 ريال، يعني توفرون 10 ريال
+استخدم الأرقام الموجودة في المعطيات فقط (بما فيها "الفرق"). لا تذكر اسم موقع ولا رابط، المصدر يضاف تلقائياً تحت البوست.
 
-👶 **يا أمهات، هذي لكم!**
-**Pampers** حفاضات أطفال مقاس 4 ( 70 حبة )
-🇦🇪 عندهم بـ 98 درهم ❌
-🇸🇦 عندنا بـ 79 ريال ✅
+القسيمة: لو فيه، اكتب السعر بعد القسيمة وسطر: 🎟️ فعّلوا القسيمة من صفحة المنتج قبل الطلب
+الكود: اكتبه بين `` كما هو.
+لو ما فيه "البراند" في المعطيات وكان اسم المنتج عربي وفيه براند عالمي معروف (بامبرز، نيفيا، فيليبس) اكتبه بالإنجليزي (Pampers, Nivea, Philips). لو مو متأكد لا تخترع.
+لو فيه "ملاحظة من صاحب القناة" التزم بها بدون إضافات.
+
+أمثلة على الروح فقط (أرقام ومنتجات من الخيال، لا تنسخها):
+
+🔥 **صيييدة للأمهات!**
+**Pampers** حفاضات كلوت مقاس 4 ( 112 حفاضة )
+💰 بـ 85 ريال بس
+🔎 نفسها في الإمارات بحوالي 101 ريال، يعني توفرون 16 ريال
+
+⚡ **قنص سريع!**
+**Tefal** طقم أواني ( 10 قطع )
+💰 بـ 235 ريال بس
 🎟️ فعّلوا القسيمة من صفحة المنتج قبل الطلب
 
-🎯 **تم القنص بنجاح!**
+🎯 **لقطة اليوووم!**
 **Skechers** حذاء رياضي رجالي
 👟 مقاس 43 | اللون الأسود
 💰 بـ 159 ريال بس
-❌ باقي الألوان أغلى، انتبهوا للون!
 
-🛒 **لقطة للمطبخ يا بنات!**
-**Tefal** طقم أواني ( 10 قطع )
-❌ بالسوبرماركت بـ 320 ريال
-✅ الحين بـ 235 ريال
-👀 فعّلوا العرض قبل الدفع
-
-🔥 **عرض ما يتكرر!**
+💥 **هالسعر ما يتفوّت!**
 **Almarai** حليب طويل الأجل ( 12 حبة )
 💰 بـ 42 ريال بس
 🎟️ كود الخصم: `SAVE10`
 """
 
 
-def build_facts(product, extras, uae_aed, note=""):
+def build_facts(product, extras, uae_aed, asin="", source_urls=None):
+    """يرجع (المعطيات للكاتب, روابط مصدر المقارنة)."""
+    source_urls = source_urls or []
     price = product["price"]
+    sources = []
     facts = [f"اسم المنتج بالإنجليزي: {product.get('title_raw', '')}"]
     if product["brand"]:
         facts.append(f"البراند: {product['brand']}")
@@ -674,19 +686,29 @@ def build_facts(product, extras, uae_aed, note=""):
         facts.append(f"المقاس: {product['size']}")
     if product.get("color"):
         facts.append(f"اللون: {product['color']}")
-    if note:
-        facts.append(f"ملاحظة من صاحب القناة: {note}")
     if product.get("coupon_code"):
         facts.append(f"كود الخصم: {product['coupon_code']}")
     elif product.get("voucher_text"):
         facts.append(f"فيه قسيمة تتفعّل من صفحة المنتج ({product['voucher_text']}) والسعر أعلاه بعدها")
+
+    # مقارنة يدوية: نذكرها فقط لو الرقم أعلى من سعرنا (يعني فعلاً توفير)
+    added_manual = False
     for label, p in extras:
-        facts.append(f"سعره في {label}: {format_price(p)} ريال")
+        if price > 0 and p >= price + 1:
+            facts.append(f"سعره في {label}: {format_price(p)} ريال (الفرق: {format_price(round(p - price, 2))} ريال)")
+            added_manual = True
+    if added_manual and source_urls:
+        sources.append(source_urls[0])
+
+    # مقارنة أمازون الإمارات: فقط لو أغلى بوضوح
     if uae_aed > 0 and price > 0:
         uae_sar = round(uae_aed * AED_TO_SAR)
-        if uae_sar > price:
-            facts.append(f"سعره في أمازون الإمارات: {format_price(uae_aed)} درهم (حوالي {uae_sar} ريال)")
-    return "\n".join(facts)
+        if uae_sar >= price * 1.05 and uae_sar - price >= 1:
+            facts.append(f"سعره في الإمارات: حوالي {uae_sar} ريال (الفرق: {format_price(round(uae_sar - price))} ريال)")
+            if asin:
+                sources.append(f"https://www.amazon.ae/dp/{asin}")
+
+    return "\n".join(facts), sources
 
 
 def _key_ok(key):
@@ -849,7 +871,9 @@ def generate_post(product, original_url):
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
     text = (msg.text or "").strip()
-    urls = re.findall(r'https?://\S+', text)
+    all_urls = [u.rstrip(".,،)") for u in re.findall(r'https?://\S+', text)]
+    urls = [u for u in all_urls if re.search(r'amazon|amzn', u, re.IGNORECASE)]
+    source_urls = [u for u in all_urls if u not in urls]
 
     if not urls:
         bot.reply_to(msg, "❌ أرسل رابط المنتج من أمازون السعودية لتحويله لبوست ✨")
@@ -875,7 +899,9 @@ def handler(msg):
         extras = parse_extras(text)
         note = parse_note(text)
         uae_aed = fetch_uae_price(asin)
-        facts_text = build_facts(product, extras, uae_aed, note)
+        facts_text, compare_sources = build_facts(product, extras, uae_aed, asin, source_urls)
+        if note:
+            facts_text += f"\nملاحظة من صاحب القناة: {note}"
 
         ai_text, ai_error = ai_write_post(facts_text)
         if ai_error:
@@ -884,6 +910,8 @@ def handler(msg):
             safe = html.escape(ai_text)
             safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', safe)
             safe = re.sub(r'`(.+?)`', r'<code>\1</code>', safe)
+            if compare_sources:
+                safe += "\n" + "\n".join(f"🔗 مصدر المقارنة: {html.escape(u)}" for u in compare_sources)
             post = safe + "\n\n" + original_url
         else:
             post = generate_post(product, original_url)
