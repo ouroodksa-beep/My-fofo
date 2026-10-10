@@ -59,64 +59,35 @@ def get_headers():
 # ============================================================
 # الجملة الافتتاحية — لهجة سعودية، جمل قصيرة وواضحة، بدون ادعاءات
 # ============================================================
-# عبارات افتتاحية كثيرة ومتنوعة. نخزّن آخر العبارات المستخدمة حتى لا تتكرر
-# مباشرةً، وحتى بعد إعادة تشغيل البوت.
 HOOKS = [
-    "وش رايكم بهالسعر؟", "للي يدور شي مثل كذا، شوفوا هاللقطة!", "اليوم لقينا لكم شي يستاهل", "هذي من اللقطات اللي توقفك", "خلّوا عينكم على هالسعر", "مرّ عليكم سعر مثل كذا؟", "نشارككم شي لفت انتباهنا", "تستاهل تشيكون عليها هالصيدة", "لقطة مختلفة للي مهتم", "شوفوا وش طلع معنا اليوم",
-    "السعر هذا يستاهل نظرة", "يا أهل البيت، شوفوا هالخيار", "للمهتمين بهالنوع، هذي لكم", "من الأشياء اللي تستاهل تنشاف", "مرّينا على هالمنتج ولقينا سعره", "خلوها عندكم بالقائمة", "هذي تستاهل المقارنة", "لقينا لكم خيار بسعر لطيف", "خلونا نوريكم هاللقطة", "سعره ممكن يفاجئكم",
-    "إذا كان على بالكم هالنوع، تفضلوا", "شي بسيط بس سعره لافت", "هذي لقطة تستاهل المشاركة", "وصلنا لكم خيار جديد", "شوفوا هالاختيار", "نظرة سريعة على هالسعر", "هالمنتج دخل قائمة صيداتنا", "لقطة اليوم من النوع المختلف", "هنا فيه سعر يستاهل الوقفة", "تعالوا شوفوا التفاصيل",
-    "وش تقولون عن هالعرض؟", "يمكن هذي اللي كنتوا تدورونها", "للي يحب يقارن الأسعار، شوفوا", "هالسعر شدّ انتباهنا", "من صيدات اليوم اللي تستاهل تنذكر", "خيار جديد قدامكم", "خذوا فكرة عن هالمنتج", "لقينا هالخيار وحبّينا نشارككم", "هذي تستحق نظرة سريعة", "على طاري الأسعار الحلوة، شوفوا هذي",
-    "يا حلو هالاختيار!", "خلّونا ندخل بالزبدة", "بدون مقدمات، شوفوا السعر", "هذي من اللقطات الجديدة", "شي يستاهل تحطونه بالحسبان", "لقينا لكم هالخيار اليوم", "نجيكم بشي مختلف هالمرة", "شوفوا هالمنتج وش سعره", "هالسعر له وقفة", "من الخيارات اللي مرت علينا اليوم",
-    "للي يسأل عن هالفئة، تفضلوا", "هذي ممكن تناسب احتياجكم", "حطّينا لكم هالخيار هنا", "خلّونا نشوف إذا السعر يستاهل", "تستاهل تمرّون عليها", "سعر اليوم على هالمنتج", "هذي لقطة على قدّ الاهتمام", "نشارككم اكتشاف اليوم", "شوفوا هالخيار على السريع", "لقطة ثانية من اللي لقيناها",
-    "ما نطوّل عليكم، هذي التفاصيل", "خلّوا المنتج تحت النظر", "سعره اليوم لفتنا", "من الخيارات اللي تستحق المقارنة", "شوفوا إذا يناسبكم هالخيار", "هذي للي يحبون هالنوع", "عندنا لكم اختيار جديد", "لقينا هالمنتج بسعر يستاهل تشوفونه", "نقطة اليوم: هالسعر", "هذي تستحق تنحفظ عندكم",
-    "مرّوا وشوفوا هالخيار", "السعر أول شي لفتنا", "خلّونا نشارككم اللي لقينا", "هالاختيار يستاهل تعرفون عنه", "من المنتجات اللي لقينا عليها سعر", "شوفوا هاللقطة الجديدة", "يمكن تلقون طلبكم هنا", "نحط هالخيار بين أيديكم", "هذي تستاهل تشييك", "لقطة خفيفة وسعر واضح",
-    "خلّونا نوريكم السعر على طول", "اليوم عندنا خيار ثاني لكم", "للي يحبون الصيدات العملية، شوفوا", "هالسعر يستحق ينشاف", "لقينا شي ممكن يهمكم", "خيار يستاهل تحطونه بالحسبان", "شوفوا هالمنتج من قريب", "هذي من الأشياء اللي مرّت علينا", "هنا الزبدة والسعر", "نشارككم هالخيار بدون لف ودوران",
-    "وش رايكم بهالخيار؟", "مرّ عليكم هالمنتج من قبل؟", "للي مهتم، هذي التفاصيل", "خيار جديد وصل لقائمة اليوم", "نظرة على منتج وسعره", "هذي تستاهل وقفة بسيطة", "شوفوا السعر واحكموا", "لقينا لكم شي ثاني", "خلّونا نضيف هذي للصيدات", "هالمنتج يستاهل تشوفون سعره",
-    "هذي من اختياراتنا اليوم", "نجيكم بخيار يمكن يعجبكم", "اللي يدور هالفئة يمر هنا", "شوفوا هالسعر قبل ما تحكمون", "سعر واضح وخيار قدامكم", "هذي لقطة جديدة على القناة", "حبيتوا هالنوع؟ شوفوا", "من الأشياء اللي تستاهل البحث", "تعالوا ناخذ نظرة", "هالخيار صار ضمن صيداتنا",
-    "ما بين الخيارات، هذي لفتتنا", "هذي للي يهمه السعر", "خيار اليوم يستاهل الانتباه", "لقينا لكم منتج ثاني", "خلّوا هالسعر ببالكم", "شوفوا وش لقينا لكم هالمرة", "نشارككم هالتفصيلة", "هنا فيه شي يستاهل النظر", "السعر يستحق نقولكم عنه", "هذي تستاهل تنشاف اليوم",
-    "للي يحب يلقط السعر المناسب، شوفوا", "خيار بسيط يستحق نظرة", "هذي لقطة على السريع لكم", "خلّونا نبدأ بالسعر", "هالمنتج صار على الرادار", "من الخيارات الجديدة عندنا", "شوفوا هالشي اللي لقيناه", "نحط لكم هالصيدة الجديدة", "سعره يستاهل تعرفونه", "هذي من اللقطات اللي نحب نشاركها",
-    "خلّونا نختصرها لكم", "اللي يهمه السعر، يتفضل", "شوفوا هالمنتج وسعره", "هذي لقطة تستحق التوقف", "وصلنا خيار جديد للقناة", "نظرة اليوم على هالمنتج", "هالخيار ممكن يكون مناسب لكم", "لقينا لكم سعر يستحق المقارنة", "هذي تستاهل تنحط بالحسبان", "نخليكم مع هالتفاصيل",
+    "صيييدة اليوم!",
+    "قنص سريع!",
+    "شوفوا هالعرض",
+    "لقطة اليوم",
+    "وصلنا عرض حلو لكم",
+    "جبنا لكم عرض جديد",
+    "عرض يستاهل نظرة",
+    "سعر حلو لهالمنتج",
+    "هذا المنتج سعره اليوم مناسب",
+    "إذا كنتم تدورون عليه، شوفوا سعره الحين",
+    "صيدة اليوم",
 ]
+
 HOOKS_WITH_BRAND = [
-    "صيدة من {brand}!", "لقطة حلوة من {brand}!", "شوفوا هالعرض من {brand}!",
-    "هالسعر على منتج من {brand}!", "جديد الصيدات من {brand}!",
-    "لقينا لكم هاللقطة من {brand}!", "عرض يستاهل النظرة من {brand}!",
-    "من صيدات {brand} اليوم!", "شوفوا سعر هالمنتج من {brand}!",
-    "لقطة اليوم من {brand}!",
+    "عرض جديد من {brand}",
+    "شوفوا هالعرض من {brand}",
+    "جبنا لكم عرض من {brand}",
+    "صيدة من {brand}",
 ]
-EMOJI_PAIRS = [
-    "🔥🚨", "✨👀", "🎯💥", "🛍️✨", "⚡🏷️", "🤩🔥", "💸👀", "🌟🛒",
-    "😍✨", "📣🔥", "🏕️⚡", "🧴💖", "🏠✨", "🎁💥", "💰🎯", "🧡🛍️",
-]
-EMOJIS = ["🔥", "⚡", "🎯", "🛍️", "📣", "✨", "🏷️", "🚨", "💥", "🌟", "👀", "🧡"]
-HOOK_HISTORY_FILE = os.environ.get("HOOK_HISTORY_FILE", "hook_history.json")
 
-
-def _load_hook_history():
-    try:
-        with open(HOOK_HISTORY_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data if isinstance(data, list) else []
-    except (OSError, ValueError, TypeError):
-        return []
+EMOJIS = ["🔥", "⚡", "🎯", "🛍️", "📣", "✨", "🏷️", "🚨"]
 
 
 def generate_hook(brand=""):
     pool = list(HOOKS)
     if brand:
         pool += [h.format(brand=brand) for h in HOOKS_WITH_BRAND]
-    history = _load_hook_history()
-    available = [h for h in pool if h not in history] or pool
-    chosen = random.choice(available)
-    history.append(chosen)
-    # ما نعيد العبارة إلا بعد دورة طويلة من العبارات المختلفة.
-    history = history[-len(pool):]
-    try:
-        with open(HOOK_HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
-    except OSError:
-        pass
-    return f"{random.choice(EMOJI_PAIRS)} <b>{html.escape(chosen)}</b>"
+    return f"{random.choice(EMOJIS)} <b>{random.choice(pool)}</b>"
 
 
 def detect_product_category(product_name):
@@ -574,9 +545,25 @@ def fetch_product_details(url, asin):
             elif coupon.get("discount_amount"):
                 final_price = max(round(price - coupon["discount_amount"], 2), 0)
 
+        # أهم المزايا/تفاصيل العبوة الظاهرة فعلاً في صفحة المنتج
+        feature_items = []
+        for selector in ["#feature-bullets li span.a-list-item", "#feature-bullets li", "#productDescription p"]:
+            for elem in soup.select(selector):
+                value = re.sub(r"\s+", " ", elem.get_text(" ", strip=True)).strip()
+                value = re.sub(r"^(?:[•·▪︎\-]+)\s*", "", value)
+                if (len(value) >= 12 and len(value) <= 220
+                        and not re.search(r"إعلان|تسوق الآن|قد يعجبك|sponsored|customers also", value, re.IGNORECASE)
+                        and value not in feature_items):
+                    feature_items.append(value)
+                if len(feature_items) >= 8:
+                    break
+            if len(feature_items) >= 8:
+                break
+
         return {
             "title_clean": title_res,
             "title_raw": title,
+            "features": feature_items[:6],
             **extract_variants(soup),
             "brand": brand,
             "package": package_detail,
@@ -651,26 +638,59 @@ def parse_note(text):
     return re.sub(r'\s+', ' ', t).strip()
 
 
-AI_SYSTEM_PROMPT = """أنت محرر منشورات لقناة صيدات سعودية على تيليجرام. اكتب بلهجة سعودية/خليجية دارجة وطبيعية، بأسلوب قنوات الصيدات الحقيقية، بعيداً عن أسلوب المتاجر والإعلانات الرسمية. لا تلتزم بتعبير واحد ولا تجعل كل المنشورات تبدأ بـ «يا زين» أو «صيدة اليوم».
+AI_SYSTEM_PROMPT = """أنت كاتب منشورات لقناة تيليجرام سعودية للعروض والصيدات. اكتب بلهجة سعودية خليجية طبيعية، بسيطة، قريبة من الناس وعفوية، مثل شخص لقى عرض حلو وجاء يشاركه مع متابعينه. خذ روح منشورات قنوات الصيدات: حماس، إيموجيز كثيرة بشكل مرتب، جمل قصيرة، ولمسة شخصية خفيفة. لا تقلّد مثالاً واحداً حرفياً ولا تكرر نفس الافتتاحية في كل مرة.
 
-قاعدة أساسية لا يمكن تجاوزها: اذكر اسم المنتج مرة واحدة فقط في المنشور. اجمع البراند واسم الصنف والحجم/اللون الضروري في سطر واحد، ولا تعِد اسم الصنف في عنوان أو سطر آخر أو وصف إضافي. لا تكرر المعلومة نفسها بصياغة ثانية. إذا كتبت اسم المنتج في السطر الأساسي، انتقل بعدها مباشرة للسعر أو المقارنة أو الكود.
+الأسلوب المطلوب:
+- اكتشف «سبب جاذبية العرض» من تفاصيل الصفحة نفسها: عدد القطع مقابل السعر، حجم/وزن كبير، عبوة متعددة، كمية كثيرة، سعر منخفض للوحدة، أو ميزة عملية واضحة. أبرز أقوى نقطة أو نقطتين فقط وبصياغة بسيطة. مثال: «🧼 **٣ قطع بـ ٤ ريال بس!**» أو «📦 **حجم كبير وسعره خفيف**» فقط إذا كانت البيانات تدعم ذلك. احسب سعر القطعة/الوحدة فقط عندما يكون العدد والسعر واضحين، وبيّن أنه تقريباً إذا لزم.
+- اقرأ مزايا المنتج المستخرجة من الصفحة، وانتقِ المهم والمفيد للمتابع، لا تسرد كل المواصفات ولا تخترع ميزة غير موجودة. إذا كانت المعلومات لا تدعم ميزة واضحة، ركّز على السعر/الحجم/الكمية بدل اختراع كلام تسويقي.
+- اجعل كل سطر يبدأ من جهة اليمين بصرياً: ابدأه بإيموجي أو علامة عربية، حتى لو جاء بعده اسم إنجليزي أو رابط. لا تبدأ أي سطر بحرف لاتيني أو رقم أو URL. ضع إيموجي قبل الرابط النهائي أيضاً.
+- استخدم **الخط العريض بكثرة وبذوق**: الافتتاحية، المنتج، السعر، العدد/الحجم، وأهم ميزة أو نسبة التوفير. لا تترك السطور المهمة عادية، لكن لا تجعل كل كلمة عريضة بلا تمييز.
+- إذا توفر سعر مقارنة موثوق أعلى، اعرض السعر الحالي والسعر المقارن ونسبة التوفير أو مقدارها، واختر ما يوضح قيمة الصيدة بشكل أجمل. لا تسمِّه «السعر السابق» إلا إذا كان فعلاً سعراً سابقاً موثقاً للمنتج نفسه.
+- خلّ المنشور يشد من أول سطر، وغيّر الافتتاحية حسب المنتج، مثل: 🎯🔥 **تم القنص بنجاح!** / 🚨 **يا أهل الرحلات، شوفوا هالصيدة!** / 👀 **شوفوا فرق السعر!** / 🔥 **لقيت لكم هالعرض!** / 🍝 **حتى المقاضي لها صيدات!**. هذه أمثلة إلهام فقط، اختر عبارة مناسبة ولا تستخدمها آلياً كل مرة.
+- استخدم تعابير خليجية سهلة مثل: «شوفوا»، «يا جماعة»، «بس»، «هالصيدة»، «لقيت لكم»، «اللي يدور عليه». لا تكثر كلاماً مصطنعاً أو مبالغات.
+- استخدم الإيموجيز بوضوح وحماس وبما يناسب المنتج: 🎯🔥🚨👀😍⭐👟⌨️🏕️🍝🛒. نوّعها ولا تحشرها بلا داعٍ.
+- التنسيق لازم يكون لافتاً وفخماً بصرياً: استخدم الخط العريض بكثرة وبذوق، خصوصاً الافتتاحية، اسم المنتج، السعر الحالي، المقاس/اللون المهم، السعر السابق أو نسبة الخصم إذا كانت محسوبة ومؤكدة. ممكن تجعل معظم السطور المهمة عريضة، لكن لا تجعل المنشور كله كتلة واحدة عريضة.
+- مهم جداً لاتجاه الكتابة: ابدأ كل سطر بإيموجي أو علامة عربية/بصرية قبل أي كلمة، حتى لو كان اسم المنتج أو البراند بالإنجليزي. لا تبدأ السطر مباشرة بحروف إنجليزية أو رابط. أمثلة: «⌨️ **كيبورد EPOMAKER**»، «💰 **السعر: 149 ريال**»، «🏷️ **الخصم: 30%**».
+- خلّ المنشور بارزاً وسهل القراءة، عادةً من 5 إلى 9 أسطر قصيرة، مع مسافات واضحة بين الافتتاحية واسم المنتج والسعر وأقوى ميزة. لا تختصره لدرجة يصير باهتاً، ولا تطوّله بكلام فارغ.
+- نوّع شكل المنشور حسب المعلومات المتوفرة: أحياناً ركّز على السعر، وأحياناً المقارنة، وأحياناً نسبة التوفير أو ميزة مؤكدة. لا تضف السعر السابق أو نسبة خصم إلا إذا كانت بياناتهما موجودة أو أمكن حسابها حساباً صحيحاً من سعر مقارنة موثوق وارد في المعطيات.
+- ممكن تضيف تعليقاً خفيفاً قريباً من الناس إذا كان مناسباً ومدعوماً بالمعلومات، مثل «شوفوا فرق السعر 👀» أو «انتبهوا للمقاس». لا تدّعِ أنك جرّبت المنتج أو بحثت في مواقع أخرى إلا إذا ورد ذلك صراحةً في المعطيات أو ملاحظة صاحب القناة.
 
-التنوع:
-- غيّر المدخل والفكرة والنبرة في كل مرة: سؤال، تعليق على السعر، مخاطبة المهتمين بالفئة، ملاحظة خفيفة، مفاجأة بالسعر، أو دخول مباشر في الموضوع.
-- تجنب تكرار أي افتتاحية موجودة في المعطيات ضمن «افتتاحيات استُخدمت مؤخراً». لا تستخدم مرادفاً قريباً منها إذا كان واضحاً أنه تكرار.
-- لا تكرر نفس البناء في كل منشور؛ بعض المنشورات تبدأ بسؤال، وبعضها بتعليق، وبعضها مباشرة باسم الفئة. لا تجعل «يا زين» أو «شوفوا» لازمة ثابتة.
-- استخدم لهجة خليجية واضحة مثل: هالمنتج، للي يدور، لقيتوه، وش رايكم، بس، هالسعر، شيّكت، من الآخر، حسب سياق الجملة، ولا تكدّسها كلها في منشور واحد.
+ممنوع منعاً باتاً:
+- اختراع أي معلومة أو سعر سابق أو نسبة خصم أو تقييم أو مقارنة أو ميزة أو توفر أو تجربة شخصية غير موجودة في المعطيات.
+- ادعاء الندرة أو الاستعجال من عندك مثل: «الحقوا قبل ما يخلص»، «آخر قطع»، «لفترة محدودة».
+- وصف تسويقي عام غير مثبت مثل «جودة خرافية» أو «أفضل منتج» أو «مضمون».
+- كلمة «أمازون» أو «السعودية» أو "Amazon" داخل نص المنشور.
+- كتابة أي رابط داخل المنشور؛ الرابط والمصدر يضافان تلقائياً بعده.
+- استخدام لهجة مصرية أو شامية، أو لغة رسمية ومتكلفة، أو جمل طويلة ومكررة.
 
-التنسيق:
-- العنوان سطر قصير **عريض**، وإيموجي أو اثنان مناسبين فقط في العنوان. إجمالي الإيموجيات عادة 2-4 للمنشور، بدون تكرار مزعج.
-- اترك سطراً فارغاً بين العنوان، وسطر المنتج، والسعر/المقارنة.
-- سطر المنتج واحد فقط: البراند بالإنجليزي كما هو + اسم الصنف بالعربي الطبيعي + الحجم/العدد/اللون إن توفرت البيانات. لا تعِد الصنف في أي سطر آخر.
-- السعر الحالي **عريض** وواضح. إذا فيه سعر سابق موثّق، اكتبه مشطوباً هكذا ~~299 ريال~~، ولا تخترع سعراً سابقاً أو خصماً.
-- إذا فيه كود وقسيمة معاً: سطر الكود أولاً 🎟️ كود الخصم: `SAVE10` ثم تحته مباشرة 🎫 فعّلوا القسيمة من صفحة المنتج قبل الطلب.
-- المقارنة بسطر مستقل وبلهجة طبيعية، باستخدام الأرقام الواردة فقط. لا تخترع أسعاراً أو فروقاً.
-- لا تذكر أي ميزة أو تقييم أو ندرة أو استعجال غير موجود في البيانات. لا تكتب رابط المنتج أو مصدر المقارنة؛ يضافان خارج النص تلقائياً.
+معلومات المنتج:
+- اكتب البراند بالإنجليزي كما هو إذا كان متوفراً، ولا تترجمه. اكتب اسم المنتج بعربي طبيعي ومختصر، مع المقاس أو اللون أو الحجم إذا كانت المعلومات متوفرة.
+- السعر: وضّح السعر الحالي بوضوح، مثل: **بـ 140 ريال بس!**. لا تغيّر السعر ولا تضف رقماً غير موجود.
+- المقارنة: إذا وُجد سعر مقارنة أعلى في المعطيات، اعرض السعر المقارن والتوفير بشكل واضح، ويمكن حساب نسبة التوفير = (السعر المقارن - السعر الحالي) ÷ السعر المقارن × 100، وتقريبها لأقرب عدد صحيح. وضّح أنها مقارنة بالسعر المذكور في البيانات، ولا تصفها كسعر سابق رسمي إلا إذا كانت البيانات تثبت ذلك.
+- اجعل العرض جذاباً بصرياً: مثل «💰 **الحين بـ 149 ريال!**» و«👀 **توفير حوالي 25%**» عند توفر الأرقام اللازمة. لا تحشر كل تفاصيل المقارنة في كل منشور؛ اختر الأنسب للمنتج.
+- القسيمة: إذا وُجدت قسيمة، اذكرها بوضوح: «🎟️ فعّلوا القسيمة من صفحة المنتج قبل الطلب». لا تذكر قسيمة إذا لم تكن موجودة.
+- الكود: اكتبه بين علامتي backticks كما هو تماماً.
+- إذا كانت هناك ملاحظة من صاحب القناة، التزم بها بدقة ولا تضف معلومة تناقضها.
+- لا تكتب مقدمات عن نفسك ولا تشرح طريقة الكتابة. أخرج المنشور النهائي فقط.
 
-أخرج المنشور فقط، من دون شرح أو عناوين مثل «المنشور:». لا تكرر جملة أو اسم منتج مرتين. إذا لم توجد معلومة إضافية، لا تملأ الفراغ بوصف تسويقي.
+أمثلة على الروح والتنسيق فقط؛ لا تنسخها حرفياً ولا تستخدم أسعارها أو منتجاتها:
+
+🎯🔥 **تم القنص بنجاح!**
+👟 **نايك نسائي | مقاس 38**
+🔥 **بـ 140 ريال بس!**
+❌ باقي المقاسات سعرها مختلف.
+
+👀 **شوفوا هالصيدة يا جماعة!**
+🍝 **مكرونة وفرة (400 جم)**
+💰 **بـ 1.83 ريال بس!**
+
+⌨️ **كيبورد من EPOMAKER** 👀🔥
+فرق السعر بين الألوان يستاهل تشوفونه!
+⚠️ بدون أحرف عربية.
+
+🚨🔥 **صيدة لأهل الرحلات!** 🏕️
+**كرسي رحلات بـ 174 ريال بس!**
+🔎 المقارنة تذكر فقط إذا كانت موجودة فعلاً في المعطيات.
 """
 
 
@@ -690,6 +710,9 @@ def build_facts(product, extras, uae_aed, asin="", source_urls=None):
         facts.append(f"المقاس: {product['size']}")
     if product.get("color"):
         facts.append(f"اللون: {product['color']}")
+    if product.get("features"):
+        facts.append("تفاصيل ومزايا مذكورة في صفحة المنتج (استخدم المفيد فقط، ولا تحولها لادعاءات أكبر):")
+        facts.extend(f"- {feature}" for feature in product["features"][:6])
     if product.get("coupon_code"):
         facts.append(f"كود الخصم: {product['coupon_code']}")
     elif product.get("voucher_text"):
@@ -699,7 +722,7 @@ def build_facts(product, extras, uae_aed, asin="", source_urls=None):
     added_manual = False
     for label, p in extras:
         if price > 0 and p >= price + 1:
-            facts.append(f"سعره في {label}: {format_price(p)} ريال (الفرق: {format_price(round(p - price, 2))} ريال)")
+            facts.append(f"سعره في {label}: {format_price(p)} ريال (الفرق: {format_price(round(p - price, 2))} ريال، توفير حوالي {round((p - price) / p * 100)}% مقارنة بهذا السعر)")
             added_manual = True
     if added_manual and source_urls:
         sources.append(source_urls[0])
@@ -708,7 +731,7 @@ def build_facts(product, extras, uae_aed, asin="", source_urls=None):
     if uae_aed > 0 and price > 0:
         uae_sar = round(uae_aed * AED_TO_SAR)
         if uae_sar >= price * 1.05 and uae_sar - price >= 1:
-            facts.append(f"سعره في الإمارات: حوالي {uae_sar} ريال (الفرق: {format_price(round(uae_sar - price))} ريال)")
+            facts.append(f"سعره في الإمارات: حوالي {uae_sar} ريال (الفرق: {format_price(round(uae_sar - price))} ريال، توفير حوالي {round((uae_sar - price) / uae_sar * 100)}% مقارنة بهذا السعر)")
             if asin:
                 sources.append(f"https://www.amazon.ae/dp/{asin}")
 
@@ -720,7 +743,11 @@ def _key_ok(key):
 
 
 def _user_prompt(facts_text):
-    return "المعطيات:\n" + facts_text + "\n\nاكتب البوست."
+    return ("المعطيات:\n" + facts_text + "\n\nاكتب بوستاً سعودياً خليجياً جذاباً. "
+            "ابدأ كل سطر بإيموجي/علامة قبل النص حتى لا يبدأ أي سطر بحروف إنجليزية من اليسار. "
+            "استخدم **الخط العريض** بسخاء لافتتاحية المنشور واسم المنتج والسعر وأهم معلومة، "
+            "وإذا توفرت مقارنة موثوقة فاذكر التوفير ونسبته المحسوبة بشكل صحيح. "
+            "لا تخترع سعراً سابقاً أو خصماً، ولا تغيّر أي رقم من المعطيات.")
 
 
 def _groq_generate(facts_text):
@@ -805,8 +832,28 @@ def _gemini_generate(facts_text):
     return None, last_error
 
 
+def style_post_lines(text):
+    """يحافظ على اتجاه RTL بصرياً ويبرز السطور المهمة من دون تعديل الحقائق."""
+    lines = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            lines.append("")
+            continue
+        # أضف علامة مرئية في بداية السطر، خصوصاً إذا بدأ باسم إنجليزي.
+        if not re.match(r'^[\W_]', line, re.UNICODE) and not line.startswith(("**", "`")):
+            line = "✨ " + line
+        # إذا بدأ السطر بالإنجليزية، ضع إيموجي قبله لضبط بداية السطر بصرياً.
+        if re.match(r'^[A-Za-z]', line):
+            line = "✨ " + line
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
 def validate_ai_text(text, facts_text):
     """يرجع سبب الرفض أو None لو النص سليم."""
+    if re.search(r'أمازون|امازون|السعودية|amazon', text, re.IGNORECASE):
+        return "النص ذكر كلمة ممنوعة"
     allowed = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', facts_text)}
     used = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', text)}
     if not used.issubset(allowed):
@@ -833,96 +880,41 @@ def ai_write_post(facts_text):
     return None, " | ".join(errors)
 
 
-def markdown_to_telegram_html(text):
-    """تحويل Markdown إلى HTML آمن يدعمه تيليجرام."""
-    escaped = html.escape(text or "")
-    code_blocks = []
-    def save_code(match):
-        code_blocks.append(match.group(1))
-        return f"@@CODE{len(code_blocks)-1}@@"
-    escaped = re.sub(r"`([^`]+)`", save_code, escaped)
-    escaped = re.sub(r"~~(.+?)~~", r"<s>\1</s>", escaped)
-    escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escaped)
-    escaped = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"<i>\1</i>", escaped)
-    for idx, code in enumerate(code_blocks):
-        escaped = escaped.replace(f"@@CODE{idx}@@", f"<code>{code}</code>")
-    return escaped
-
-
 def generate_post(product, original_url):
-    """قالب احتياطي بأسلوب منشورات الصيدات السعودية، وليس قالب أسعار جامداً."""
-    title = html.escape(product.get("title_clean") or "منتج مميز")
-    brand = html.escape(product.get("brand") or "")
-    package = html.escape(product.get("package") or "")
-    price = product.get("price", 0)
-    category = product.get("category", "general")
+    title = html.escape(product["title_clean"])
+    brand = html.escape(product["brand"])
+    package = html.escape(product["package"])
+    price = product["price"]
 
-    if package and package.lower() in title.lower():
+    if package and package in title:
         package = ""
+    brand_str = f"<b>{brand}</b> " if brand else ""
+    package_str = f" <b>({package})</b>" if package else ""
 
-    product_name = f"<b>{brand}</b> {title}" if brand else title
-    if package:
-        product_name += f" ({package})"
-
-    # استخدم مكتبة الافتتاحيات الكبيرة لكل الفئات حتى لا يعلق القالب على 3 عبارات فقط.
-    pool = HOOKS
-    history = _load_hook_history()
-    available = [h for h in pool if h not in history] or pool
-    hook = random.choice(available)
-    history = (history + [hook])[-80:]
-    try:
-        with open(HOOK_HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
-    except OSError:
-        pass
-
-    lines = [f"🔥🚨 <b>{html.escape(hook)}</b>", "", f"{get_category_emoji(category)} {product_name}"]
-    if price and price > 0:
-        lines[-1] += f" بـ <b>{format_price(price)} ريال بس</b>!"
-    # السعر قبل القسيمة يُعرض مشطوباً فقط عندما يكون موثقاً في بيانات الصفحة.
-    old_price = product.get("price_before_coupon", 0)
-    if old_price and old_price > price and price > 0:
-        lines.extend(["", f"🏷️ قبل القسيمة: <s>{format_price(old_price)} ريال</s>"])
-
-    if product.get("color") or product.get("size"):
-        details = []
-        if product.get("size"):
-            details.append("المقاس " + html.escape(str(product["size"])))
-        if product.get("color"):
-            details.append("اللون " + html.escape(str(product["color"])))
-        lines.extend(["", "👀 " + " | ".join(details)])
+    lines = [
+        f"🎯🔥 <b>{html.escape(generate_hook(brand))}</b>",
+        "",
+        f"{get_category_emoji(product['category'])} {brand_str}<b>{title}</b>{package_str}",
+        "",
+    ]
 
     coupon_code = product.get("coupon_code")
     voucher_text = product.get("voucher_text")
+
+    if price > 0:
+        if voucher_text:
+            lines.append(f"💰 السعر بعد الخصم الإضافي: <b>{format_price(price)} ريال</b>")
+        else:
+            lines.append(f"💰 السعر: <b>{format_price(price)} ريال</b>")
+
     if coupon_code:
-        lines.extend(["", f"🎟️ كود الخصم: <code>{html.escape(coupon_code)}</code>"])
-    if voucher_text:
-        lines.append("🎫 فعّلوا القسيمة من صفحة المنتج قبل الطلب ✅")
+        lines.append(f"🎟️ كود الخصم: <code>{html.escape(coupon_code)}</code>")
+    elif voucher_text:
+        lines.append("🎟️ فعّل القسيمة من صفحة المنتج قبل الطلب ✅")
 
-    lines.extend(["", html.escape(original_url)])
+    lines.append("")
+    lines.append(f"🔗 {original_url}")
     return "\n".join(lines)
-
-
-def remove_repeated_product_lines(text, product):
-    """يحذف أسطر إعادة تسمية المنتج بعد سطر التعريف الأساسي، مع إبقاء السعر والمقارنة والكوبون."""
-    lines = (text or "").splitlines()
-    brand = (product.get("brand") or "").strip().casefold()
-    title = re.sub(r"[^\w\s]", " ", product.get("title_clean") or "").casefold()
-    title_tokens = [w for w in title.split() if len(w) > 2]
-    identity_seen = False
-    result = []
-    protected = re.compile(r"سعر|ريال|مقارنة|الإمارات|الفرق|كود|قسيمة|القسيمة|لون|مقاس|حجم|حفاضة|حفاضات", re.I)
-    for line_index, line in enumerate(lines):
-        plain = re.sub(r"[*_`~]", "", line)
-        norm = re.sub(r"[^\w\s]", " ", plain).casefold()
-        # السطر الأول عنوان؛ لا نعتبره سطر تعريف المنتج حتى لا نحذف سطر المنتج الأساسي بالخطأ.
-        is_product_line = line_index > 0 and bool((brand and brand in norm) or (title_tokens and sum(1 for t in title_tokens if t in norm) >= max(2, min(3, len(title_tokens)))))
-        if is_product_line and not protected.search(plain):
-            if identity_seen:
-                continue
-            identity_seen = True
-        result.append(line)
-    return "\n".join(result).strip()
 
 
 @bot.message_handler(func=lambda m: True)
@@ -957,9 +949,6 @@ def handler(msg):
         note = parse_note(text)
         uae_aed = fetch_uae_price(asin)
         facts_text, compare_sources = build_facts(product, extras, uae_aed, asin, source_urls)
-        recent_hooks = _load_hook_history()[-40:]
-        if recent_hooks:
-            facts_text += "\nافتتاحيات استُخدمت مؤخراً ويُفضّل عدم تكرارها: " + " | ".join(recent_hooks)
         if note:
             facts_text += f"\nملاحظة من صاحب القناة: {note}"
 
@@ -967,20 +956,20 @@ def handler(msg):
         if ai_error:
             bot.send_message(msg.chat.id, f"⚠️ الكاتب الذكي ما اشتغل ({ai_error})، استخدمت القالب العادي.")
         if ai_text:
-            ai_text = remove_repeated_product_lines(ai_text, product)
-            # حفظ افتتاحية الكاتب الذكي أيضاً لتقليل تكرارها بين المنشورات.
-            first_line = re.sub(r"<[^>]+>", "", ai_text.splitlines()[0]).strip() if ai_text.splitlines() else ""
-            if first_line:
-                history = _load_hook_history()
-                history.append(first_line)
-                try:
-                    with open(HOOK_HISTORY_FILE, "w", encoding="utf-8") as f:
-                        json.dump(history[-80:], f, ensure_ascii=False, indent=2)
-                except OSError:
-                    pass
-            safe = markdown_to_telegram_html(ai_text)
-            # لو ذكر الكاتب السعر قبل القسيمة، تأكد أن صيغة الشطب تظهر بشكل صحيح في تيليجرام.
-            post = safe + "\n\n" + html.escape(original_url)
+            ai_text = style_post_lines(ai_text)
+            safe = html.escape(ai_text)
+            safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', safe)
+            safe = re.sub(r'`(.+?)`', r'<code>\1</code>', safe)
+            # علامة بصرية في بداية كل سطر حتى لا يبدأ النص الإنجليزي من اليسار
+            safe_lines = []
+            for line in safe.splitlines():
+                if line.strip() and not re.match(r"^[^A-Za-z0-9\s]", line.strip()):
+                    line = "👀 " + line
+                safe_lines.append(line)
+            safe = "\n".join(safe_lines)
+            if compare_sources:
+                safe += "\n" + "\n".join(f"🔎 **مصدر المقارنة:** {html.escape(u)}" for u in compare_sources)
+            post = safe + "\n\n🔗 " + original_url
         else:
             post = generate_post(product, original_url)
 
@@ -989,18 +978,8 @@ def handler(msg):
                 bot.send_photo(msg.chat.id, product["image_url"], caption=post, parse_mode="HTML")
             else:
                 bot.send_message(msg.chat.id, post, parse_mode="HTML")
-            # رابط المقارنة في رسالة مستقلة بعد منشور المنتج، وليس داخل الكابشن.
-            sent_sources = []
-            for source_url in compare_sources:
-                if source_url and source_url not in sent_sources and source_url != original_url:
-                    bot.send_message(msg.chat.id, f"🔎 رابط مصدر المقارنة:\n{html.escape(source_url)}", parse_mode="HTML", disable_web_page_preview=True)
-                    sent_sources.append(source_url)
-        except Exception as send_error:
-            print(f"Telegram send error: {send_error}")
-            try:
-                bot.send_message(msg.chat.id, post, parse_mode="HTML")
-            except Exception as fallback_error:
-                print(f"Telegram fallback send error: {fallback_error}")
+        except Exception:
+            bot.send_message(msg.chat.id, post, parse_mode="HTML")
         finally:
             try:
                 bot.delete_message(msg.chat.id, wait.message_id)
