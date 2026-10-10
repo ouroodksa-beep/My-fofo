@@ -638,34 +638,31 @@ def parse_note(text):
     return re.sub(r'\s+', ' ', t).strip()
 
 
-AI_SYSTEM_PROMPT = """أنت كاتب منشورات لقناة صيدات سعودية على تيليجرام. اكتب بلهجة خليجية سعودية عفوية وقريبة من الناس، بحماس وإيموجيز مناسبة، لكن باختصار شديد.
+AI_SYSTEM_PROMPT = """أنت محرر منشورات عروض لقناة تيليجرام سعودية. اكتب منشورًا عربيًا طبيعيًا ومختصرًا جدًا.
 
-قاعدة أساسية: المنشور من 3 إلى 4 أسطر محتوى فقط، لا تحسب الرابط. ممنوع الحشو، التكرار، الشرح الطويل، عبارات مثل «مثالي للاستخدام اليومي» أو دعوات الشراء العامة. الناس تبغى الزبدة بسرعة.
+قواعد إلزامية:
+- اكتب من سطرين إلى 3 أسطر محتوى فقط، والرابط يضاف تلقائيًا لاحقًا.
+- اذكر اسم المنتج بوضوح في سطر، والسعر الحالي في سطر مستقل.
+- أضف سطرًا واحدًا فقط إذا وجدت ميزة بيع حقيقية ومفيدة أو توفيرًا موثوقًا. اختر الأقوى فقط.
+- لا تكتب مقدمة عامة مثل «تم القنص» أو «لقطة اليوم» إلا إذا كانت تضيف شيئًا؛ الأفضل البدء بالمنتج مباشرة.
+- اختصر اللون والمقاس والتفاصيل الطويلة، ولا تذكرها إلا إذا كانت أساسية لفهم العرض.
+- لا تكرر الإيموجي ولا تكثرها. ابدأ كل سطر بإيموجي مناسب.
+- استخدم **الخط العريض** لاسم المنتج والسعر فقط غالبًا.
+- لا تذكر مصدر المقارنة ولا تكتب أي رابط.
+- لا تخترع خصمًا أو ميزة أو كمية. لا تستخدم مقارنة الأسعار إلا إذا كانت موجودة بوضوح في المعطيات.
+- لا تذكر أمازون أو السعودية أو Amazon في نص المنشور. أخرج المنشور فقط، ولا تكتب أي شرح أو رسالة خطأ.
 
-رتّب المنشور هكذا حسب الأنسب:
-1) افتتاحية قصيرة جذابة مع إيموجي، أو ابدأ مباشرة بالصيدة إذا كانت أوضح.
-2) اسم المنتج + أهم تفصيل واحد فقط عند الحاجة (الكمية/الحجم/المقاس/اللون).
-3) السعر الحالي بخط عريض وواضح.
-4) سطر إضافي واحد فقط لأقوى ميزة أو مقارنة سعرية مؤكدة أو نسبة توفير محسوبة. إذا ما فيه معلومة قوية، احذف هذا السطر.
+أمثلة على الأسلوب والطول:
+🧴 **زيت شعر بجوز الهند – 300 مل**
+💰 **بـ 4.99 ريال بس!**
 
-اختَر أهم شيء يشد الناس من معلومات الصفحة: عدة قطع بسعر قليل، حجم كبير، كمية كثيرة، سعر الوحدة المنخفض، أو ميزة عملية واضحة. اذكر أقوى نقطة واحدة فقط، ونقطتين كحد أقصى إذا كانت كلتاهما مهمتين جداً. لا تسرد المواصفات ولا تنقل كل المعلومات.
+🍼 **مناديل أطفال – ٤ عبوات، ٢٢٤ منديل**
+💰 **بـ 25 ريال بس!**
+🌿 خالية من البارابين والكحول
 
-استخدم **الخط العريض** في الافتتاحية واسم المنتج والسعر، ويمكن إبراز ميزة واحدة. كل سطر يبدأ بإيموجي/رمز حتى لو كان الاسم بالإنجليزي. خلي الشكل نظيفاً، والمسافات قليلة، ولا تكثر الإيموجيز داخل السطر الواحد.
-
-المقارنة: إذا توفر سعر مقارنة أعلى وموثوق، اختر إما «أغلى بحوالي X ريال» أو «توفير حوالي X%»؛ لا تذكر السعر المقارن والفرق والنسبة كلها معاً. لا تسمّه سعراً سابقاً إلا إذا ثبت أنه السعر السابق للمنتج نفسه. احسب النسبة من الأرقام الموجودة فقط.
-
-ممنوع اختراع معلومات أو أسعار أو خصومات أو تقييمات أو مزايا أو تجارب شخصية. لا تدّعِ الندرة أو الاستعجال. لا تذكر «أمازون» أو «السعودية» أو "Amazon" في نص المنشور، ولا تكتب أي رابط؛ سيُضاف رابط المنتج تلقائياً. لا تذكر مصدر المقارنة داخل النص؛ سيُضاف تلقائياً عند الحاجة. اكتب البراند بالإنجليزي كما هو، وبقية الاسم بعربي طبيعي مختصر. أخرج المنشور فقط.
-
-أمثلة على الطول والشكل فقط:
-🎯🔥 **تم القنص!**
-👡 **شبشب Havaianas نسائي**
-💰 **بـ 28 ريال بس!**
-
-🧼 **٣ قطع صابون بـ ٤ ريال!** 😍
-💰 **يعني القطعة بحوالي 1.33 ريال**
-
-🍝 **مكرونة وفرة (400 جم)**
-🔥 **بـ 1.83 ريال بس!**
+🛏️ **وسادة سفر قابلة للنفخ من Intex**
+💰 **بـ 6.96 ريال بس!**
+✈️ تنفع للسفر والتخييم
 """
 
 
@@ -718,11 +715,10 @@ def _key_ok(key):
 
 
 def _user_prompt(facts_text):
-    return ("المعطيات:\n" + facts_text + "\n\nاكتب بوستاً سعودياً خليجياً جذاباً. "
-            "ابدأ كل سطر بإيموجي/علامة قبل النص حتى لا يبدأ أي سطر بحروف إنجليزية من اليسار. "
-            "استخدم **الخط العريض** بسخاء لافتتاحية المنشور واسم المنتج والسعر وأهم معلومة، "
-            "وإذا توفرت مقارنة موثوقة فاذكر التوفير ونسبته المحسوبة بشكل صحيح. "
-            "لا تخترع سعراً سابقاً أو خصماً، ولا تغيّر أي رقم من المعطيات.")
+    return ("المعطيات الموثوقة للمنتج:\n" + facts_text +
+            "\n\nاكتب 2-3 أسطر فقط: اسم مختصر وواضح، السعر، ثم أقوى ميزة واحدة فقط إن وجدت. "
+            "لا تضف مقدمة عامة، ولا تكرر المعلومات، ولا تخترع أي شيء. لا تحذف السعر الحالي. "
+            "ابدأ كل سطر بإيموجي مناسب، وأخرج نص المنشور فقط.")
 
 
 def _groq_generate(facts_text):
@@ -822,9 +818,27 @@ def style_post_lines(text):
 
 
 def validate_ai_text(text, facts_text):
-    """يرجع سبب الرفض أو None لو النص سليم."""
+    """يرفض الردود الناقصة أو الطويلة أو التي تحتوي أرقامًا غير موثقة."""
+    if not text or not text.strip():
+        return "رد فارغ"
+    text = text.strip()
     if re.search(r'أمازون|امازون|السعودية|amazon', text, re.IGNORECASE):
         return "النص ذكر كلمة ممنوعة"
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < 2 or len(lines) > 3:
+        return "عدد الأسطر غير مناسب"
+    # ارفض النص الذي يبدو مقطوعًا أو يحتوي على تنسيق غير مكتمل
+    if text.count('**') % 2 or text.count('`') % 2:
+        return "تنسيق غير مكتمل"
+    if re.search(r'(?:توفير|ميزة|السعر|مقارنة|بـ|بس|من|على|مع|لل|ال)\s*$', lines[-1]):
+        return "النص يبدو مقطوعًا"
+    # إذا كان السعر الحالي موجودًا في المعطيات، لا نقبل منشورًا نسي ذكره.
+    price_match = re.search(r'السعر الحالي:\s*(\d+(?:\.\d+)?)\s*ريال', facts_text)
+    if price_match:
+        expected_price = float(price_match.group(1))
+        visible_numbers = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', text)}
+        if expected_price not in visible_numbers:
+            return "المنشور لا يتضمن السعر الحالي"
     allowed = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', facts_text)}
     used = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', text)}
     if not used.issubset(allowed):
@@ -834,7 +848,7 @@ def validate_ai_text(text, facts_text):
 
 
 def ai_write_post(facts_text):
-    """Groq أولاً ثم Gemini. يرجع (النص, None) أو (None, سبب الفشل)."""
+    """Groq أولاً ثم Gemini. يرجع النص بعد التحقق أو سبب الفشل للتسجيل فقط."""
     errors = []
     for generate in (_groq_generate, _gemini_generate):
         text, err = generate(facts_text)
@@ -842,6 +856,7 @@ def ai_write_post(facts_text):
             bad = validate_ai_text(text, facts_text)
             if bad:
                 errors.append(bad)
+                print("AI response rejected:", bad)
                 continue
             return text, None
         if err:
@@ -852,40 +867,29 @@ def ai_write_post(facts_text):
 
 
 def generate_post(product, original_url):
-    title = html.escape(product["title_clean"])
-    brand = html.escape(product["brand"])
-    package = html.escape(product["package"])
-    price = product["price"]
+    """قالب احتياطي قصير ومكتمل؛ لا يرسل رسائل الخطأ التقنية للمشتركين."""
+    title = html.escape((product.get("title_clean") or "المنتج").strip())
+    brand = html.escape((product.get("brand") or "").strip())
+    package = html.escape((product.get("package") or "").strip())
+    price = product.get("price", 0)
 
-    if package and package in title:
-        package = ""
-    brand_str = f"<b>{brand}</b> " if brand else ""
-    package_str = f" <b>({package})</b>" if package else ""
+    if package and package.lower() not in title.lower():
+        title = f"{title} ({package})"
+    if brand and brand.lower() not in title.lower():
+        title = f"{brand} {title}"
 
-    lines = [
-        f"🎯🔥 <b>{html.escape(generate_hook(brand))}</b>",
-        "",
-        f"{get_category_emoji(product['category'])} {brand_str}<b>{title}</b>{package_str}",
-        "",
-    ]
-
-    coupon_code = product.get("coupon_code")
-    voucher_text = product.get("voucher_text")
-
-    if price > 0:
-        if voucher_text:
-            lines.append(f"💰 السعر بعد الخصم الإضافي: <b>{format_price(price)} ريال</b>")
-        else:
-            lines.append(f"💰 السعر: <b>{format_price(price)} ريال</b>")
-
-    if coupon_code:
-        lines.append(f"🎟️ كود الخصم: <code>{html.escape(coupon_code)}</code>")
-    elif voucher_text:
-        lines.append("🎟️ فعّل القسيمة من صفحة المنتج قبل الطلب ✅")
-
+    # لا نستخدم مقدمة عامة؛ الاسم والسعر أهم معلومتين.
+    lines = [f"🛍️ <b>{title}</b>"]
+    if price and price > 0:
+        lines.append(f"💰 <b>بـ {format_price(price)} ريال بس!</b>")
+    if product.get("coupon_code"):
+        lines.append(f"🎟️ كود الخصم: <code>{html.escape(product['coupon_code'])}</code>")
+    elif product.get("voucher_text"):
+        lines.append("🎟️ فعّل القسيمة من صفحة المنتج قبل الطلب")
     lines.append("")
-    lines.append(f"🔗 {original_url}")
+    lines.append(f"🔗 {html.escape(original_url, quote=True)}")
     return "\n".join(lines)
+
 
 
 @bot.message_handler(func=lambda m: True)
@@ -925,7 +929,8 @@ def handler(msg):
 
         ai_text, ai_error = ai_write_post(facts_text)
         if ai_error:
-            bot.send_message(msg.chat.id, f"⚠️ الكاتب الذكي ما اشتغل ({ai_error})، استخدمت القالب العادي.")
+            # الخطأ للتشخيص في سجلات التشغيل فقط، لا يظهر في قناة العروض.
+            print("AI generation failed; using concise fallback:", ai_error)
         if ai_text:
             ai_text = style_post_lines(ai_text)
             safe = html.escape(ai_text)
