@@ -505,6 +505,26 @@ def extract_current_price(soup, html_content):
     return current_price
 
 
+def extract_previous_price(soup, current_price):
+    """يحاول قراءة السعر المشطوب/السعر الأصلي الظاهر، ويتجنب إرجاع السعر الحالي نفسه."""
+    selectors = [
+        "#corePrice_feature_div .basisPrice .a-offscreen",
+        "#corePriceDisplay_desktop_feature_div .basisPrice .a-offscreen",
+        ".priceBlockStrikePriceString.a-text-strike",
+        ".a-price.a-text-price .a-offscreen",
+        "#listPrice .a-offscreen",
+        "#price .a-text-price .a-offscreen",
+    ]
+    values = []
+    for selector in selectors:
+        for elem in soup.select(selector):
+            value = extract_number(elem.get_text(" ", strip=True))
+            if value > current_price and value not in values:
+                values.append(value)
+    # لا نعتمد إلا على سعر أعلى من الحالي وبفارق معقول، مع أخذ أصغر سعر مشطوب ظاهر
+    return min(values) if values else 0.0
+
+
 def fetch_product_details(url, asin):
     try:
         resp = requests.get(url, headers=get_headers(), timeout=12)
@@ -569,6 +589,7 @@ def fetch_product_details(url, asin):
             "package": package_detail,
             "price": final_price,
             "price_before_coupon": price if final_price != price else 0.0,
+            "previous_price": extract_previous_price(soup, price),
             "category": detect_product_category(title),
             "coupon_code": coupon["code"],
             "voucher_text": coupon["voucher_text"],
@@ -638,78 +659,86 @@ def parse_note(text):
     return re.sub(r'\s+', ' ', t).strip()
 
 
-AI_SYSTEM_PROMPT = """أنت كاتب إعلانات عروض لقناة تيليجرام سعودية اسمها «اكس زون». اكتب بلهجة سعودية/خليجية طبيعية وعفوية، مثل شخص يشارك أصحابه عرضًا يستاهل. لا تكتب وصف متجر رسمي ولا كلامًا آليًا.
+AI_SYSTEM_PROMPT = """أنت كاتب منشورات عروض لقناة «اكس زون». اكتب بلهجة سعودية/خليجية طبيعية، قريبة من كلام الناس لكن مرتبة واحترافية؛ لا تكتب كأنك تترجم وصف متجر.
 
-روح الأسلوب: «جبته لكم»، «والسعر يا بلااااش»، «شدني مدح التعليقات» إذا كانت الملاحظة موجودة فعلًا. نوّع الصياغة ولا تكرر افتتاحية واحدة.
+الأسلوب:
+- المنشور عادة 3 إلى 5 أسطر قصيرة، وبين الأجزاء سطر فارغ. الرابط سيضاف تلقائيًا.
+- استخدم 2 إلى 4 إيموجيز مناسبة ومتنوعة، بدون زحمة.
+- **العريض** لاسم المنتج والسعر وأقوى معلومة. *المائل* لتعليق شخصي قصير إذا كان طبيعيًا. `الخط الثابت` لكود القسيمة فقط.
+- كلام خفيف وعفوي مثل «جبته لكم»، «والسعر يا بلاااش»، «شدني مدح التعليقات» فقط إذا يناسب البيانات. لا تفرض مقدمة على كل منشور.
+- لا تكتب مزايا مترجمة ترجمة حرفية أو ادعاءات تسويقية غريبة مثل «خالي من البارابين» إلا إذا كانت فعلًا نقطة بيع مهمة وواضحة. لا تسرد مزايا صفحة المنتج؛ اختَر معلومة واحدة مفيدة وبصياغة دارجة طبيعية.
+- لا تكرر نفس شكل المنشور والمقدمة في كل مرة. لا تستخدم جملًا عامة مثل «منتج مميز» و«سعر مناسب» لمجرد ملء الفراغ.
 
-تنسيق المنشور مهم جدًا:
-- اكتب 2 إلى 3 أسطر محتوى قصيرة فقط، والرابط يضاف تلقائيًا بعدك.
-- افصل بين كل سطر محتوى وسطر فارغ؛ لا تجمع الكلام في فقرة واحدة.
-- استخدم **الخط العريض** لاسم المنتج أو السعر، واختر الأهم. يمكن استخدام *المائل* لملاحظة قصيرة، و`الخط الثابت` لكود قسيمة أو رمز منتج عند الحاجة فقط.
-- لا تجعل السطر جملة طويلة؛ خله خفيفًا وسهل القراءة من نظرة واحدة.
-- لا تضف كلام ربط أو مقدمات بلا فائدة. أحيانًا ابدأ باسم المنتج مباشرة.
-- اذكر اسم المنتج باختصار، ثم السعر، ثم نقطة بيع واحدة فقط إذا كانت مفيدة وموثوقة.
-- أبرز الكمية/عدد القطع أو ميزة عملية أو توفيرًا مؤكدًا؛ لا تسرد كل المواصفات. لا تجمع مبلغ التوفير والنسبة والسعر المقارن كلها معًا.
-- استخدم لهجة طبيعية مثل «بالسوق يوصل...» أو «جبته لكم بـ...» إذا كانت البيانات تدعم ذلك.
-- لا تخترع خصمًا أو سعرًا سابقًا أو جودة أو ضمانًا أو ميزة أو مراجعات. لا تقل «مضمون» دون دليل.
-- لا تذكر أمازون أو السعودية أو Amazon في نص المنشور، ولا تكتب أي رابط أو شرح تقني.
-- أخرج نص المنشور فقط، مع فواصل الأسطر الفارغة كما هو مطلوب.
+الأسعار:
+- اذكر السعر الحالي بوضوح.
+- أعطِ أولوية للسعر السابق الحقيقي أو سعر قبل التخفيض إذا كان موضحًا بوضوح في البيانات، واعرضه مشطوبًا أو بصيغة «بدل ...» مع نسبة الخصم إذا كانت محسوبة من السعرين. لا تعتبر سعر الإمارات أو سعر متجر آخر «السعر السابق».
+- سعر المقارنة من الإمارات ليس الخيار الافتراضي؛ استخدمه نادرًا فقط إذا لم توجد مقارنة أفضل وكانت المقارنة واضحة ومفيدة. لا تذكر الإمارات في كل منشور.
+- إذا كانت المقارنة من متجر آخر، سمِّ المصدر بدقة حسب البيانات. إذا لم توجد مقارنة مؤكدة، لا تخترع سعرًا سابقًا أو نسبة خصم؛ ركّز على السعر الحالي أو الكمية/العبوة.
+- لا تخلط سعر ما قبل القسيمة مع السعر السابق؛ وضّح أنها قسيمة إذا كان هذا هو المقصود.
+- لا تخترع خصمًا أو جودة أو ضمانًا أو مراجعات أو مزايا. لا تقل «مضمون» دون دليل.
 
-أمثلة على التنسيق والنبرة:
+التنسيق: لا تجعل كل الكلام متصلًا في فقرة واحدة. اجعل كل سطر قصيرًا وواضحًا، مع فراغات بينه وبين الجزء التالي. لا تذكر أمازون أو شرحًا تقنيًا، ولا تكتب الرابط. أخرج نص المنشور فقط.
+
+أمثلة أسلوبية (ليست قوالب إلزامية):
 🧴 **كريم كاب 500 مل**
 
 جبته لكم بـ **23 ريال** ✅
 
-بالسوق يوصل لـ 55 ريال 🔥
+🏷️ بدل 55 ريال — الحين أوفر بحوالي **58%** 🔥
 
 🧦 **جوارب شتوية مبطنة**
 
-🥇 5 أزواج بـ **27 ريال** — و15 زوج بـ **55 ريال**
+🥇 5 أزواج بـ **27 ريال**، و15 زوج بـ **55 ريال** 🤩
 
-🤩 *شدني مدح التعليقات على المنتج!*
-
-✨ **اسم المنتج المختصر** بـ **السعر المتوفر**
+✨ *شدني مدح التعليقات على المنتج!*
 """
 
 
 def build_facts(product, extras, uae_aed, asin="", source_urls=None):
-    """يرجع (المعطيات للكاتب, روابط مصدر المقارنة)."""
+    """يبني حقائق الكاتب، مع تفضيل السعر السابق الصريح وتقليل الاعتماد على مقارنة الإمارات."""
     source_urls = source_urls or []
-    price = product["price"]
+    price = product.get("price", 0) or 0
     sources = []
     facts = [f"اسم المنتج بالإنجليزي: {product.get('title_raw', '')}"]
-    if product["brand"]:
+    if product.get("brand"):
         facts.append(f"البراند: {product['brand']}")
     if price > 0:
-        facts.append(f"السعر الحالي: {format_price(price)} ريال")
+        facts.append(f"السعر الحالي النهائي: {format_price(price)} ريال")
     if product.get("price_before_coupon"):
-        facts.append(f"السعر قبل القسيمة: {format_price(product['price_before_coupon'])} ريال")
+        facts.append(f"السعر قبل القسيمة فقط: {format_price(product['price_before_coupon'])} ريال (ليس سعرًا سابقًا للمقارنة؛ السعر الحالي النهائي بعد القسيمة)")
+    # السعر السابق الحقيقي إن أمكن استخراجه من صفحة المنتج
+    previous_price = product.get("previous_price") or product.get("list_price") or product.get("was_price") or 0
+    if previous_price and price > 0 and float(previous_price) > price:
+        discount = round((float(previous_price) - price) / float(previous_price) * 100)
+        facts.append(f"السعر السابق/قبل التخفيض الظاهر في الصفحة: {format_price(float(previous_price))} ريال؛ نسبة الخصم المحسوبة: {discount}%")
     if product.get("size"):
         facts.append(f"المقاس: {product['size']}")
     if product.get("color"):
         facts.append(f"اللون: {product['color']}")
     if product.get("features"):
-        facts.append("تفاصيل ومزايا مذكورة في صفحة المنتج (استخدم المفيد فقط، ولا تحولها لادعاءات أكبر):")
+        facts.append("معلومات من صفحة المنتج؛ استخدم ميزة واحدة فقط إذا كانت مفيدة وطبيعية باللهجة، وتجاهل العبارات التسويقية العامة:")
         facts.extend(f"- {feature}" for feature in product["features"][:6])
     if product.get("coupon_code"):
         facts.append(f"كود الخصم: {product['coupon_code']}")
     elif product.get("voucher_text"):
-        facts.append(f"فيه قسيمة تتفعّل من صفحة المنتج ({product['voucher_text']}) والسعر أعلاه بعدها")
+        facts.append(f"فيه قسيمة تتفعّل من صفحة المنتج ({product['voucher_text']}) والسعر الحالي أعلاه بعدها")
 
-    # مقارنة يدوية: نذكرها فقط لو الرقم أعلى من سعرنا (يعني فعلاً توفير)
-    added_manual = False
+    # الأسعار التي يكتبها صاحب القناة يدويًا لها الأولوية على مقارنة الإمارات
+    manual_added = False
     for label, p in extras:
         if price > 0 and p >= price + 1:
-            facts.append(f"سعره في {label}: {format_price(p)} ريال (الفرق: {format_price(round(p - price, 2))} ريال، توفير حوالي {round((p - price) / p * 100)}% مقارنة بهذا السعر)")
-            added_manual = True
-    if added_manual and source_urls:
+            discount = round((p - price) / p * 100)
+            facts.append(f"سعر مقارنة يدوي من {label}: {format_price(p)} ريال؛ توفير محسوب {discount}% مقارنة بهذا السعر (لا تسمّه السعر السابق إلا إذا قال صاحب القناة ذلك صراحة)")
+            manual_added = True
+    if manual_added and source_urls:
         sources.append(source_urls[0])
 
-    # مقارنة أمازون الإمارات: فقط لو أغلى بوضوح
-    if uae_aed > 0 and price > 0:
+    # الإمارات معلومة اختيارية وليست المقارنة الافتراضية؛ لا نضيفها إذا توجد مقارنة يدوية أو سعر سابق حقيقي.
+    if not manual_added and not previous_price and uae_aed > 0 and price > 0:
         uae_sar = round(uae_aed * AED_TO_SAR)
-        if uae_sar >= price * 1.05 and uae_sar - price >= 1:
-            facts.append(f"سعره في الإمارات: حوالي {uae_sar} ريال (الفرق: {format_price(round(uae_sar - price))} ريال، توفير حوالي {round((uae_sar - price) / uae_sar * 100)}% مقارنة بهذا السعر)")
+        if uae_sar >= price * 1.15 and uae_sar - price >= 10:
+            discount = round((uae_sar - price) / uae_sar * 100)
+            facts.append(f"مقارنة اختيارية: سعر المنتج في الإمارات حوالي {uae_sar} ريال؛ الفرق يعادل {discount}% من سعر الإمارات. هذه ليست قيمة السعر السابق المحلي، واستخدمها فقط إذا كانت أقوى مقارنة متاحة")
             if asin:
                 sources.append(f"https://www.amazon.ae/dp/{asin}")
 
@@ -721,12 +750,13 @@ def _key_ok(key):
 
 
 def _user_prompt(facts_text):
-    return ("المعطيات المتاحة للمنتج:\n" + facts_text +
-            "\n\nاكتب بوستًا قصيرًا باللهجة السعودية/الخليجية، حيويًا وطبيعيًا مثل توصية لصديق، "
-            "من 2 إلى 4 أسطر محتوى. نوّع البداية ولا تكرر قالبًا ثابتًا. "
-            "اذكر اسمًا مختصرًا والسعر الحالي، ثم أقوى نقطة بيع واحدة أو مقارنة موثوقة إن وجدت. "
-            "إذا وُجدت ملاحظة من صاحب القناة فاستفد منها فقط إذا كانت طبيعية وذات صلة. "
-            "لا تخترع معلومات ولا تحذف السعر الحالي. أخرج نص المنشور فقط.")
+    return ("الحقائق المتاحة للمنتج:\n" + facts_text +
+            "\n\nاكتب بوستًا سعوديًا/خليجيًا طبيعيًا من 3 إلى 5 أسطر قصيرة، وبين كل جزء سطر فارغ. "
+            "استخدم تنسيق **العريض** لاسم المنتج والسعر، وإيموجيز لطيفة باعتدال، ولا تكتب وصف مزايا مترجمًا أو رسميًا. "
+            "اذكر السعر الحالي دائمًا. أعطِ الأولوية لسعر سابق حقيقي ونسبة الخصم إذا وردا بوضوح في البيانات؛ لا تعتبر سعر الإمارات سعرًا سابقًا. "
+            "لا تستخدم مقارنة الإمارات إلا إذا كانت موجودة في الحقائق وتستحق الذكر، ولا تكررها في كل منشور. "
+            "اختر نقطة بيع واحدة بصياغة قريبة من الناس، أو لا تضف ميزة إذا لم توجد معلومة مفيدة. لا تخترع أي أرقام أو مزايا أو مراجعات. "
+            "لا تحشر جملًا عامة ولا تجعل الكلام فقرة واحدة. أخرج نص المنشور فقط.")
 
 
 def _groq_generate(facts_text):
@@ -837,7 +867,7 @@ def validate_ai_text(text, facts_text):
     if re.search(r'أمازون|امازون|السعودية|amazon', text, re.IGNORECASE):
         return "النص ذكر كلمة ممنوعة"
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if len(lines) < 2 or len(lines) > 3:
+    if len(lines) < 2 or len(lines) > 5:
         return "عدد الأسطر غير مناسب"
     # ارفض النص الذي يبدو مقطوعًا أو يحتوي على تنسيق غير مكتمل
     if text.count('**') % 2 or text.count('`') % 2:
@@ -845,7 +875,7 @@ def validate_ai_text(text, facts_text):
     if re.search(r'(?:توفير|ميزة|السعر|مقارنة|بـ|بس|من|على|مع|لل|ال)\s*$', lines[-1]):
         return "النص يبدو مقطوعًا"
     # إذا كان السعر الحالي موجودًا في المعطيات، لا نقبل منشورًا نسي ذكره.
-    price_match = re.search(r'السعر الحالي:\s*(\d+(?:\.\d+)?)\s*ريال', facts_text)
+    price_match = re.search(r'السعر الحالي(?: النهائي)?:\s*(\d+(?:\.\d+)?)\s*ريال', facts_text)
     if price_match:
         expected_price = float(price_match.group(1))
         visible_numbers = {float(x) for x in re.findall(r'\d+(?:\.\d+)?', text)}
@@ -894,6 +924,10 @@ def generate_post(product, original_url):
     content_lines = [f"🛍️ <b>{title}</b>"]
     if price and price > 0:
         content_lines.append(f"💰 <b>بـ {format_price(price)} ريال بس!</b>")
+    previous_price = product.get("previous_price") or product.get("list_price") or product.get("was_price") or 0
+    if previous_price and price > 0 and float(previous_price) > float(price):
+        discount = round((float(previous_price) - float(price)) / float(previous_price) * 100)
+        content_lines.append(f"🏷️ بدل <s>{format_price(float(previous_price))} ريال</s> — خصم <b>{discount}%</b> 🔥")
     if product.get("coupon_code"):
         content_lines.append(f"🎟️ كود الخصم: <code>{html.escape(product['coupon_code'])}</code>")
     elif product.get("voucher_text"):
@@ -932,7 +966,9 @@ def handler(msg):
 
         extras = parse_extras(text)
         note = parse_note(text)
-        uae_aed = fetch_uae_price(asin)
+        # لا نجلب/نستخدم مقارنة الإمارات في كل منشور؛ نعطي الأولوية للأسعار التي يضيفها صاحب القناة.
+        use_uae_comparison = not extras and random.random() < 0.20
+        uae_aed = fetch_uae_price(asin) if use_uae_comparison else 0.0
         facts_text, compare_sources = build_facts(product, extras, uae_aed, asin, source_urls)
         if note:
             facts_text += f"\nملاحظة من صاحب القناة: {note}"
