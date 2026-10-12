@@ -13,7 +13,7 @@ beautifulsoup4>=4.12.0
 Flask>=3.0.0
 
 
-TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
+TOKEN = "7956075348:AAEcFy8rPmvg8gLHz_G_RpVoT-9xDQS07_k"
 bot = telebot.TeleBot(TOKEN)
 
 # مفتاح Gemini المجاني: https://aistudio.google.com/apikey
