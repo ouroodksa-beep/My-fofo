@@ -1,4 +1,3 @@
-
 import telebot
 import requests
 from bs4 import BeautifulSoup
@@ -7,11 +6,7 @@ import random
 import os
 import html
 import json
-from flask import Flask, requestpyTelegramBotAPI>=4.20.0
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-Flask>=3.0.0
-
+from flask import Flask, request
 
 TOKEN = "7956075348:AAEcFy8rPmvg8gLHz_G_RpVoT-9xDQS07_k"
 bot = telebot.TeleBot(TOKEN)
