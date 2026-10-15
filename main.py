@@ -8,7 +8,7 @@ import html
 import json
 from flask import Flask, request
 
-TOKEN = "7956075348:AAFetNzy6ECdP8iHgMWbwQIfjSInomOuhBU"
+TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
 
 # مفتاح Gemini المجاني: https://aistudio.google.com/apikey
