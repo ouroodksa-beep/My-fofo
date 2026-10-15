@@ -953,43 +953,77 @@ def ai_write_post(facts_text):
 
 
 def generate_post(product, original_url):
-    """قالب احتياطي قصير ومكتمل؛ لا يرسل رسائل الخطأ التقنية للمشتركين."""
-    title = html.escape((product.get("title_clean") or "المنتج").strip())
-    brand = html.escape((product.get("brand") or "").strip())
-    package = html.escape((product.get("package") or "").strip())
-    price = product.get("price", 0)
+    """منشور احتياطي متنوع حسب بيانات العرض، بدون افتتاحية عامة ثابتة."""
+    raw_title = (product.get("title_clean") or "المنتج").strip()
+    brand_raw = (product.get("brand") or "").strip()
+    package_raw = (product.get("package") or "").strip()
+    title = html.escape(raw_title)
+    brand = html.escape(brand_raw)
+    package = html.escape(package_raw)
+    price = product.get("price", 0) or 0
 
-    if package and package.lower() not in title.lower():
-        title = f"{title} ({package})"
-    if brand and brand.lower() not in title.lower():
-        title = f"{title} من {brand}"
+    if package and package.lower() not in raw_title.lower():
+        title += f" ({package})"
+    if brand and brand_raw.lower() not in raw_title.lower():
+        title += f" من {brand}"
 
-    # مقدمة بشرية اختيارية ومتنوعة للقالب الاحتياطي أيضًا.
-    fallback_hooks = [
-        "💰 <b>نبدأ بالأهم: السعر</b>",
-        "👀 <b>إذا تحتاجونه، شيّكوا على هالسعر</b>",
-        "🧾 <b>خلّونا نحسبها ببساطة</b>",
-        "🛒 <b>للي كان يدور على هالمنتج</b>",
-        "🏷️ <b>انتبهوا لتفاصيل العرض</b>",
-        "✨ <b>هذي تفاصيله بدون مبالغة</b>",
-        "📌 <b>السعر المعروض حاليًا</b>",
-        "🎟️ <b>قبل الدفع، لا تنسون الكوبون</b>",
-        "👀 <b>السعر هو اللي يستاهل التشييك</b>",
-        "🧮 <b>الحسبة تفرق إذا بتاخذون أكثر من قطعة</b>",
-    ]
-    content_lines = [random.choice(fallback_hooks), f"🛍️ <b>{title}</b>"]
     previous_price = product.get("previous_price") or product.get("list_price") or product.get("was_price") or 0
-    if previous_price and price > 0 and float(previous_price) > float(price):
-        discount = round((float(previous_price) - float(price)) / float(previous_price) * 100)
-        content_lines.append(f"💰 بدل <s>{format_price(float(previous_price))} ريال</s>، الحين <b>{format_price(price)} ريال</b> 🔥")
-        content_lines.append(f"🏷️ خصم <b>{discount}%</b>")
-    elif price and price > 0:
-        content_lines.append(f"💰 السعر الحالي: <b>{format_price(price)} ريال</b>")
-    if product.get("coupon_code"):
-        content_lines.append(f"🎟️ كود الخصم: <code>{html.escape(product['coupon_code'])}</code>")
-    elif product.get("voucher_text"):
-        content_lines.append("🎟️ فعّل القسيمة من صفحة المنتج قبل الطلب")
-    return "\n\n".join(content_lines) + "\n\n🔗 " + html.escape(original_url, quote=True)
+    try:
+        current = float(price)
+    except (TypeError, ValueError):
+        current = 0.0
+    try:
+        previous = float(previous_price)
+    except (TypeError, ValueError):
+        previous = 0.0
+    has_discount = current > 0 and previous > current
+    discount = round((previous - current) / previous * 100) if has_discount else 0
+    code = (product.get("coupon_code") or "").strip()
+    voucher = bool(product.get("voucher_text"))
+    price_text = f"<b>{format_price(current)} ريال</b>" if current > 0 else "السعر الظاهر في الصفحة"
+    url_line = "🔗 " + html.escape(original_url, quote=True)
+
+    # اختَر زاوية الكتابة من تفاصيل العرض بدل تدوير عنوان عشوائي فوق نفس القالب.
+    if code and has_discount:
+        openings = [
+            f"السعر نازل من {format_price(previous)} إلى {price_text}، ومعه كود لازم ما يفوتكم:",
+            f"اللي بيطلب {title} ينتبه للكود؛ السعر الحالي {price_text} بدل {format_price(previous)} ريال.",
+            f"فيه خصم ظاهر على {title}، والكود بعد مهم 👇\nالسعر {price_text} بدل {format_price(previous)} ريال.",
+        ]
+        body = random.choice(openings) + f"\n\n🎟️ استخدموا الكود <code>{html.escape(code)}</code> عند الدفع."
+    elif code:
+        openings = [
+            f"إذا {title} ضمن مشترياتكم، تذكّروا تدخلون الكود قبل الدفع.",
+            f"سعر {title} الحالي {price_text}، وفيه كود خصم ينضاف عند الدفع.",
+            f"لا تنسون خطوة الكود مع {title}؛ السعر المعروض حاليًا {price_text}.",
+        ]
+        body = random.choice(openings) + f"\n\n🎟️ كود الخصم: <code>{html.escape(code)}</code>."
+    elif has_discount:
+        openings = [
+            f"{title}\n\nكان معروض بـ {format_price(previous)} ريال، والحين صار {price_text}.",
+            f"الفرق بالسعر واضح هنا: {title} من {format_price(previous)} إلى {price_text}.",
+            f"إذا كنتم تنتظرون سعر أقل لـ {title}، المعروض حاليًا {price_text} بدل {format_price(previous)} ريال.",
+        ]
+        body = random.choice(openings)
+        if discount >= 15:
+            body += f"\n\n📉 الفرق حوالي {discount}% عن السعر السابق المعروض."
+    elif voucher:
+        openings = [
+            f"{title} سعره الحالي {price_text}، بس انتبهوا: فيه قسيمة لازم تتفعّل من صفحة المنتج.",
+            f"قبل تطلبون {title}، فعّلوا القسيمة من صفحة أمازون. السعر المعروض {price_text}.",
+            f"للي يحتاج {title}: سعره {price_text}، وتأكدوا من تفعيل القسيمة قبل إتمام الطلب.",
+        ]
+        body = random.choice(openings)
+    else:
+        openings = [
+            f"{title}\n\nالسعر المعروض حاليًا {price_text}.",
+            f"للي يدور على {title}، سعره في الصفحة الآن {price_text}.",
+            f"بدون لف ودوران: {title} بسعر {price_text} حاليًا.",
+            f"{price_text} لـ {title} حسب السعر الظاهر في الصفحة.",
+        ]
+        body = random.choice(openings)
+
+    return body + "\n\n" + url_line
 
 
 
