@@ -708,30 +708,21 @@ def parse_note(text):
     return re.sub(r'\s+', ' ', t).strip()
 
 
-AI_SYSTEM_PROMPT = """أنت محرر عروض لقناة سعودية على تيليجرام. اكتب منشورات باللهجة السعودية الطبيعية والحيوية، مستوحاة من روح قنوات العروض: مباشرة، مختصرة، فيها حماس وقت ما العرض يستاهل، وليست إعلانًا آليًا أو فصحى جامدة.
+AI_SYSTEM_PROMPT = """أنت كاتب منشورات لقناة عروض سعودية على تيليجرام، مو موظف يكتب وصفًا رسميًا للمنتجات. المطلوب منشور يشبه منشورات قنوات العروض الفعلية: لهجة سعودية خفيفة، مباشر، حيوي، ويخلّي القارئ يفهم الصيدة بسرعة. استلهم أسلوب الأمثلة: اسم المنتج أو الماركة بوضوح، سعر العرض، الكوبون وطريقة استخدامه إذا موجود، ثم أهم تفاصيل المقاس/اللون/الحجم/عدد القطع. استخدم إيموجيز مناسبة باعتدال، غالبًا 1–3.
 
-اختَر زاوية مختلفة حسب حقيقة العرض، ولا تستخدم قالبًا واحدًا لكل المنتجات:
-1) كوبون أو كود: ابدأ أحيانًا بالكود أو السعر بعد تطبيقه، واشرح بوضوح هل يجب تفعيل قسيمة أو إدخال كود.
-2) خصم قوي موثّق: ابدأ بالسعر الحالي أو نسبة التوفير المحسوبة من السعرين الموثقين.
-3) منتج موسمي/عملي: اربطه بالاستخدام أو الموسم فقط إذا كان ذلك واضحًا من المنتج والوقت، من غير مبالغة.
-4) منتج معروف أو ماركة ظاهرة: اذكر البراند أو الماركة بشكل طبيعي، ولا تخترع سمعة أو جودة.
-5) المقاس/اللون/عدد القطع/الحجم: استخدم هذه التفاصيل إذا كانت موجودة في الحقائق وتفيد المشتري.
-6) منتج يومي بسيط: اكتب سطرًا مباشرًا عن المنتج والسعر، ولا تجبره على افتتاحية صاخبة.
-7) عرض متعدد القطع أو سعر للوحدة: احسب سعر الوحدة فقط إذا كانت الكمية والسعر الإجمالي واضحين في الحقائق.
+كل منشور لازم يختلف في الفكرة والبناء، مو بس أول جملة. اختر زاوية مناسبة من المعلومات المتوفرة:
+- كوبون: أبرز الكود بصريًا وقل بوضوح إذا كان لازم إدخاله عند الدفع.
+- قسيمة: نبه إلى تفعيل القسيمة قبل الطلب.
+- خصم موثق: اعرض السعر الحالي والسابق أو نسبة التوفير إذا كانت البيانات تثبتها.
+- منتج له خيارات: أظهر المقاس أو اللون أو الحجم أو عدد القطع المتاح في البيانات.
+- منتج يومي أو غذائي: اذكر الحجم/الوزن/العدد مع السعر بشكل طبيعي.
+- إذا ما فيه خصم أو كوبون موثق، لا تتظاهر بوجود صيدة؛ اكتب عرضًا واضحًا ومختصرًا.
 
-التنويع مطلوب في طول الجمل، ترتيب اسم المنتج والسعر والكود، موضع الإيموجي، وطريقة الافتتاح والخاتمة. لا تكرر نمط المنشورات السابقة حتى لو غيرت اسم المنتج والسعر فقط. الحماس مثل «صيدة» أو «ناري» يستخدم باعتدال وفقط عندما توجد ميزة حقيقية واضحة، وليس لكل منشور.
+تجنّب الأسلوب الآلي والتعبيرات الرسمية مثل: «السعر السابق الظاهر»، «التوفير المحسوب»، «تفاصيل العرض والخيارات موجودة بصفحة المنتج»، «شيّكوا على السعر الحالي قبل ما يتغير»، «المطلوب حاليًا»، «الفرق المحسوب»، «السعر المسجل بالصفحة». لا تبدأ كل مرة بـ«إذا تحتاجون» أو «شوفوا». لا تضف جملة حشو فقط لزيادة عدد الأسطر، ولا تكرر اسم المنتج أكثر من اللازم. لا تستخدم لهجة مصرية.
 
-ممنوع هذه العبارات والقوالب: «الفرق بالسعر واضح هنا»، «إذا كنتم تنتظرون سعر أقل»، «كان معروض بـ... والحين صار»، «نبدأ بالأهم»، «خلونا نحسبها ببساطة»، «لقينا لكم هالصيدة»، «هذي تستاهل تنشاف»، و«السعر الحالي المعروض» كافتتاحية متكررة. لا تذكر أن السعر من صفحة أمازون ولا تكتب الرابط.
+الدقة أهم من الحماس: لا تخترع كوبونًا أو خصمًا أو سعرًا سابقًا أو سعر متجر آخر أو ميزة أو لونًا أو مقاسًا أو ادعاءً عن ندرة العرض. ميّز بين السعر قبل الكوبون وبعده. لا تغيّر أي رقم. إذا لم تتوفر معلومة، احذفها بدل تخمينها. لا تكتب الرابط لأن البرنامج يضيفه بنفسه.
 
-الدقة إلزامية:
-- استخدم اسم المنتج والبراند والماركة واللون والمقاس والحجم والكمية فقط إذا كانت مذكورة في الحقائق.
-- لا تخترع لونًا أو مقاسًا أو ميزة أو سعرًا سابقًا أو سعر سوق أو مدة لم يصل فيها المنتج لسعر معين.
-- لا تستخدم ادعاءات مثل «الأرخص» أو «من شهور ما وصل هالسعر» أو مقارنة متجر آخر إلا إذا كانت هذه المعلومات موجودة صراحة في الحقائق.
-- لا تذكر نسبة خصم إلا إذا كانت موجودة ومحسوبة في الحقائق.
-- ميّز بين السعر قبل الكوبون والسعر النهائي بعده، ووضّح شرط الكود/القسيمة.
-- لا تغيّر أي رقم وارد في الحقائق، ولا تضف أرقامًا من عندك.
-
-اكتب 2 إلى 5 أسطر قصيرة. استخدم 0 إلى 3 إيموجي حسب طبيعة العرض، وخلّ الأسلوب قريبًا من أمثلة العروض السعودية: واضح، حيوي، سريع القراءة، مع تنويع حقيقي في الصياغة. أخرج نص المنشور فقط."""
+اكتب منشورًا من 2 إلى 4 أسطر قصيرة، باللهجة السعودية الطبيعية، فيه حيوية شبيهة بمنشورات العروض، مع تنويع حقيقي في ترتيب المعلومات والإيقاع. أخرج نص المنشور فقط."""
 
 
 def build_facts(product, extras, uae_aed, asin="", source_urls=None):
@@ -794,11 +785,12 @@ def _key_ok(key):
 RECENT_POSTS = []
 
 def _user_prompt(facts_text):
-    recent = "\n".join(f"- {x}" for x in RECENT_POSTS[-6:]) or "لا توجد منشورات سابقة في هذه الجلسة."
-    return ("حقائق المنتج المتاحة:\n" + facts_text +
-            "\n\nآخر منشورات كُتبت في هذه الجلسة (لا تكرر عباراتها أو بنيتها):\n" + recent +
-            "\n\nاكتب منشورًا جديدًا باللهجة السعودية القريبة من قنوات العروض التي تستخدم حماسًا طبيعيًا مثل (صيدة/ناري) عند وجود سبب حقيقي، وليس في كل مرة. نوّع بوضوح بين: افتتاح بالكود، افتتاح بالسعر، افتتاح بالماركة، فائدة المنتج، المقاس/اللون/عدد القطع، أو وصف مباشر بلا مقدمة. لا تكرر البنية أو الافتتاحية في المنشورات السابقة. "
-            "استخدم كل تفصيل مفيد موجود في الحقائق (اسم المنتج، الماركة، الحجم، اللون، المقاس، السعر، الكوبون) ولا تخترع أي تفصيل غير موجود. انقل الأرقام كما وردت، ووضّح هل السعر بعد الكود أو القسيمة. لا تكتب الرابط، وأخرج نص المنشور فقط.")
+    recent = "\n".join(f"- {x}" for x in RECENT_POSTS[-8:]) or "لا توجد منشورات سابقة في هذه الجلسة."
+    return (
+        "بيانات العرض المؤكدة (التزم بها فقط):\n" + facts_text +
+        "\n\nمنشورات كتبت مؤخرًا؛ لا تعِد نفس ترتيب الجمل أو بدايتها: \n" + recent +
+        "\n\nاكتب بوست عروض سعودي فعلي، مو تقرير سعر. قدّم أهم نقطة أولًا: كود/قسيمة/سعر/ماركة/حجم أو عدد القطع بحسب المنتج. استخدم كلمات خفيفة وحيوية تناسب العرض، ولا تستخدم مقدمات عامة أو عبارات اعتذارية أو جمل حشو. لا تكتب الرابط."
+    )
 
 
 def _groq_generate(facts_text):
@@ -975,21 +967,17 @@ def ai_write_post(facts_text):
 
 
 def generate_post(product, original_url):
-    """مولّد احتياطي يعتمد على حقائق المنتج، مع تراكيب كثيرة بدل بضعة قوالب ثابتة."""
+    """مولّد احتياطي لمنشور عروض سعودي؛ يبني النص من تفاصيل مؤكدة فقط."""
     raw_title = (product.get("title_clean") or product.get("title_raw") or "المنتج").strip()
     brand_raw = (product.get("brand") or "").strip()
     package_raw = (product.get("package") or "").strip()
-    title = html.escape(raw_title)
-    brand = html.escape(brand_raw)
-    package = html.escape(package_raw)
-    color = html.escape(str(product.get("color") or "").strip())
-    size = html.escape(str(product.get("size") or "").strip())
+    title_raw = raw_title
+    if brand_raw and brand_raw.lower() not in raw_title.lower():
+        title_raw = f"{raw_title} من {brand_raw}"
+    if package_raw and package_raw.lower() not in title_raw.lower():
+        title_raw += f" ({package_raw})"
+    title = html.escape(title_raw)
     price = product.get("price", 0) or 0
-    if package and package.lower() not in raw_title.lower():
-        title += f" ({package})"
-    if brand and brand_raw.lower() not in raw_title.lower():
-        title += f" من {brand}"
-
     try:
         current = float(price)
     except (TypeError, ValueError):
@@ -1001,188 +989,96 @@ def generate_post(product, original_url):
         previous = 0.0
     has_discount = current > 0 and previous > current
     discount = round((previous - current) / previous * 100) if has_discount else 0
-    code = (product.get("coupon_code") or "").strip()
+    code_raw = (product.get("coupon_code") or "").strip()
+    code = html.escape(code_raw)
     voucher = bool(product.get("voucher_text"))
-    price_text = f"<b>{format_price(current)} ريال</b>" if current > 0 else "السعر الظاهر في صفحة المنتج"
-    url_line = "🔗 " + html.escape(original_url, quote=True)
+    color = str(product.get("color") or "").strip()
+    size = str(product.get("size") or "").strip()
+    category = (product.get("category") or "general").lower()
+    price_text = f"{format_price(current)} ريال" if current > 0 else ""
+
     details = []
     if color:
-        details.append(f"اللون {color}")
+        details.append(f"اللون: {html.escape(color)}")
     if size:
-        details.append(f"المقاس {size}")
-    if package and package.lower() not in raw_title.lower():
-        details.append(f"الحجم {package}")
-    detail_line = "\n".join(details)
-    category = (product.get("category") or "general").lower()
+        details.append(f"المقاس: {html.escape(size)}")
+    if package_raw:
+        details.append(f"الحجم/العبوة: {html.escape(package_raw)}")
+    if product.get("quantity"):
+        details.append(f"العدد: {html.escape(str(product['quantity']))}")
+    detail_line = " | ".join(dict.fromkeys(details))
 
-    # آلاف التوليفات الممكنة تأتي من دمج افتتاحيات وأوصاف وخواتيم، مع اختيار ما يناسب حقيقة العرض.
-    if code:
+    # لا نضيف أي مقارنة أو نسبة خصم إلا إذا كان السعر السابق موثقًا.
+    if code_raw:
         openers = [
-            f"لا تنسون كود <code>{html.escape(code)}</code> مع {title} 🏷️",
-            f"كود <code>{html.escape(code)}</code> مهم قبل الدفع على {title}.",
-            f"إذا ناوين على {title}، جرّبوا كود <code>{html.escape(code)}</code> عند الدفع.",
-            f"عرض {title} مرتبط بكود <code>{html.escape(code)}</code>؛ تأكدوا من إضافته قبل إتمام الطلب.",
+            f"🔥 {title} بسعر {price_text} مع كود <code>{code}</code>",
+            f"🏷️ لا يفوتكم كود <code>{code}</code> على {title}",
+            f"💥 كود <code>{code}</code> على {title} — السعر {price_text}",
+            f"{title} عليه كود <code>{code}</code>، انتبهوا تضيفونه وقت الدفع ✨",
+            f"🎯 تبون {title}؟ استخدموا <code>{code}</code> عند الدفع" 
         ]
     elif voucher:
         openers = [
-            f"قبل تطلبون {title}، فعّلوا القسيمة من صفحة المنتج 🏷️",
-            f"انتبهوا للقسيمة على {title}؛ لازم تتفعّل قبل الدفع.",
-            f"القسيمة هي التفصيلة المهمة في عرض {title}، فعّلوها قبل إتمام الطلب.",
+            f"🏷️ فيه قسيمة على {title}، فعّلوها قبل الدفع",
+            f"لا تنسون تفعيل القسيمة على {title} قبل إتمام الطلب ✨",
+            f"💥 {title} مع قسيمة لازم تتفعّل من صفحة المنتج"
         ]
-    elif has_discount and discount >= 30:
+    elif has_discount:
         openers = [
-            f"نزول السعر واضح على {title} 👀",
-            f"اللي يهم هنا إن {title} صار بسعر أقل من السعر السابق الظاهر.",
-            f"سعر {title} نازل مقارنة بالسعر السابق المسجل بالصفحة.",
-            f"إذا تحتاجون {title}، شيّكوا على السعر الحالي قبل ما يتغير.",
+            f"🔥 {title} نازل من {format_price(previous)} إلى {price_text}",
+            f"💸 سعر {title} صار {price_text} بدل {format_price(previous)} ريال",
+            f"شوفوا عرض {title}: {price_text} بدل {format_price(previous)} ريال 👀",
+            f"✨ {title} عليه نزول بالسعر — صار {price_text}"
+        ]
+    elif category in ("groceries", "home"):
+        openers = [
+            f"🛒 {title} بـ {price_text}",
+            f"احتياج البيت: {title} بسعر {price_text} 🏠",
+            f"للمقاضي 🛒 {title} سعره {price_text}"
         ]
     elif category in ("fashion", "beauty"):
         openers = [
-            f"خيار من {brand or title} للي يدور على هالنوع.",
-            f"للمهتمين بـ {title}، هذا السعر الظاهر حاليًا.",
-            f"{title} موجود بالسعر التالي، وتأكدوا من اختيار اللون أو المقاس المناسب.",
-        ]
-    elif category in ("home", "groceries"):
-        openers = [
-            f"للمقاضي أو احتياجات البيت: {title} بسعر {price_text}.",
-            f"إذا {title} من الأشياء اللي تستخدمونها باستمرار، شوفوا سعره الحالي.",
-            f"احتياج البيت هالمرة: {title} بسعر {price_text}.",
-            f"{title} من المنتجات اليومية اللي ممكن تحتاجونها، وسعره الظاهر {price_text}.",
+            f"✨ {title} بسعر {price_text}",
+            f"👀 لمحبي هالنوع: {title} بـ {price_text}",
+            f"{title} متوفر بسعر {price_text} 🛍️"
         ]
     else:
         openers = [
-            f"شوفوا {title} بسعره الحالي 👀",
-            f"للي كان يدور على {title}، هذا سعره الظاهر حاليًا.",
-            f"{title} بسعر يستحق تشيكون عليه إذا كان ضمن احتياجكم.",
-            f"معلومة العرض: {title} متوفر حاليًا بالسعر الموضح تحت.",
-            f"مرّوا على تفاصيل {title} وشوفوا إذا يناسبكم السعر الحالي.",
+            f"🔥 {title} بسعر {price_text}",
+            f"👀 عرض {title} بـ {price_text}",
+            f"{title} بـ {price_text} ✨",
+            f"🛍️ اللي يدور {title}، سعره {price_text}"
         ]
-
-    price_lines = [
-        f"السعر {price_text}.",
-        f"المطلوب حاليًا {price_text}.",
-        f"سعره الآن {price_text}.",
-        f"معروض بـ {price_text}.",
-    ] if current > 0 else ["راجعوا السعر النهائي في صفحة المنتج قبل الطلب."]
-    if has_discount:
-        price_lines += [
-            f"السعر الحالي {price_text} بدل {format_price(previous)} ريال.",
-            f"من {format_price(previous)} إلى {price_text} حسب السعر السابق الظاهر.",
-        ]
-    if code:
-        price_lines += [f"بعد تطبيق الكود، السعر المذكور {price_text}." ]
-    elif voucher:
-        price_lines += [f"تأكدوا من تفعيل القسيمة؛ السعر النهائي {price_text}."]
-
-    closers = [
-        "راجعوا خيارات المنتج قبل تأكيد الطلب.",
-        "تفاصيل العرض والخيارات موجودة بصفحة المنتج.",
-        "اختاروا المواصفات المناسبة لكم قبل الدفع.",
-        "إذا ناسبكم، تأكدوا من السعر النهائي عند الدفع.",
-        "شيّكوا على تفاصيل المنتج قبل إتمام الطلب.",
-        "لا تنسون تتأكدون من السعر بعد تطبيق الخصم.",
-    ]
-    if has_discount and discount >= 25:
-        closers += [f"الفرق المحسوب حوالي {discount}% عن السعر السابق الظاهر.", f"التوفير المحسوب يقارب {discount}% مقارنة بالسعر السابق الظاهر."]
 
     parts = [random.choice(openers)]
-    # لا نكرر السعر في السطر الأول إذا كان موجودًا فيه بالفعل، ونضيف تفصيلة حقيقية إن وجدت.
-    if not (current > 0 and format_price(current) in parts[0]):
-        parts.append(random.choice(price_lines))
-    elif has_discount and format_price(previous) not in parts[0]:
-        parts.append(random.choice([f"كان السعر السابق الظاهر {format_price(previous)} ريال.", f"السعر السابق المسجل بالصفحة {format_price(previous)} ريال."]))
-    if detail_line and random.random() < 0.8:
+    if code_raw:
+        parts.append(random.choice([
+            f"الكود: <code>{code}</code> عند الدفع.",
+            f"اكتبوا <code>{code}</code> في خانة الكوبون قبل تأكيد الطلب.",
+            f"تأكدوا من تطبيق الكود عشان ينحسب الخصم."
+        ]))
+    elif voucher:
+        parts.append("فعّلوا القسيمة قبل ما تكملون الطلب.")
+    elif has_discount:
+        parts.append(random.choice([
+            f"التوفير حوالي {discount}% حسب السعرين المتاحين.",
+            f"السعر السابق {format_price(previous)} ريال، والحالي {price_text}.",
+            f"وفروا {format_price(previous - current)} ريال مقارنة بالسعر السابق."
+        ]))
+
+    if detail_line and (len(parts) < 3 or random.random() < 0.8):
         parts.append(detail_line)
-    elif product.get("features") and random.random() < 0.35:
-        # ميزة من الصفحة فقط؛ لا نولّد وصفًا من عندنا.
-        feature = html.escape(str(random.choice(product["features"])))
-        parts.append(feature)
-    if code and random.random() < 0.45:
-        parts.append(f"🎟️ الكود: <code>{html.escape(code)}</code>")
-    elif voucher and random.random() < 0.45:
-        parts.append("🏷️ فعّلوا القسيمة من صفحة المنتج قبل الدفع.")
-    if random.random() < 0.65:
-        parts.append(random.choice(closers))
+    elif product.get("features") and len(parts) < 3:
+        feature = html.escape(str(random.choice(product["features"])).strip())
+        if feature:
+            parts.append(feature)
 
-    # إزالة الجمل المتكررة داخل المنشور نفسه مع إبقاء 2-4 فقرات قصيرة.
-    unique = []
-    for part in parts:
-        if part and part not in unique:
-            unique.append(part)
-    body = "\n\n".join(unique[:4])
-    return body + "\n\n" + url_line
-
-
-
-@bot.message_handler(func=lambda m: True)
-def handler(msg):
-    text = (msg.text or "").strip()
-    all_urls = [u.rstrip(".,،)") for u in re.findall(r'https?://\S+', text)]
-    urls = [u for u in all_urls if re.search(r'amazon|amzn', u, re.IGNORECASE)]
-    source_urls = [u for u in all_urls if u not in urls]
-
-    if not urls:
-        bot.reply_to(msg, "❌ أرسل رابط المنتج من أمازون السعودية لتحويله لبوست ✨")
-        return
-
-    for original_url in urls:
-        expanded = expand_url(original_url)
-        asin = extract_asin(expanded)
-
-        if not asin:
-            bot.reply_to(msg, "❌ تعذر استخراج رمز المنتج (ASIN)، تأكد من صحة الرابط.")
-            continue
-
-        target_url = f"https://www.amazon.sa/dp/{asin}"
-        wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج...")
-
-        product = fetch_product_details(target_url, asin)
-
-        if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
-            continue
-
-        extras = parse_extras(text)
-        note = parse_note(text)
-        # لا نجلب/نستخدم مقارنة الإمارات في كل منشور؛ نعطي الأولوية للأسعار التي يضيفها صاحب القناة.
-        use_uae_comparison = not extras and random.random() < 0.20
-        uae_aed = fetch_uae_price(asin) if use_uae_comparison else 0.0
-        facts_text, compare_sources = build_facts(product, extras, uae_aed, asin, source_urls)
-        if note:
-            facts_text += f"\nملاحظة من صاحب القناة: {note}"
-
-        ai_text, ai_error = ai_write_post(facts_text)
-        if ai_error:
-            # الخطأ للتشخيص في سجلات التشغيل فقط، لا يظهر في قناة العروض.
-            print("AI generation failed; using concise fallback:", ai_error)
-        if ai_text:
-            ai_text = style_post_lines(ai_text)
-            # حوّل تنسيق Markdown إلى HTML بعد تهريب النص، مع دعم العريض والمائل والثابت.
-            safe = html.escape(ai_text)
-            safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', safe)
-            safe = re.sub(r'(?<!\*)\*([^*\n]+)\*(?!\*)', r'<i>\1</i>', safe)
-            safe = re.sub(r'`([^`\n]+)`', r'<code>\1</code>', safe)
-            # لا نضيف إيموجي تلقائيًا لكل سطر؛ نحافظ على تنسيق الكاتب وفواصل الأسطر.
-            post = safe.strip() + "\n\n🔗 " + html.escape(original_url, quote=True)
-            RECENT_POSTS.append(re.sub(r"<[^>]+>", "", safe.strip())[:350])
-            del RECENT_POSTS[:-8]
-        else:
-            post = generate_post(product, original_url)
-            RECENT_POSTS.append(re.sub(r"<[^>]+>", "", post.split("\n\n🔗")[0])[:350])
-            del RECENT_POSTS[:-8]
-
-        try:
-            if product.get("image_url"):
-                bot.send_photo(msg.chat.id, product["image_url"], caption=post, parse_mode="HTML")
-            else:
-                bot.send_message(msg.chat.id, post, parse_mode="HTML")
-        except Exception:
-            bot.send_message(msg.chat.id, post, parse_mode="HTML")
-        finally:
-            try:
-                bot.delete_message(msg.chat.id, wait.message_id)
-            except Exception:
-                pass
+    # منشور موجز من دون خواتيم حشو أو ادعاءات غير موثقة.
+    if len(parts) < 2 and current <= 0:
+        parts.append("تأكدوا من السعر النهائي والمواصفات قبل الطلب.")
+    text = "\n".join(parts[:3])
+    url_line = "🔗 " + html.escape(original_url, quote=True)
+    return text + "\n\n" + url_line
 
 
 app = Flask(__name__)
