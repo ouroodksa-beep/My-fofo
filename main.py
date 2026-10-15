@@ -918,6 +918,21 @@ def validate_ai_text(text, facts_text):
         return "تنسيق غير مكتمل"
     if re.search(r'(?:توفير|ميزة|السعر|مقارنة|بـ|بس|من|على|مع|لل|ال)\s*$', lines[-1]):
         return "النص يبدو مقطوعًا"
+    # ارفض المنشور إذا كان شبه نسخة من منشور سابق في نفس جلسة التشغيل.
+    def normalize_for_compare(value):
+        value = re.sub(r'https?://\S+', '', value.lower())
+        value = re.sub(r'<[^>]+>|[^\w\s]', ' ', value)
+        return re.sub(r'\s+', ' ', value).strip()
+    candidate = normalize_for_compare(text)
+    for old_post in RECENT_POSTS[-8:]:
+        old_norm = normalize_for_compare(old_post)
+        if not candidate or not old_norm:
+            continue
+        # نقارن الكلمات بدل الرابط والإيموجي، مع تجاهل اختلاف السعر البسيط.
+        a, b = set(candidate.split()), set(old_norm.split())
+        similarity = len(a & b) / max(1, len(a | b))
+        if similarity >= 0.62:
+            return "المنشور قريب جدًا من صياغة منشور سابق"
     # إذا كان السعر الحالي موجودًا في المعطيات، لا نقبل منشورًا نسي ذكره.
     price_match = re.search(r'السعر الحالي(?: النهائي)?:\s*(\d+(?:\.\d+)?)\s*ريال', facts_text)
     if price_match:
@@ -983,46 +998,32 @@ def generate_post(product, original_url):
     price_text = f"<b>{format_price(current)} ريال</b>" if current > 0 else "السعر الظاهر في الصفحة"
     url_line = "🔗 " + html.escape(original_url, quote=True)
 
-    # اختَر زاوية الكتابة من تفاصيل العرض بدل تدوير عنوان عشوائي فوق نفس القالب.
-    if code and has_discount:
-        openings = [
-            f"السعر نازل من {format_price(previous)} إلى {price_text}، ومعه كود لازم ما يفوتكم:",
-            f"اللي بيطلب {title} ينتبه للكود؛ السعر الحالي {price_text} بدل {format_price(previous)} ريال.",
-            f"فيه خصم ظاهر على {title}، والكود بعد مهم 👇\nالسعر {price_text} بدل {format_price(previous)} ريال.",
-        ]
-        body = random.choice(openings) + f"\n\n🎟️ استخدموا الكود <code>{html.escape(code)}</code> عند الدفع."
-    elif code:
-        openings = [
-            f"إذا {title} ضمن مشترياتكم، تذكّروا تدخلون الكود قبل الدفع.",
-            f"سعر {title} الحالي {price_text}، وفيه كود خصم ينضاف عند الدفع.",
-            f"لا تنسون خطوة الكود مع {title}؛ السعر المعروض حاليًا {price_text}.",
-        ]
-        body = random.choice(openings) + f"\n\n🎟️ كود الخصم: <code>{html.escape(code)}</code>."
-    elif has_discount:
-        openings = [
-            f"{title} صار سعره {price_text} بعد ما كان {format_price(previous)} ريال.",
-            f"للي يستخدم {title} باستمرار، السعر الظاهر نزل من {format_price(previous)} إلى {price_text}.",
-            f"من {format_price(previous)} إلى {price_text} ريال على {title}؛ هذا هو الفرق حسب السعر المعروض.",
-            f"سعر {title} الحالي {price_text}، والسعر السابق الظاهر بالصفحة {format_price(previous)} ريال.",
-        ]
-        body = random.choice(openings)
-        if discount >= 25:
-            body += f"\n\nالتوفير يطلع حوالي {discount}% مقارنة بالسعر السابق الظاهر."
+    # صياغة احتياطية قصيرة ومتنوعة حسب نوع العرض، وليست إعادة تدوير جملة السعر.
+    category = (product.get("category") or "").lower()
+    if code:
+        body = f"قبل إتمام الطلب، أضيفوا كود <code>{html.escape(code)}</code> لـ {title}.\n\nالسعر الحالي {price_text}" + (f" بدل {format_price(previous)} ريال حسب السعر السابق الظاهر." if has_discount else ".")
     elif voucher:
-        openings = [
-            f"{title} سعره الحالي {price_text}، بس انتبهوا: فيه قسيمة لازم تتفعّل من صفحة المنتج.",
-            f"قبل تطلبون {title}، فعّلوا القسيمة من صفحة أمازون. السعر المعروض {price_text}.",
-            f"للي يحتاج {title}: سعره {price_text}، وتأكدوا من تفعيل القسيمة قبل إتمام الطلب.",
+        body = f"إذا بتاخذون {title}، انتبهوا للقسيمة: فعّلوها من صفحة المنتج قبل الدفع.\n\nالسعر الظاهر {price_text}."
+    elif has_discount:
+        styles = [
+            f"التغيير اللي يهم في {title}: صار {price_text}، والسعر السابق الظاهر {format_price(previous)} ريال.",
+            f"سعر {title} أقل من السعر السابق الظاهر بالصفحة؛ الآن {price_text} بدل {format_price(previous)} ريال.",
+            f"للي يحتاج {title} قريب، السعر الحالي {price_text}. كان السعر الظاهر {format_price(previous)} ريال.",
         ]
-        body = random.choice(openings)
+        body = random.choice(styles)
+        if discount >= 25:
+            body += f"\n\nالفرق المحسوب حوالي {discount}% من السعر السابق الظاهر."
     else:
-        openings = [
-            f"{title}\n\nالسعر المعروض حاليًا {price_text}.",
-            f"للي يدور على {title}، سعره في الصفحة الآن {price_text}.",
-            f"بدون لف ودوران: {title} بسعر {price_text} حاليًا.",
-            f"{price_text} لـ {title} حسب السعر الظاهر في الصفحة.",
-        ]
-        body = random.choice(openings)
+        if category in ("home", "groceries"):
+            body = f"للاستخدام اليومي، {title} متوفر حاليًا بسعر {price_text}."
+        elif category in ("beauty", "fashion"):
+            body = f"{title} — السعر المعروض حاليًا {price_text}. شوفوا تفاصيل المقاس/الحجم بصفحة المنتج قبل الطلب." if product.get("size") else f"إذا {title} من الأشياء اللي تحتاجونها، سعره الظاهر حاليًا {price_text}."
+        else:
+            body = random.choice([
+                f"{title} بسعر معروض حاليًا {price_text}.",
+                f"السعر الظاهر لـ {title} الآن {price_text}، والتفاصيل في صفحة المنتج.",
+                f"للي يبحث عن {title}: السعر الحالي المعروض {price_text}.",
+            ])
 
     return body + "\n\n" + url_line
 
