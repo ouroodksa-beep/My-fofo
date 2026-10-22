@@ -12,7 +12,6 @@ TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
 
 # 🔑 حطي هنا مفتاح ScraperAPI المجاني حقك (سجلي في موقع scraperapi.com وخذيه)
-# الخدمة تعطيك رصيد مجاني يكسر حظر أمازون تماماً ويخلي السحب يشتغل 100%
 SCRAPER_API_KEY = "316c300d48b3f5b748c89feef51dd0c3"
 
 POPULAR_BRANDS = [
@@ -23,6 +22,9 @@ POPULAR_BRANDS = [
 ]
 
 PHRASE_TRANSLATIONS = {
+    "protective corrective fluid": "سائل تصحيحي واقي",
+    "corrective fluid": "سائل تصحيحي",
+    "protective fluid": "سائل واقي",
     "roll on": "مزيل عرق رول", "roll-on": "مزيل عرق رول",
     "body wash": "غسول جسم", "hand wash": "غسول يدين",
     "face wash": "غسول وجه", "hair wash": "شامبو",
@@ -33,10 +35,12 @@ PHRASE_TRANSLATIONS = {
 }
 
 WORD_TRANSLATIONS = {
+    "protective": "واقي", "corrective": "تصحيحي", "fluid": "سائل",
     "deodorant": "مزيل عرق", "cream": "كريم", "lotion": "لوشن",
     "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون",
     "perfume": "عطر", "fragrance": "عطر", "makeup": "مكياج",
-    "lipstick": "أحمر شفاه", "foundation": "سائل أساس", "ivory": "ايفوري"
+    "lipstick": "أحمر شفاه", "foundation": "سائل أساس", "ivory": "ايفوري",
+    "spf": "SPF", "50": "50"
 }
 
 UNITS_MAP = {
@@ -160,7 +164,6 @@ def extract_number(price_text):
 
 def fetch_product_details(url, asin):
     try:
-        # استخدام ScraperAPI لتجاوز الحظر سحب بيانات أمازون الحقيقية بدقة
         if SCRAPER_API_KEY and SCRAPER_API_KEY != "حطي_مفتاحك_هنا":
             fetch_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
         else:
@@ -175,7 +178,6 @@ def fetch_product_details(url, asin):
 
         title = title_elem.text.strip()
         
-        # استخراج السعر الحقيقي
         current_p = 0.0
         for sel in [".apexPriceToPay .a-offscreen", "#corePrice_feature_div .a-price .a-offscreen", ".a-price .a-offscreen"]:
             elem = soup.select_one(sel)
@@ -208,7 +210,7 @@ def fetch_product_details(url, asin):
         return None
 
 # ============================================================
-# توليد المنشور بالتنسيق النظيف والمظبوط تماماً
+# توليد المنشور مع سطر فارغ بين كل جملة وجملة بدقة
 # ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
@@ -217,16 +219,15 @@ def generate_post(product_data, original_url):
     price = product_data["final_price_num"]
     discount_percent = int(product_data.get("discount_percent", 20))
 
-    # بناء نص المنتج بدون تكرار
     if brand:
-        product_item = f"سائل أساس من <code>{brand}</code> {title}" if "سائل" in title or "أساس" in title else f"{title} من <code>{brand}</code>"
+        product_item = f"{title} من <code>{brand}</code>"
     else:
         product_item = title
 
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    # التنويع بين البدايات الأربع المطلوبة عشوائياً
+    # التنويع العشوائي للبدايات الأربع
     style_choice = random.choice([1, 2, 3, 4])
 
     if style_choice == 1:
@@ -240,16 +241,15 @@ def generate_post(product_data, original_url):
 
     price_str = f"بـ <b>{int(price)} ريال</b>" if price > 0 else "بأفضل سعر"
 
-    # الجملة الوسطى
     if random.choice([True, False]):
-        middle_part = f"{product_item} ✨\nواصل لأفضل سعر {price_str} الحقوه بسرعة 🚀"
+        middle_part = f"{product_item} ✨\n\nواصل لأفضل سعر {price_str} الحقوه بسرعة 🚀"
     else:
-        middle_part = f"{product_item}\nمطلوب فيه الحين {price_str} بلاش والله 💸"
+        middle_part = f"{product_item}\n\nمطلوب فيه الحين {price_str} بلاش والله 💸"
 
     coupon_part = f"🎟️ خصم إضافي <code>{discount_percent}%</code> — فعلوها من صفحة المنتج 👇"
 
-    # التجميع النهائي مع سطر فارغ قبل الرابط المباشر
-    post = f"{header}\n\n{middle_part}\n{coupon_part}\n\n{original_url}"
+    # تجميع البوست بحيث يكون بين كل سطر وسطر سطر فارغ كامل (\n\n)
+    post = f"{header}\n\n{middle_part}\n\n{coupon_part}\n\n{original_url}"
     return post
 
 @bot.message_handler(func=lambda m: True)
@@ -294,7 +294,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بكفاءة سحب البيانات 🔥", 200
+    return "🤖 البوت يعمل بكفاءة تامة وتنسيق مرتب 🔥", 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
