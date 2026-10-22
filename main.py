@@ -1,4 +1,4 @@
-طimport telebot
+import telebot
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -11,6 +11,9 @@ from flask import Flask, request
 
 TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
+
+# إضافة مفتاح ScraperAPI لتجاوز حظر أمازون (ضع مفتاحك هنا إذا توفر)
+SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
 
 POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex",
@@ -88,21 +91,22 @@ def translate_to_arabic(text):
     return re.sub(r'\s+', ' ', result)
 
 def clean_brand_name(brand_text):
-    """تنظيف اسم الماركة تماماً من كلمات 'قم بزيارة' و 'Visit Store'"""
+    """تنظيف حاسم لمنع عبارة 'قم بزيارة متجر' نهائياً"""
     if not brand_text:
         return ""
-    clean = re.sub(r'^(قم بزيارة متجر|زيارة متجر|Visit the|Visit|Brand:)\s*', '', brand_text, flags=re.IGNORECASE)
+    clean = re.sub(r'^(قم بزيارة متجر|زيارة متجر|Visit the Store|Visit the|Visit|Brand:)\s*', '', brand_text, flags=re.IGNORECASE)
     clean = re.sub(r'\s*(Store|متجر)$', '', clean, flags=re.IGNORECASE).strip()
     return clean
 
 def clean_arabic_title(full_title, found_brand):
     if not full_title:
         return "منتج مميز"
+    
+    # تنظيف أي عبارة زائرة
+    full_title = re.sub(r'^(قم بزيارة متجر|زيارة متجر)\s*', '', full_title, flags=re.IGNORECASE)
+    
     if found_brand:
         full_title = re.sub(re.escape(found_brand), '', full_title, flags=re.IGNORECASE)
-    
-    # تنظيف أي عبارات ترويجية قديمة
-    full_title = re.sub(r'^(قم بزيارة متجر|زيارة متجر)\s*', '', full_title, flags=re.IGNORECASE)
     
     clean = translate_to_arabic(full_title) if re.search(r'[A-Za-z]', full_title) else full_title
     clean = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', clean)
@@ -176,12 +180,25 @@ def extract_number(price_text):
 
 def fetch_product_details(url, asin):
     try:
-        session = requests.Session()
-        resp = session.get(url, headers=get_headers(), timeout=12)
+        # استخدام ScraperAPI إن وجد لتفادي الحظر، وإلا استخدام Requests مباشرة
+        if SCRAPER_API_KEY:
+            fetch_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+            resp = requests.get(fetch_url, timeout=25)
+        else:
+            resp = requests.get(url, headers=get_headers(), timeout=12)
+
         html_text = resp.text
         soup = BeautifulSoup(resp.content, "html.parser")
 
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
+
+        if not title_elem:
+            # تجربة إضافية باستخدام CORS Proxy
+            proxy_url = f"https://corsproxy.io/?{url}"
+            resp = requests.get(proxy_url, headers=get_headers(), timeout=12)
+            html_text = resp.text
+            soup = BeautifulSoup(resp.content, "html.parser")
+            title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
 
         if not title_elem:
             return None
@@ -221,7 +238,7 @@ def fetch_product_details(url, asin):
         return None
 
 # ============================================================
-# صياغة المنشور بالتنسيق النظيف والمظبوط 100%
+# توليد المنشور بدون تكرار وبشكل نظيف جداً
 # ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
@@ -230,16 +247,16 @@ def generate_post(product_data, original_url):
     price = int(product_data["final_price_num"])
     discount_percent = int(product_data.get("discount_percent", 20))
 
-    # بناء سطر اسم المنتج بدون تكرار
+    # تكوين صياغة المنتج بوضوح وبدون تكرار كلمات
     if brand:
         product_item = f"سائل أساس من <code>{brand}</code> {title}"
     else:
-        product_item = title
+        product_item = f"سائل أساس {title}"
 
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    # اختيار التنسيق العشوائي للبداية
+    # خيارات الترويسة الأربعة المتنوعة
     style_choice = random.choice([1, 2, 3, 4])
 
     if style_choice == 1:
@@ -251,7 +268,7 @@ def generate_post(product_data, original_url):
     else:
         header = "<b>صيييييدة ما تتعوض وتخلص بسرعة! 🎯</b>"
 
-    # صياغة الجمل الوسطى
+    # الجملة الوسطى
     if random.choice([True, False]):
         middle_part = f"{product_item} ✨\nواصل لأفضل سعر بـ <b>{price} ريال</b> الحقوه بسرعة 🚀"
     else:
@@ -259,7 +276,7 @@ def generate_post(product_data, original_url):
 
     coupon_part = f"🎟️ خصم إضافي <code>{discount_percent}%</code> — فعلوها من صفحة المنتج 👇"
 
-    # تجميع العناصر بشكل مرتب مع مراعاة السطور الفارغة
+    # التجميع النهائي مع سطر فارغ قبل الرابط المباشر
     post = f"{header}\n\n{middle_part}\n{coupon_part}\n\n{original_url}"
     return post
 
@@ -297,7 +314,7 @@ def handler(msg):
             else:
                 bot.send_message(msg.chat.id, post, parse_mode="HTML")
             bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception as e:
+        except Exception:
             bot.send_message(msg.chat.id, post, parse_mode="HTML")
             bot.delete_message(msg.chat.id, wait.message_id)
 
