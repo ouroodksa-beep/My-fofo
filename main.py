@@ -296,4 +296,48 @@ def handler(msg):
         target_url = f"https://www.amazon.sa/dp/{asin}"
         wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج وصنع المنشور...")
 
-        product = fetch_product_details(target_url
+        product = fetch_product_details(target_url, asin)
+
+        if not product:
+            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
+            continue
+
+post = generate_post(product, original_url)
+
+        try:
+            if product.get("image_url"):
+                bot.send_photo(msg.chat.id, product["image_url"], caption=post, parse_mode="HTML")
+            else:
+                bot.send_message(msg.chat.id, post, parse_mode="HTML")
+            bot.delete_message(msg.chat.id, wait.message_id)
+        except Exception:
+            bot.send_message(msg.chat.id, post, parse_mode="HTML")
+            bot.delete_message(msg.chat.id, wait.message_id)
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "🤖 البوت يعمل بأسلوب إكس زون المطور 🔥", 200
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    return 'Unsupported Media Type', 415
+
+WEBHOOK_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if WEBHOOK_HOST:
+    try:
+        webhook_url = f"https://{WEBHOOK_HOST}/webhook"
+        bot.remove_webhook()
+        bot.set_webhook(url=webhook_url)
+    except Exception as e:
+        print(f"Webhook setup failed: {e}")
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
