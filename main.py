@@ -11,36 +11,40 @@ from flask import Flask, request
 TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
 
-# 🔑 حطي هنا مفتاح ScraperAPI المجاني حقك لتخطي حظر أمازون
-SCRAPER_API_KEY = "316c300d48b3f5b748c89feef51dd0c3"
+# 🔑 مفتاح ScraperAPI لتجاوز حظر أمازون
+SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "316c300d48b3f5b748c89feef51dd0c3")
 
 POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex",
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec",
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
-    "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO", "Pharmaceris", "Amazon"
+    "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO", "Pharmaceris",
+    "Johnson's Baby", "Johnson & Johnson", "Johnson's"
 ]
 
+# قاموس ترجمة شامل للعبارات المركبة والتجميلية والطبية
 PHRASE_TRANSLATIONS = {
+    "no more tears formula gentle": "تركيبة لا دموع بعد اليوم اللطيفة",
+    "no more tears": "لا دموع بعد اليوم",
     "protective corrective fluid": "سائل تصحيحي واقي",
     "corrective fluid": "سائل تصحيحي",
     "protective fluid": "سائل واقي",
     "roll on": "مزيل عرق رول", "roll-on": "مزيل عرق رول",
     "body wash": "غسول جسم", "hand wash": "غسول يدين",
-    "face wash": "غسول وجه", "hair wash": "شامبو",
+    "face wash": "غسول وجه", "hair wash": "شامبو أطفال",
     "shower gel": "جل استحمام", "body lotion": "لوشن جسم",
     "face cream": "كريم وجه", "eye cream": "كريم عيون",
-    "hair oil": "زيت شعر", "hair serum": "سيرم شعر",
-    "foundation": "سائل أساس"
+    "hair oil": "زيت شعر", "hair serum": "سيروم شعر",
+    "foundation": "سائل أساس", "baby shampoo": "شامبو للأطفال"
 }
 
 WORD_TRANSLATIONS = {
+    "shampoo": "شامبو", "gentle": "لطيف", "formula": "تركيبة",
     "protective": "واقي", "corrective": "تصحيحي", "fluid": "سائل",
     "deodorant": "مزيل عرق", "cream": "كريم", "lotion": "لوشن",
-    "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون",
-    "perfume": "عطر", "fragrance": "عطر", "makeup": "مكياج",
-    "lipstick": "أحمر شفاه", "foundation": "سائل أساس", "ivory": "ايفوري",
-    "spf": "SPF", "50": "50"
+    "conditioner": "بلسم", "soap": "صابون", "perfume": "عطر",
+    "fragrance": "عطر", "makeup": "مكياج", "lipstick": "أحمر شفاه",
+    "ivory": "ايفوري", "spf": "SPF", "baby": "أطفال", "tears": "دموع"
 }
 
 UNITS_MAP = {
@@ -55,10 +59,12 @@ def translate_to_arabic(text):
     clean = re.sub(r'[^\w\s]', ' ', original)
     clean = re.sub(r'\s+', ' ', clean).strip()
 
+    # 1. ترجمة الجمل المركبة أولاً
     for phrase in sorted(PHRASE_TRANSLATIONS.keys(), key=len, reverse=True):
-        if f" {phrase} " in f" {clean} ":
+        if phrase in clean:
             clean = re.sub(r'\b' + re.escape(phrase) + r'\b', PHRASE_TRANSLATIONS[phrase], clean)
 
+    # 2. ترجمة الكلمات الفردية مع الأرقام والوحدات
     words = clean.split()
     translated = []
     for w in words:
@@ -95,7 +101,7 @@ def clean_arabic_title(full_title, found_brand):
     clean = translate_to_arabic(full_title) if re.search(r'[A-Za-z]', full_title) else full_title
     clean = re.sub(r'\b(الأصلي|جديد|عرض خاص|فقط)\b', '', clean)
     parts = re.split(r'[-–,|/]', clean)
-    words = parts[0].strip().split()[:7]
+    words = parts[0].strip().split()[:8]
     return " ".join(words).strip() if words else "منتج مميز"
 
 def extract_brand_from_soup(soup, full_title):
@@ -121,6 +127,27 @@ def extract_brand_from_soup(soup, full_title):
     if elem:
         return clean_brand_name(elem.get_text(strip=True))
     return ""
+
+def extract_coupons_from_soup(soup):
+    """استخراج الكود والقسيمة الحقيقية من صفحة أمازون بدون اختراع أكواد"""
+    all_text = soup.get_text(" ", strip=True)
+    coupon_data = {"code": None, "has_voucher": False, "percent": None}
+    
+    # البحث عن كود حقيقي في الصفحة
+    code_match = re.search(r'(?:كود الخصم|رمز الخصم|Promo Code|Coupon Code)[:\s\-]*([A-Za-z0-9]{4,12})', all_text, re.IGNORECASE)
+    if code_match:
+        code_cand = code_match.group(1).upper()
+        if code_cand not in ["AMAZON", "PRIME", "SAUDI", "DETAILS", "CHECKOUT"]:
+            coupon_data["code"] = code_cand
+
+    # البحث عن قسيمة خصم (Voucher/Coupon Checkbox)
+    if "vpcButton" in str(soup) or "coupon" in str(soup).lower():
+        coupon_data["has_voucher"] = True
+        pct_match = re.search(r'(\d{1,2})\s*%\s*(?:خصم|off|voucher|قسيمة)', all_text, re.IGNORECASE)
+        if pct_match:
+            coupon_data["percent"] = pct_match.group(1)
+
+    return coupon_data
 
 def extract_best_image(soup, asin):
     img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront")
@@ -189,6 +216,7 @@ def fetch_product_details(url, asin):
 
         found_brand = extract_brand_from_soup(soup, title)
         title_res = clean_arabic_title(title, found_brand)
+        coupon_info = extract_coupons_from_soup(soup)
 
         package_detail = ""
         size_match = re.search(r'(\d+\s*(قطعة|عبوة|لتر|مل|كيلو|جرام|حبة))', title, re.IGNORECASE)
@@ -201,7 +229,8 @@ def fetch_product_details(url, asin):
             "title_clean": title_res,
             "brand": found_brand,
             "package": package_detail,
-            "final_price_num": current_p if current_p > 0 else 0.0,
+            "final_price_num": current_p,
+            "coupon_info": coupon_info,
             "image_url": image_url
         }
     except Exception as e:
@@ -209,15 +238,16 @@ def fetch_product_details(url, asin):
         return None
 
 # ============================================================
-# صياغة المنشور بأسلوب "إكس زون" الرهيب والاحترافي 🔥
+# صياغة المنشور مع النقطة الحمراء بالبداية والترجمة الدقيقة
 # ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
     package = html.escape(product_data["package"])
     price = product_data["final_price_num"]
+    coupon_info = product_data.get("coupon_info", {})
 
-    # تجهيز اسم المنتج مع الماركة بشكل نظيف
+    # تجهيز اسم المنتج المترجم مع الماركة
     if brand:
         product_item = f"{title} من {brand}"
     else:
@@ -226,32 +256,36 @@ def generate_post(product_data, original_url):
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    # تنويع مقدمات أسلوب "إكس زون" الحماسية
-    hooks = [
-        "صورة حصرية من التجارب 🤩✅",
-        "🚨🔥 صيييدة نارية ما تتفوت!",
-        "لقطة اليوم وبسعر ما يتصدق 💥",
-        "صيدة جبارة للي يلحق عليها 🏃‍♂️"
+    # 1. أول سطر: النقطة الحمراء أو الإيموجي الافتتاحي في سطر منفصل كلياً
+    top_dot = random.choice(["🔴", "🚨", "🔥", "✨"])
+
+    # 2. الجملة الافتتاحية المشوقة
+    openers = [
+        "التوفير طالع معك جبار مع الخصم! 🔥",
+        "هذا من الشغلات اللي تتسحب للسلة على طول! 🛒",
+        "لحقوا عليه السعر نازل لقطة! 💥",
+        "صيييييدة ما تتعوض وتخلص بسرعة! 🎯"
     ]
+    selected_opener = random.choice(openers)
+
+    price_line = f"💰 <b>بسعر {int(price)} ريال بس</b> 🔥" if price > 0 else "💰 <b>السعر نازل لقطة اليوم</b> 🔥"
+
+    # 3. بناء سطر الكوبون الحقيقي فقط إن وُجد
+    coupon_lines = []
+    if coupon_info.get("code"):
+        coupon_lines.append(f"🏷️ كود الخصم: <code>{coupon_info['code']}</code>")
+    if coupon_info.get("has_voucher"):
+        pct_str = f" {coupon_info['percent']}%" if coupon_info.get("percent") else ""
+        coupon_lines.append(f"🎟️ <b>فعّل قسيمة الخصم إضافي{pct_str} من صفحة المنتج ✅</b>")
     
-    selected_hook = random.choice(hooks)
-    price_text = f"بـ <b>«{int(price)} ريال»</b>" if price > 0 else "بسعر لقطة"
+    if not coupon_lines:
+        coupon_lines.append("🎟️ <b>شيكوا على الخصم المباشر بصفحة المنتج ✅</b>")
 
-    # بناء الأسلوب المرتب تماماً مثل الأمثلة مع سطر فارغ بين الأجزاء
-    post_lines = [
-        selected_hook,
-        "",
-        f"<b>{product_item}</b> ✨",
-        "",
-        f"🏷️ كود <code>SPORTS20</code>",
-        f"💰 <b>بسعر {int(price)} ريال</b> 🔥" if price > 0 else "💰 <b>السعر نازل لقطة</b> 🔥",
-        "",
-        "🟥 <b>فعّل كوبون الخصم الإضافي من صفحة المنتج</b>",
-        "",
-        original_url
-    ]
+    coupon_str = "\n".join(coupon_lines)
 
-    return "\n".join(post_lines)
+    # 4. التجميع النهائي بسطور فارغة واضحة ورابط مباشر
+    post = f"{top_dot}\n\n{selected_opener}\n\n<b>{product_item}</b> ✨\n\n{price_line}\n\n{coupon_str}\n\n{original_url}"
+    return post
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -295,7 +329,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بأسلوب إكس زون الاحترافي 🔥", 200
+    return "🤖 البوت يعمل بأعلى كفاءة وتنسيق مضبوط 🔥", 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
