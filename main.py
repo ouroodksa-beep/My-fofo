@@ -2,7 +2,6 @@ import telebot
 import requests
 from bs4 import BeautifulSoup
 import re
-import time
 import random
 import os
 import html
@@ -12,8 +11,9 @@ from flask import Flask, request
 TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
 
-# إضافة مفتاح ScraperAPI لتجاوز حظر أمازون (ضع مفتاحك هنا إذا توفر)
-SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
+# 🔑 حطي هنا مفتاح ScraperAPI المجاني حقك (سجلي في موقع scraperapi.com وخذيه)
+# الخدمة تعطيك رصيد مجاني يكسر حظر أمازون تماماً ويخلي السحب يشتغل 100%
+SCRAPER_API_KEY = "316c300d48b3f5b748c89feef51dd0c3"
 
 POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex",
@@ -21,22 +21,6 @@ POPULAR_BRANDS = [
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
     "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO", "Pharmaceris"
 ]
-
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-]
-
-def get_headers():
-    return {
-        "User-Agent": random.choice(USER_AGENTS),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Cache-Control": "max-age=0",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1"
-    }
 
 PHRASE_TRANSLATIONS = {
     "roll on": "مزيل عرق رول", "roll-on": "مزيل عرق رول",
@@ -91,7 +75,6 @@ def translate_to_arabic(text):
     return re.sub(r'\s+', ' ', result)
 
 def clean_brand_name(brand_text):
-    """تنظيف حاسم لمنع عبارة 'قم بزيارة متجر' نهائياً"""
     if not brand_text:
         return ""
     clean = re.sub(r'^(قم بزيارة متجر|زيارة متجر|Visit the Store|Visit the|Visit|Brand:)\s*', '', brand_text, flags=re.IGNORECASE)
@@ -101,10 +84,7 @@ def clean_brand_name(brand_text):
 def clean_arabic_title(full_title, found_brand):
     if not full_title:
         return "منتج مميز"
-    
-    # تنظيف أي عبارة زائرة
     full_title = re.sub(r'^(قم بزيارة متجر|زيارة متجر)\s*', '', full_title, flags=re.IGNORECASE)
-    
     if found_brand:
         full_title = re.sub(re.escape(found_brand), '', full_title, flags=re.IGNORECASE)
     
@@ -157,7 +137,7 @@ def extract_best_image(soup, asin):
 
 def expand_url(url):
     try:
-        r = requests.get(url, allow_redirects=True, timeout=12, headers=get_headers())
+        r = requests.get(url, allow_redirects=True, timeout=12)
         return r.url
     except:
         return url
@@ -180,32 +160,22 @@ def extract_number(price_text):
 
 def fetch_product_details(url, asin):
     try:
-        # استخدام ScraperAPI إن وجد لتفادي الحظر، وإلا استخدام Requests مباشرة
-        if SCRAPER_API_KEY:
+        # استخدام ScraperAPI لتجاوز الحظر سحب بيانات أمازون الحقيقية بدقة
+        if SCRAPER_API_KEY and SCRAPER_API_KEY != "حطي_مفتاحك_هنا":
             fetch_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-            resp = requests.get(fetch_url, timeout=25)
         else:
-            resp = requests.get(url, headers=get_headers(), timeout=12)
+            fetch_url = url
 
-        html_text = resp.text
+        resp = requests.get(fetch_url, timeout=25)
         soup = BeautifulSoup(resp.content, "html.parser")
 
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
-
-        if not title_elem:
-            # تجربة إضافية باستخدام CORS Proxy
-            proxy_url = f"https://corsproxy.io/?{url}"
-            resp = requests.get(proxy_url, headers=get_headers(), timeout=12)
-            html_text = resp.text
-            soup = BeautifulSoup(resp.content, "html.parser")
-            title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
-
         if not title_elem:
             return None
 
         title = title_elem.text.strip()
         
-        # استخراج السعر
+        # استخراج السعر الحقيقي
         current_p = 0.0
         for sel in [".apexPriceToPay .a-offscreen", "#corePrice_feature_div .a-price .a-offscreen", ".a-price .a-offscreen"]:
             elem = soup.select_one(sel)
@@ -229,7 +199,7 @@ def fetch_product_details(url, asin):
             "title_clean": title_res,
             "brand": found_brand,
             "package": package_detail,
-            "final_price_num": current_p if current_p > 0 else 10.0,
+            "final_price_num": current_p if current_p > 0 else 0.0,
             "discount_percent": 20,
             "image_url": image_url
         }
@@ -238,25 +208,25 @@ def fetch_product_details(url, asin):
         return None
 
 # ============================================================
-# توليد المنشور بدون تكرار وبشكل نظيف جداً
+# توليد المنشور بالتنسيق النظيف والمظبوط تماماً
 # ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
     package = html.escape(product_data["package"])
-    price = int(product_data["final_price_num"])
+    price = product_data["final_price_num"]
     discount_percent = int(product_data.get("discount_percent", 20))
 
-    # تكوين صياغة المنتج بوضوح وبدون تكرار كلمات
+    # بناء نص المنتج بدون تكرار
     if brand:
-        product_item = f"سائل أساس من <code>{brand}</code> {title}"
+        product_item = f"سائل أساس من <code>{brand}</code> {title}" if "سائل" in title or "أساس" in title else f"{title} من <code>{brand}</code>"
     else:
-        product_item = f"سائل أساس {title}"
+        product_item = title
 
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    # خيارات الترويسة الأربعة المتنوعة
+    # التنويع بين البدايات الأربع المطلوبة عشوائياً
     style_choice = random.choice([1, 2, 3, 4])
 
     if style_choice == 1:
@@ -268,11 +238,13 @@ def generate_post(product_data, original_url):
     else:
         header = "<b>صيييييدة ما تتعوض وتخلص بسرعة! 🎯</b>"
 
+    price_str = f"بـ <b>{int(price)} ريال</b>" if price > 0 else "بأفضل سعر"
+
     # الجملة الوسطى
     if random.choice([True, False]):
-        middle_part = f"{product_item} ✨\nواصل لأفضل سعر بـ <b>{price} ريال</b> الحقوه بسرعة 🚀"
+        middle_part = f"{product_item} ✨\nواصل لأفضل سعر {price_str} الحقوه بسرعة 🚀"
     else:
-        middle_part = f"{product_item}\nمطلوب فيه الحين <b>{price} ريال</b> بلاش والله 💸"
+        middle_part = f"{product_item}\nمطلوب فيه الحين {price_str} بلاش والله 💸"
 
     coupon_part = f"🎟️ خصم إضافي <code>{discount_percent}%</code> — فعلوها من صفحة المنتج 👇"
 
@@ -286,7 +258,7 @@ def handler(msg):
     urls = re.findall(r'https?://\S+', text)
 
     if not urls:
-        bot.reply_to(msg, "❌ أرسل رابط المنتج من أمازون السعودية لتحويله لبوست احترافي ✨")
+        bot.reply_to(msg, "❌ أرسل رابط المنتج من أمازون لتحويله لبوست احترافي ✨")
         return
 
     for original_url in urls:
@@ -322,7 +294,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بأعلى كفاءة 🔥", 200
+    return "🤖 البوت يعمل بكفاءة سحب البيانات 🔥", 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
