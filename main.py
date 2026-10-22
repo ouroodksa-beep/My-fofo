@@ -30,14 +30,12 @@ CATEGORY_KEYWORDS = {
 def get_headers():
     return {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Cache-Control": "no-cache"
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
     }
 
-# ============================================================
-# الجملة الافتتاحية — كلمات جديدة، جملة واحدة فقط
-# ============================================================
 def generate_dynamic_hook(brand=""):
     emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "👁️", "💸", "😱", "📢"]
     openers = [
@@ -101,9 +99,6 @@ def detect_product_category(product_name):
                 return category
     return "general"
 
-# ============================================================
-# ترجمة الأصناف — عبارات أولاً ثم كلمات، مع إعادة ترتيب الصفات
-# ============================================================
 PHRASE_TRANSLATIONS = {
     "roll on": "مزيل عرق رول", "roll-on": "مزيل عرق رول",
     "body wash": "غسول جسم", "hand wash": "غسول يدين",
@@ -144,7 +139,6 @@ PHRASE_TRANSLATIONS = {
 }
 
 WORD_TRANSLATIONS = {
-    # عناية شخصية
     "deodorant": "مزيل عرق", "cream": "كريم", "lotion": "لوشن",
     "shampoo": "شامبو", "conditioner": "بلسم", "soap": "صابون",
     "perfume": "عطر", "fragrance": "عطر", "oud": "عود", "musk": "مسك",
@@ -156,7 +150,6 @@ WORD_TRANSLATIONS = {
     "mask": "ماسك", "wipes": "مناديل", "tissues": "مناديل",
     "toothpaste": "معجون أسنان", "toothbrush": "فرشاة أسنان",
     "razor": "ماكينة حلاقة", "trimmer": "ماكينة تشذيب",
-    # ملابس وإكسسوارات
     "shirt": "قميص", "tshirt": "تيشيرت", "pants": "بنطلون",
     "jeans": "جينز", "jacket": "جاكيت", "hoodie": "هودي",
     "dress": "فستان", "skirt": "تنورة", "socks": "شرابات",
@@ -165,7 +158,6 @@ WORD_TRANSLATIONS = {
     "hat": "قبعة", "bag": "شنطة", "backpack": "شنطة ظهر",
     "wallet": "محفظة", "belt": "حزام", "scarf": "شال",
     "sunglasses": "نظارة شمس", "watch": "ساعة", "gloves": "قفازات",
-    # إلكترونيات
     "phone": "جوال", "iphone": "آيفون", "laptop": "لابتوب",
     "computer": "كمبيوتر", "tablet": "تابلت", "ipad": "آيباد",
     "headphones": "سماعات", "earbuds": "سماعات", "speaker": "مكبر صوت",
@@ -174,7 +166,6 @@ WORD_TRANSLATIONS = {
     "charger": "شاحن", "cable": "كيبل", "battery": "بطارية",
     "router": "راوتر", "modem": "مودم", "console": "جهاز ألعاب",
     "controller": "يد تحكم", "stand": "ستاند", "holder": "حامل",
-    # منزل ومطبخ
     "refrigerator": "ثلاجة", "fridge": "ثلاجة", "blender": "خلاط",
     "mixer": "عجانة", "oven": "فرن", "microwave": "مايكرويف",
     "kettle": "غلاية", "iron": "مكواة", "fan": "مروحة",
@@ -183,18 +174,15 @@ WORD_TRANSLATIONS = {
     "towel": "منشفة", "curtain": "ستارة", "carpet": "سجادة",
     "laundry": "غسيل", "detergent": "مسحوق غسيل", "softener": "منعم",
     "cleaner": "منظف", "disinfectant": "مطهر", "bleach": "مبيض",
-    # أطعمة ومشروبات
     "rice": "أرز", "milk": "حليب", "biscuits": "بسكويت", "cookies": "كوكيز",
     "chocolate": "شوكولاتة", "candy": "حلاوة", "honey": "عسل",
     "coffee": "قهوة", "tea": "شاي", "juice": "عصير", "water": "مياه",
     "oil": "زيت", "sugar": "سكر", "salt": "ملح", "flour": "دقيق",
     "pasta": "مكرونة", "noodles": "نودلز", "sauce": "صلصة",
     "cereal": "كورن فليكس", "oats": "شوفان", "nuts": "مكسرات",
-    # رياضة
     "treadmill": "سير كهربائي", "dumbbell": "دمبل", "yoga": "يوجا",
     "bicycle": "دراجة", "ball": "كرة", "gym": "جيم",
     "supplement": "مكمل", "protein": "بروتين",
-    # صفات شائعة
     "whitening": "مبيض", "nourishing": "مغذي", "moisturizing": "مرطب",
     "hydrating": "مرطب", "revitalizing": "منعش", "refreshing": "منعش",
     "sensitive": "للبشرة الحساسة", "original": "أصلي", "genuine": "أصلي",
@@ -224,7 +212,6 @@ def translate_to_arabic(text):
     clean = re.sub(r'[^\w\s]', ' ', original)
     clean = re.sub(r'\s+', ' ', clean).strip()
 
-    # 1) ترجمة العبارات (الأطول أولاً)
     for phrase in sorted(PHRASE_TRANSLATIONS.keys(), key=len, reverse=True):
         if f" {phrase} " in f" {clean} ":
             clean = re.sub(r'\b' + re.escape(phrase) + r'\b', PHRASE_TRANSLATIONS[phrase], clean)
@@ -234,7 +221,6 @@ def translate_to_arabic(text):
     for w in words:
         if not w:
             continue
-        # أرقام ووحدات تفضل كما هي أو تترجم وحداتها فقط
         num_unit = re.match(r'^(\d+(?:\.\d+)?)(ml|l|kg|g|pcs|pc|pack|packs|pair|pairs|set|sets)?$', w)
         if num_unit:
             num = num_unit.group(1)
@@ -246,7 +232,6 @@ def translate_to_arabic(text):
             continue
         translated.append(WORD_TRANSLATIONS.get(w, w))
 
-    # 2) إعادة الترتيب: [صفة + اسم] <- [اسم + صفة] حسب القواعد العربية
     reordered = []
     i = 0
     while i < len(translated):
@@ -269,7 +254,6 @@ def clean_arabic_title(full_title, found_brand):
     if not full_title:
         return "منتج مميز"
 
-    # إزالة البراند أولاً عشان ما يدخل في الترجمة
     if found_brand:
         full_title = re.sub(re.escape(found_brand), '', full_title, flags=re.IGNORECASE)
 
@@ -286,9 +270,6 @@ def clean_arabic_title(full_title, found_brand):
     res = " ".join(words).strip()
     return res if res else "منتج مميز"
 
-# ============================================================
-# استخراج البراند
-# ============================================================
 def extract_brand_from_soup(soup, full_title):
     for brand in POPULAR_BRANDS:
         if re.search(r'\b' + re.escape(brand) + r'\b', full_title, re.IGNORECASE):
@@ -326,21 +307,6 @@ def extract_brand_from_soup(soup, full_title):
             if text and not re.search(r'[\u0600-\u06FF]', text) and len(text) < 40:
                 return text
 
-    detail_rows = soup.select(
-        "#productOverview_feature_div tr, "
-        "#detailBullets_feature_div li, "
-        "#productDetails_techSpec_section_1 tr, "
-        "#productDetails_detailBullets_sections1 tr"
-    )
-    for row in detail_rows:
-        row_text = row.get_text(" ", strip=True)
-        m = re.search(r'(?:Brand|العلامة التجارية|الماركة)\s*[:\-]?\s*(.+)', row_text, re.IGNORECASE)
-        if m:
-            candidate = m.group(1).strip()
-            candidate = re.split(r'\s{2,}', candidate)[0].strip()
-            if candidate and len(candidate) < 40:
-                return candidate
-
     return ""
 
 def extract_coupons_and_vouchers(soup, current_price=0.0):
@@ -351,7 +317,7 @@ def extract_coupons_and_vouchers(soup, current_price=0.0):
         "discount_amount": None,
     }
     all_text = soup.get_text(" ", strip=True)
-    IGNORED = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER"]
+    IGNORED = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER", "SAR"]
 
     code_pattern = re.search(r'(?:كود|رمز|Coupon|Promo|Code|Voucher|كوبون)[:\s\-]*([A-Za-z0-9]{3,15})', all_text, re.IGNORECASE)
     if code_pattern:
@@ -478,51 +444,50 @@ def extract_asin(url):
 def extract_number(price_text):
     if not price_text:
         return 0.0
-    nums = re.findall(r'[\d,]+(?:.\d+)?', str(price_text))
-    return float(nums[0].replace(",", "")) if nums else 0.0
+    # تنظيف النصوص البرمجية والرموز
+    cleaned = str(price_text).replace('\xa0', ' ').replace(',', '')
+    nums = re.findall(r'\d+(?:\.\d+)?', cleaned)
+    return float(nums[0]) if nums else 0.0
 
+# ============================================================
+# دالة استخراج الأسعار المحسّنة والقوية جداً
+# ============================================================
 def extract_prices_advanced(soup, html_content):
     current_price = 0.0
     old_price = 0.0
     page_discount_percent = 0.0
 
+    # 1. البحث في JSON-LD المدمج (أدق مصدر)
     try:
         scripts = soup.find_all('script', type='application/ld+json')
         for script in scripts:
             if script.string:
                 data = json.loads(script.string)
-                if isinstance(data, dict) and 'offers' in data:
-                    offers = data['offers']
-                    if isinstance(offers, list) and len(offers) > 0:
-                        current_price = float(offers[0].get('price', 0))
-                    elif isinstance(offers, dict):
-                        current_price = float(offers.get('price', 0))
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    if isinstance(item, dict) and 'offers' in item:
+                        offers = item['offers']
+                        if isinstance(offers, list) and len(offers) > 0:
+                            current_price = float(offers[0].get('price', 0))
+                        elif isinstance(offers, dict):
+                            current_price = float(offers.get('price', 0))
+                    if current_price > 0:
+                        break
     except Exception:
         pass
 
-    if current_price == 0.0:
-        price_patterns = [
-            r'"priceAmount"\s*:\s*([\d\.]+)',
-            r'"buyingPrice"\s*:\s*([\d\.]+)',
-            r'"amount"\s*:\s*([\d\.]+)',
-            r'priceToPay.*?[\$SRSAR\s]+([\d\.,]+)'
-        ]
-        for pat in price_patterns:
-            match = re.search(pat, html_content, re.IGNORECASE)
-            if match:
-                val = extract_number(match.group(1))
-                if val > 0:
-                    current_price = val
-                    break
-
+    # 2. البحث عن العناصر المحددة في DOM الصفحة
     if current_price == 0.0:
         curr_selectors = [
-            ".apexPriceToPay .a-offscreen",
             "#corePrice_feature_div .a-price .a-offscreen",
             "#corePriceDisplay_desktop_feature_div .a-price-whole",
-            ".a-price .a-offscreen",
+            ".apexPriceToPay .a-offscreen",
+            "#priceblock_dealprice",
             "#priceblock_ourprice",
-            "#priceblock_dealprice"
+            ".a-price[data-a-size='xl'] .a-offscreen",
+            ".a-price[data-a-size='l'] .a-offscreen",
+            "#corePrice_desktop .a-price .a-offscreen",
+            ".a-price .a-offscreen"
         ]
         for sel in curr_selectors:
             elem = soup.select_one(sel)
@@ -532,21 +497,43 @@ def extract_prices_advanced(soup, html_content):
                     current_price = val
                     break
 
+    # 3. محاولة البحث في نصوص السكربتات الداخلية المتغيرة في أمازون (Regex fallbacks)
+    if current_price == 0.0:
+        price_patterns = [
+            r'"priceAmount"\s*:\s*([\d\.]+)',
+            r'"buyingPrice"\s*:\s*([\d\.]+)',
+            r'"price"\s*:\s*([\d\.]+)',
+            r'priceToPay.*?[\$SRSAR\s]+([\d\.,]+)',
+            r'"amount"\s*:\s*([\d\.]+)'
+        ]
+        for pat in price_patterns:
+            match = re.search(pat, html_content, re.IGNORECASE)
+            if match:
+                val = extract_number(match.group(1))
+                if val > 0:
+                    current_price = val
+                    break
+
+    # 4. استخراج السعر السابق (المشطوب/الأصلي)
     old_selectors = [
-        ".a-basisPrice .a-offscreen",
         "#corePriceDisplay_desktop_feature_div .a-text-price .a-offscreen",
-        ".a-text-price .a-offscreen",
-        "#listPrice"
+        ".a-basisPrice .a-offscreen",
+        "#corePrice_desktop .a-text-price .a-offscreen",
+        "#listPrice",
+        ".a-text-price .a-offscreen"
     ]
     for sel in old_selectors:
-        elem = soup.select_one(sel)
-        if elem and elem.text.strip():
-            val = extract_number(elem.text.strip())
-            if val > current_price:
-                old_price = val
-                break
+        elems = soup.select(sel)
+        for elem in elems:
+            if elem and elem.text.strip():
+                val = extract_number(elem.text.strip())
+                if val > current_price:
+                    old_price = val
+                    break
+        if old_price > 0:
+            break
 
-    # === استخراج نسبة الخصم المعروضة في الصفحة نفسها ===
+    # 5. نسبة الخصم المباشرة من الصفحة
     percent_selectors = [
         "#corePriceDisplay_desktop_feature_div .savingsPercentage",
         ".a-price-savings .a-offscreen",
@@ -561,10 +548,8 @@ def extract_prices_advanced(soup, html_content):
                 page_discount_percent = float(m.group(1))
                 break
 
-    if page_discount_percent == 0.0:
-        m = re.search(r'(?:خصم|وفّر|وفر|Save)\s*(\d{1,2})\s*%', soup.get_text(" ", strip=True), re.IGNORECASE)
-        if m:
-            page_discount_percent = float(m.group(1))
+    if page_discount_percent == 0.0 and old_price > current_price and current_price > 0:
+        page_discount_percent = round(((old_price - current_price) / old_price) * 100)
 
     return current_price, old_price, page_discount_percent
 
@@ -600,9 +585,10 @@ def fetch_product_details(url, asin):
         coupon_details = extract_coupons_and_vouchers(soup, current_p)
         image_url = extract_best_image(soup, asin)
 
-        price_before_coupon = current_p
+        price_before_extra_discount = current_p
         final_price = current_p
 
+        # حساب السعر النهائي المباشر بناء على القسيمة أو الكود المكتشف
         if current_p > 0:
             if coupon_details.get("discount_percent"):
                 final_price = round(current_p * (1 - coupon_details["discount_percent"] / 100), 2)
@@ -615,7 +601,7 @@ def fetch_product_details(url, asin):
             "package": package_detail,
             "old_price_num": old_p,
             "current_price_num": final_price,
-            "price_before_coupon_num": price_before_coupon if final_price != price_before_coupon else 0.0,
+            "price_before_coupon_num": price_before_extra_discount if final_price != price_before_extra_discount else 0.0,
             "page_discount_percent": page_discount,
             "category": detect_product_category(title),
             "coupon_code": coupon_details["code"],
@@ -623,7 +609,7 @@ def fetch_product_details(url, asin):
             "image_url": image_url
         }
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error fetching product details: {e}")
         return None
 
 def generate_post(product_data, original_url):
@@ -633,6 +619,7 @@ def generate_post(product_data, original_url):
     category = product_data["category"]
     old_price_num = product_data["old_price_num"]
     current_num = product_data["current_price_num"]
+    price_before_coupon = product_data["price_before_coupon_num"]
     coupon_code = product_data.get("coupon_code")
     voucher_text = product_data.get("voucher_text")
     page_discount = product_data.get("page_discount_percent", 0.0)
@@ -647,37 +634,27 @@ def generate_post(product_data, original_url):
     lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
 
     if current_num > 0:
-        clean_current = f"{int(current_num)} ريال"
-        # السعر السابق الموجود في الصفحة كما هو
-        effective_old_price = old_price_num
-        has_discount = effective_old_price > current_num and effective_old_price > 0
+        clean_current = f"<b>{int(current_num)} ريال</b>"
 
-        price_styles = ["old_and_new", "discount_percentage", "simple_price_with_words"]
-        selected_style = random.choice(price_styles) if has_discount else "simple_price_with_words"
+        # عرض السعر السابق كما هو موضح في الصفحة
+        if old_price_num > 0 and old_price_num > current_num:
+            lines.append(f"❌ السعر السابق: <s>{int(old_price_num)} ريال</s>")
 
-        if selected_style == "old_and_new":
-            phrases = ["السعر قبل الخصم", "السعر المشطوب في الصفحة", "السعر الأصلي", "كان معروض بـ"]
-            phrase = random.choice(phrases)
-            lines.append(f"❌ {phrase}: <s>{int(effective_old_price)} ريال</s> ← 🔥 الآن: <b>{clean_current}</b> بس 😱")
+        # إذا وُجد خصم إضافي (كوبون أو قسيمة) تم تطبيقه على السعر
+        if price_before_coupon > 0:
+            lines.append(f"💵 السعر قبل الكوبون: {int(price_before_coupon)} ريال")
 
-        elif selected_style == "discount_percentage":
-            if page_discount > 0:
-                lines.append(f"🔥 السعر الآن: <b>{clean_current}</b> (خصم {int(page_discount)}% مباشر من الصفحة) 😱")
-            else:
-                calc_percent = int(((effective_old_price - current_num) / effective_old_price) * 100)
-                lines.append(f"🔥 السعر الآن: <b>{clean_current}</b> (خصم {calc_percent}%) 😱")
+        lines.append(f"🔥 السعر النهائي الآن: {clean_current} بس! 😱")
 
-        else:
-            word_decorations = ["السعر حالياً بـ", "نازل لـ", "مطلوب فيه الآن", "وصل لسعر"]
-            decoration = random.choice(word_decorations)
-            lines.append(f"🔥 {decoration}: <b>{clean_current}</b> 😱")
+        if page_discount > 0 and not price_before_coupon:
+            lines.append(f"✨ (تخفيض ممتاز بنسبة {int(page_discount)}%)")
 
     if coupon_code:
-        lines.append(generate_dynamic_coupon_call(coupon_code))
+        lines.append("\n" + generate_dynamic_coupon_call(coupon_code))
     elif voucher_text:
-        lines.append("🎟️ <b>السعر أعلاه شامل خصم القسيمة — فعّلها من نفس صفحة المنتج قبل الطلب ✅</b>")
+        lines.append(f"\n🎟️ <b>{voucher_text} — فعّلها مباشرة من صفحة المنتج قبل الشراء ✅</b>")
 
-    lines.append(f"\n{original_url}")
+    lines.append(f"\n🔗 <b>رابط الطلب المباشر:</b>\n{original_url}")
     return "\n".join(lines)
 
 @bot.message_handler(func=lambda m: True)
