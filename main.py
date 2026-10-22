@@ -11,7 +11,7 @@ from flask import Flask, request
 TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
 
-# 🔑 مفتاح ScraperAPI التجريبي الذي أرسلتيه
+# 🔑 مفتاح ScraperAPI التجريبي
 SCRAPER_API_KEY = "316c300d48b3f5b748c89feef51dd0c3"
 
 POPULAR_BRANDS = [
@@ -227,9 +227,6 @@ def fetch_product_details(url, asin):
         print(f"Error fetching product: {e}")
         return None
 
-# ============================================================
-# صياغة المنشور بأسلوب قناة "إكس زون" الاحترافي والمستوحى من الأمثلة
-# ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
@@ -245,7 +242,6 @@ def generate_post(product_data, original_url):
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    # تنويع مقدمات أسلوب X Zone المستوحاة من صور الأمثلة
     hooks = [
         "🔥🚒 صيييدة أسطورية!",
         "🔥😎 يمين او يسار .. الفرق وااااااضح",
@@ -256,7 +252,6 @@ def generate_post(product_data, original_url):
 
     price_str = f"«{int(price)} ريال»" if price > 0 else "سعر لقطة"
 
-    # بناء القالب بالشرطات والأقواس الفرنسية تماماً كالصور
     post_lines = [
         selected_hook,
         "",
@@ -264,7 +259,6 @@ def generate_post(product_data, original_url):
         f"- بـ <b>{price_str}</b> بس!",
     ]
 
-    # إضافة تفاصيل الكوبون إن وجدت
     if coupon_info.get("code"):
         post_lines.append(f"- 🏷️ كود: <code>{coupon_info['code']}</code>")
     if coupon_info.get("has_voucher"):
@@ -302,7 +296,7 @@ def handler(msg):
             bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
             continue
 
-post = generate_post(product, original_url)
+        post = generate_post(product, original_url)
 
         try:
             if product.get("image_url"):
