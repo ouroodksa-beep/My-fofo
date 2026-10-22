@@ -11,14 +11,14 @@ from flask import Flask, request
 TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
 
-# 🔑 حطي هنا مفتاح ScraperAPI المجاني حقك (سجلي في موقع scraperapi.com وخذيه)
+# 🔑 حطي هنا مفتاح ScraperAPI المجاني حقك لتخطي حظر أمازون
 SCRAPER_API_KEY = "316c300d48b3f5b748c89feef51dd0c3"
 
 POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex",
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec",
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
-    "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO", "Pharmaceris"
+    "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO", "Pharmaceris", "Amazon"
 ]
 
 PHRASE_TRANSLATIONS = {
@@ -202,7 +202,6 @@ def fetch_product_details(url, asin):
             "brand": found_brand,
             "package": package_detail,
             "final_price_num": current_p if current_p > 0 else 0.0,
-            "discount_percent": 20,
             "image_url": image_url
         }
     except Exception as e:
@@ -210,47 +209,49 @@ def fetch_product_details(url, asin):
         return None
 
 # ============================================================
-# توليد المنشور مع سطر فارغ بين كل جملة وجملة بدقة
+# صياغة المنشور بأسلوب "إكس زون" الرهيب والاحترافي 🔥
 # ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
     package = html.escape(product_data["package"])
     price = product_data["final_price_num"]
-    discount_percent = int(product_data.get("discount_percent", 20))
 
+    # تجهيز اسم المنتج مع الماركة بشكل نظيف
     if brand:
-        product_item = f"{title} من <code>{brand}</code>"
+        product_item = f"{title} من {brand}"
     else:
         product_item = title
 
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    # التنويع العشوائي للبدايات الأربع
-    style_choice = random.choice([1, 2, 3, 4])
+    # تنويع مقدمات أسلوب "إكس زون" الحماسية
+    hooks = [
+        "صورة حصرية من التجارب 🤩✅",
+        "🚨🔥 صيييدة نارية ما تتفوت!",
+        "لقطة اليوم وبسعر ما يتصدق 💥",
+        "صيدة جبارة للي يلحق عليها 🏃‍♂️"
+    ]
+    
+    selected_hook = random.choice(hooks)
+    price_text = f"بـ <b>«{int(price)} ريال»</b>" if price > 0 else "بسعر لقطة"
 
-    if style_choice == 1:
-        header = "🔴\n\n<b>التوفير طالع معك فوق 93% مع الخصم! 🔥</b>"
-    elif style_choice == 2:
-        header = "🚨\n\n<b>هذا من الشغلات اللي تتسحب للسلة على طول! 🛒</b>"
-    elif style_choice == 3:
-        header = "🔥\n\n<b>لحقوا عليه السعر نازل لقطة! 💥</b>"
-    else:
-        header = "<b>صيييييدة ما تتعوض وتخلص بسرعة! 🎯</b>"
+    # بناء الأسلوب المرتب تماماً مثل الأمثلة مع سطر فارغ بين الأجزاء
+    post_lines = [
+        selected_hook,
+        "",
+        f"<b>{product_item}</b> ✨",
+        "",
+        f"🏷️ كود <code>SPORTS20</code>",
+        f"💰 <b>بسعر {int(price)} ريال</b> 🔥" if price > 0 else "💰 <b>السعر نازل لقطة</b> 🔥",
+        "",
+        "🟥 <b>فعّل كوبون الخصم الإضافي من صفحة المنتج</b>",
+        "",
+        original_url
+    ]
 
-    price_str = f"بـ <b>{int(price)} ريال</b>" if price > 0 else "بأفضل سعر"
-
-    if random.choice([True, False]):
-        middle_part = f"{product_item} ✨\n\nواصل لأفضل سعر {price_str} الحقوه بسرعة 🚀"
-    else:
-        middle_part = f"{product_item}\n\nمطلوب فيه الحين {price_str} بلاش والله 💸"
-
-    coupon_part = f"🎟️ خصم إضافي <code>{discount_percent}%</code> — فعلوها من صفحة المنتج 👇"
-
-    # تجميع البوست بحيث يكون بين كل سطر وسطر سطر فارغ كامل (\n\n)
-    post = f"{header}\n\n{middle_part}\n\n{coupon_part}\n\n{original_url}"
-    return post
+    return "\n".join(post_lines)
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -294,7 +295,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بكفاءة تامة وتنسيق مرتب 🔥", 200
+    return "🤖 البوت يعمل بأسلوب إكس زون الاحترافي 🔥", 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
