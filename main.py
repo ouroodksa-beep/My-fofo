@@ -19,7 +19,7 @@ POPULAR_BRANDS = [
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec",
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
     "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO", "Pharmaceris",
-    "Johnson's Baby", "Johnson & Johnson", "Johnson's"
+    "Johnson's Baby", "Johnson & Johnson", "Johnson's", "Skechers"
 ]
 
 PHRASE_TRANSLATIONS = {
@@ -227,6 +227,9 @@ def fetch_product_details(url, asin):
         print(f"Error fetching product: {e}")
         return None
 
+# ============================================================
+# صياغة المنشور بأسلوب قناة "إكس زون" الاحترافي والمستوحى من الأمثلة
+# ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
@@ -235,39 +238,43 @@ def generate_post(product_data, original_url):
     coupon_info = product_data.get("coupon_info", {})
 
     if brand:
-        product_item = f"{title} من {brand}"
+        product_item = f"{title} من «{brand}»"
     else:
         product_item = title
 
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    top_dot = random.choice(["🔴", "🚨", "🔥", "✨"])
-
-    openers = [
-        "التوفير طالع معك جبار مع الخصم! 🔥",
-        "هذا من الشغلات اللي تتسحب للسلة على طول! 🛒",
-        "لحقوا عليه السعر نازل لقطة! 💥",
-        "صيييييدة ما تتعوض وتخلص بسرعة! 🎯"
+    # تنويع مقدمات أسلوب X Zone المستوحاة من صور الأمثلة
+    hooks = [
+        "🔥🚒 صيييدة أسطورية!",
+        "🔥😎 يمين او يسار .. الفرق وااااااضح",
+        "🤌🫨 لفت انتباهي كمية التعليق والمدح",
+        "🔥✨ صيييدة نارية ما تتفوت!"
     ]
-    selected_opener = random.choice(openers)
+    selected_hook = random.choice(hooks)
 
-    price_line = f"💰 <b>بسعر {int(price)} ريال بس</b> 🔥" if price > 0 else "💰 <b>السعر نازل لقطة اليوم</b> 🔥"
+    price_str = f"«{int(price)} ريال»" if price > 0 else "سعر لقطة"
 
-    coupon_lines = []
+    # بناء القالب بالشرطات والأقواس الفرنسية تماماً كالصور
+    post_lines = [
+        selected_hook,
+        "",
+        f"- <b>{product_item}</b> 🌿",
+        f"- بـ <b>{price_str}</b> بس!",
+    ]
+
+    # إضافة تفاصيل الكوبون إن وجدت
     if coupon_info.get("code"):
-        coupon_lines.append(f"🏷️ كود الخصم: <code>{coupon_info['code']}</code>")
+        post_lines.append(f"- 🏷️ كود: <code>{coupon_info['code']}</code>")
     if coupon_info.get("has_voucher"):
         pct_str = f" {coupon_info['percent']}%" if coupon_info.get("percent") else ""
-        coupon_lines.append(f"🎟️ <b>فعّل قسيمة الخصم إضافي{pct_str} من صفحة المنتج ✅</b>")
-    
-    if not coupon_lines:
-        coupon_lines.append("🎟️ <b>شيكوا على الخصم المباشر بصفحة المنتج ✅</b>")
+        post_lines.append(f"- 🟥 فعّل كوبون{pct_str} من صفحة المنتج ✅")
 
-    coupon_str = "\n".join(coupon_lines)
+    post_lines.append("")
+    post_lines.append(original_url)
 
-    post = f"{top_dot}\n\n{selected_opener}\n\n<b>{product_item}</b> ✨\n\n{price_line}\n\n{coupon_str}\n\n{original_url}"
-    return post
+    return "\n".join(post_lines)
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
@@ -289,48 +296,4 @@ def handler(msg):
         target_url = f"https://www.amazon.sa/dp/{asin}"
         wait = bot.reply_to(msg, "⏳ جاري قراءة بيانات المنتج وصنع المنشور...")
 
-        product = fetch_product_details(target_url, asin)
-
-        if not product:
-            bot.edit_message_text("❌ تعذر قراءة بيانات المنتج، حاول مجدداً بعد قليل.", msg.chat.id, wait.message_id)
-            continue
-
-        post = generate_post(product, original_url)
-
-        try:
-            if product.get("image_url"):
-                bot.send_photo(msg.chat.id, product["image_url"], caption=post, parse_mode="HTML")
-            else:
-                bot.send_message(msg.chat.id, post, parse_mode="HTML")
-            bot.delete_message(msg.chat.id, wait.message_id)
-        except Exception:
-            bot.send_message(msg.chat.id, post, parse_mode="HTML")
-            bot.delete_message(msg.chat.id, wait.message_id)
-
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    return "🤖 البوت يعمل بأعلى كفاءة وتنسيق مضبوط 🔥", 200
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return '', 200
-    return 'Unsupported Media Type', 415
-
-WEBHOOK_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-if WEBHOOK_HOST:
-    try:
-        webhook_url = f"https://{WEBHOOK_HOST}/webhook"
-        bot.remove_webhook()
-        bot.set_webhook(url=webhook_url)
-    except Exception as e:
-        print(f"Webhook setup failed: {e}")
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+        product = fetch_product_details(target_url
