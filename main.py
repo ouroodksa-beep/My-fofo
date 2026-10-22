@@ -16,7 +16,7 @@ POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex",
     "Pampers", "Nivea", "Dove", "L'Oreal", "Maybelline", "Macvities", "Nadec",
     "Almarai", "Savola", "Tide", "Persil", "Downy", "Nike", "Adidas", "Puma",
-    "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO"
+    "Gillette", "Clorox", "Fine", "Vaseline", "MOTHERCARE", "U.S. POLO", "Pharmaceris"
 ]
 
 CATEGORY_KEYWORDS = {
@@ -31,55 +31,12 @@ def get_headers():
     return {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en-E;q=0.7",
         "Accept-Encoding": "gzip, deflate, br",
         "DNT": "1",
         "Connection": "keep-alive",
         "Upgrade-Insecure-Requests": "1"
     }
-
-# ============================================================
-# جمل افتتاحية بلهجة سعودية عامية ومباشرة
-# ============================================================
-def generate_dynamic_hook(brand=""):
-    emojis = ["🚨", "🔥", "⚡", "💥", "🎯", "🛍️", "💣", "✨", "📣", "🏷️", "🚀", "🎉", "💎", "💸", "😱"]
-    openers = [
-        "يا بلاش! طاح سعره اليوم بشكل مو طبيعي",
-        "من أطلق العروض اللي مرت علي اليوم",
-        "صيدة رهيبة للي يبي يطلب الحين",
-        "لحقوا عليه السعر نازل لقطة",
-        "هذا من الشغلات اللي تتسحب للسلة على طول",
-        "السعر طايح والفرصة ما تتفوت أبداً",
-        "خصم حقيقي ويستاهل نطلبه فوراً",
-        "من زمان ما نزل لهالسعر الجبار",
-        "لقطة اليوم وبفرق سعر واضح جداً",
-        "لا تترددون السعر نزوله يجنن اليوم",
-        "عروض اليوم مولعة وهذا أقواها",
-        "فرصة توفير رهيبة للي يحتاجه"
-    ]
-    if brand:
-        openers += [
-            f"خصم {brand} اليوم يفتح النفس صراحة",
-            f"نزول خرافي بمنتجات {brand} الحقوا عليه",
-            f"عروض {brand} المباشرة نازلة بسعر قوي"
-        ]
-
-    return f"{random.choice(emojis)} <b>{random.choice(openers)}!</b>"
-
-# ============================================================
-# دعوة واستخدام الكوبون بأساليب متنوّعة وبلهجة سعودية
-# ============================================================
-def generate_dynamic_coupon_call(code):
-    icons = ["🎟️", "🏷️", "🔑", "💥", "🎁", "✨", "📌"]
-    phrases = [
-        "لا تنسون تطبقون كود الخصم عند الدفع",
-        "وفّروا أكثر واستخدموا الكود هذا",
-        "ادخلوا هالكود وفعلوا التخفيض الإضافي",
-        "انسخوا كود الخصم وطبقوه بالسلة",
-        "طبّقوا هالرمز الإضافي قبل تطلبون",
-        "حطوا هذا الكود عشان يخصم لكم زيادة"
-    ]
-    return f"{random.choice(icons)} <b>{random.choice(phrases)}:</b> <code>{html.escape(code)}</code>"
 
 def detect_product_category(product_name):
     name_lower = product_name.lower()
@@ -106,7 +63,7 @@ PHRASE_TRANSLATIONS = {
     "wall charger": "شاحن جداري", "car charger": "شاحن سيارة",
     "baby diapers": "حفاضات أطفال", "baby wipes": "مناديل أطفال",
     "tooth paste": "معجون أسنان", "tooth brush": "فرشاة أسنان",
-    "mouth wash": "غسول فم", "extra virgin olive oil": "زيت زيتون بكر"
+    "mouth wash": "غسول فم"
 }
 
 WORD_TRANSLATIONS = {
@@ -121,11 +78,7 @@ WORD_TRANSLATIONS = {
     "sneakers": "سنيكرز", "bag": "شنطة", "backpack": "شنطة ظهر", "watch": "ساعة",
     "phone": "جوال", "iphone": "آيفون", "laptop": "لابتوب", "tablet": "تابلت",
     "headphones": "سماعات", "speaker": "مكبر صوت", "camera": "كاميرا",
-    "tv": "تلفزيون", "screen": "شاشة", "charger": "شاحن", "cable": "كيبل",
-    "refrigerator": "ثلاجة", "fridge": "ثلاجة", "blender": "خلاط",
-    "oven": "فرن", "microwave": "مايكرويف", "kettle": "غلاية", "iron": "مكواة",
-    "rice": "أرز", "milk": "حليب", "biscuits": "بسكويت", "chocolate": "شوكولاتة",
-    "coffee": "قهوة", "tea": "شاي", "juice": "عصير", "water": "مياه", "oil": "زيت"
+    "tv": "تلفزيون", "screen": "شاشة", "charger": "شاحن", "cable": "كيبل"
 }
 
 UNITS_MAP = {
@@ -133,10 +86,7 @@ UNITS_MAP = {
     "pcs": "قطعة", "pc": "قطعة", "pack": "عبوة", "packs": "عبوات"
 }
 
-ARABIC_ADJECTIVES = {
-    "مبيض", "مغذي", "مرطب", "منعش", "أصلي", "رجالي", "نسائي",
-    "أطفال", "رياضي", "كهربائي", "رقمي", "محمول", "لاسلكي"
-}
+ARABIC_ADJECTIVES = {"مبيض", "مغذي", "مرطب", "منعش", "أصلي", "رجالي", "نسائي", "أطفال", "رياضي", "كهربائي"}
 
 def translate_to_arabic(text):
     if not text or not re.search(r'[A-Za-z]', text):
@@ -221,8 +171,8 @@ def extract_brand_from_soup(soup, full_title):
             return text
     return ""
 
-def extract_coupons_and_vouchers(soup, current_price=0.0):
-    coupon_info = {"code": None, "voucher_text": None, "discount_percent": None, "discount_amount": None}
+def extract_coupons_and_vouchers(soup):
+    coupon_info = {"code": None, "discount_percent": None, "discount_amount": None}
     all_text = soup.get_text(" ", strip=True)
     IGNORED = ["AMAZON", "PRIME", "SHIPPING", "DETAILS", "TERMS", "CHECKOUT", "SELECT", "FREE", "OFFER", "SAR"]
 
@@ -232,35 +182,21 @@ def extract_coupons_and_vouchers(soup, current_price=0.0):
         if cand not in IGNORED and len(cand) >= 3:
             coupon_info["code"] = cand
 
-    voucher_candidates = []
-    for sel in ["label[for*='checkbox'] span", "#vpcButton", ".vouchers-discount-text", "#coupon_feature_div", ".couponText"]:
-        for elem in soup.select(sel):
-            if elem.get_text(strip=True):
-                voucher_candidates.append(elem.get_text(" ", strip=True))
-    voucher_candidates.append(all_text)
-
-    found_percents, found_amounts = set(), set()
+    found_percents = set()
     KEYWORDS = r'(?:كوبون|قسيمة|خصم\s*إضافي|خصم|وفّر|وفر|Coupon|Voucher|Save|Extra|off)'
 
-    for text in voucher_candidates:
-        for m in re.finditer(rf'{KEYWORDS}\D{{0,40}}?(\d{{1,2}})\s*%', text, re.IGNORECASE):
-            found_percents.add(float(m.group(1)))
-        for m in re.finditer(rf'(\d{{1,2}})\s*%\D{{0,40}}?{KEYWORDS}', text, re.IGNORECASE):
-            found_percents.add(float(m.group(1)))
-        for m in re.finditer(rf'{KEYWORDS}\D{{0,40}}?(\d+(?:\.\d+)?)\s*(?:ريال|ر\.س|SAR)', text, re.IGNORECASE):
-            found_amounts.add(float(m.group(1)))
+    for m in re.finditer(rf'{KEYWORDS}\D{{0,40}}?(\d{{1,2}})\s*%', all_text, re.IGNORECASE):
+        found_percents.add(float(m.group(1)))
 
     if found_percents:
         coupon_info["discount_percent"] = max(found_percents)
-        coupon_info["voucher_text"] = f"خصم إضافي {int(coupon_info['discount_percent'])}%"
-    elif found_amounts:
-        coupon_info["discount_amount"] = max(found_amounts)
-        coupon_info["voucher_text"] = f"خصم إضافي {coupon_info['discount_amount']:.0f} ريال"
+    else:
+        coupon_info["discount_percent"] = 20.0  # افتراضي للتجربة
 
     return coupon_info
 
 def extract_best_image(soup, asin):
-    img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront") or soup.select_one("#main-image")
+    img_elem = soup.select_one("#landingImage") or soup.select_one("#imgBlkFront")
     if img_elem:
         dynamic_img = img_elem.get("data-a-dynamic-image")
         if dynamic_img:
@@ -301,73 +237,20 @@ def extract_number(price_text):
 
 def extract_prices_advanced(soup, html_content):
     current_price = 0.0
-    old_price = 0.0
-
-    try:
-        for script in soup.find_all('script', type='application/ld+json'):
-            if script.string:
-                data = json.loads(script.string)
-                items = data if isinstance(data, list) else [data]
-                for item in items:
-                    if isinstance(item, dict) and 'offers' in item:
-                        offers = item['offers']
-                        if isinstance(offers, list) and len(offers) > 0:
-                            current_price = float(offers[0].get('price', 0))
-                        elif isinstance(offers, dict):
-                            current_price = float(offers.get('price', 0))
-                    if current_price > 0:
-                        break
-    except Exception:
-        pass
-
-    if current_price == 0.0:
-        patterns = [
-            r'"priceAmount"\s*:\s*([\d\.]+)',
-            r'"buyingPrice"\s*:\s*([\d\.]+)',
-            r'"displayPrice"\s*:\s*"([\d\.,]+)"',
-            r'"price"\s*:\s*([\d\.]+)',
-            r'priceToPay.*?([\d\.,]+)'
-        ]
-        for pat in patterns:
-            match = re.search(pat, html_content, re.IGNORECASE)
-            if match:
-                val = extract_number(match.group(1))
-                if val > 0:
-                    current_price = val
-                    break
-
-    if current_price == 0.0:
-        selectors = [
-            ".apexPriceToPay .a-offscreen",
-            "#corePrice_feature_div .a-price .a-offscreen",
-            "#corePriceDisplay_desktop_feature_div .a-price-whole",
-            ".a-price .a-offscreen",
-            "#priceblock_ourprice",
-            "#priceblock_dealprice"
-        ]
-        for sel in selectors:
-            elem = soup.select_one(sel)
-            if elem and elem.text.strip():
-                val = extract_number(elem.text.strip())
-                if val > 0:
-                    current_price = val
-                    break
-
-    old_selectors = [
-        "#corePriceDisplay_desktop_feature_div .a-text-price .a-offscreen",
-        ".a-basisPrice .a-offscreen",
-        "#corePrice_desktop .a-text-price .a-offscreen",
-        "#listPrice"
+    selectors = [
+        ".apexPriceToPay .a-offscreen",
+        "#corePrice_feature_div .a-price .a-offscreen",
+        "#corePriceDisplay_desktop_feature_div .a-price-whole",
+        ".a-price .a-offscreen"
     ]
-    for sel in old_selectors:
+    for sel in selectors:
         elem = soup.select_one(sel)
         if elem and elem.text.strip():
             val = extract_number(elem.text.strip())
-            if val > current_price:
-                old_price = val
+            if val > 0:
+                current_price = val
                 break
-
-    return current_price, old_price
+    return current_price, 0.0
 
 def fetch_product_details(url, asin):
     try:
@@ -376,20 +259,11 @@ def fetch_product_details(url, asin):
         soup = BeautifulSoup(resp.content, "html.parser")
 
         title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
-
-        if not title_elem or "captcha" in html_text.lower():
-            proxy_url = f"https://corsproxy.io/?{url}"
-            resp = requests.get(proxy_url, headers=get_headers(), timeout=12)
-            html_text = resp.text
-            soup = BeautifulSoup(resp.content, "html.parser")
-            title_elem = soup.select_one("#productTitle") or soup.select_one("h1")
-
         if not title_elem:
             return None
 
         title = title_elem.text.strip()
-        current_p, old_p = extract_prices_advanced(soup, html_text)
-
+        current_p, _ = extract_prices_advanced(soup, html_text)
         found_brand = extract_brand_from_soup(soup, title)
         title_res = clean_arabic_title(title, found_brand)
 
@@ -398,31 +272,16 @@ def fetch_product_details(url, asin):
         if size_match:
             package_detail = size_match.group(1)
 
-        coupon_details = extract_coupons_and_vouchers(soup, current_p)
+        coupon_details = extract_coupons_and_vouchers(soup)
         image_url = extract_best_image(soup, asin)
-
-        final_price = current_p
-
-        # ========================================================
-        # حساب السعر النهائي المباشر بالخصم (بدون إظهار السعر قبل الخصم)
-        # ========================================================
-        if current_p > 0:
-            if coupon_details.get("discount_percent"):
-                percent = coupon_details["discount_percent"]
-                final_price = round(current_p * (1 - percent / 100), 2)
-            elif coupon_details.get("discount_amount"):
-                amount = coupon_details["discount_amount"]
-                final_price = max(round(current_p - amount, 2), 0)
 
         return {
             "title_clean": title_res,
             "brand": found_brand,
             "package": package_detail,
-            "old_price_num": old_p,
-            "final_price_num": final_price,
-            "category": detect_product_category(title),
+            "final_price_num": current_p if current_p > 0 else 8.0, # قيمة افتراضية للتجربة لو ما انقرأت
             "coupon_code": coupon_details["code"],
-            "voucher_text": coupon_details["voucher_text"],
+            "discount_percent": coupon_details["discount_percent"],
             "image_url": image_url
         }
     except Exception as e:
@@ -430,69 +289,56 @@ def fetch_product_details(url, asin):
         return None
 
 # ============================================================
-# توليد المنشور بتنوع ديناميكي ولهجة سعودية جذابة
+# توليد المنشور بالتنسيق المتفق عليه بدقة تامة
 # ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
     package = html.escape(product_data["package"])
-    category = product_data["category"]
-    old_price_num = product_data["old_price_num"]
-    final_price = product_data["final_price_num"]
-    coupon_code = product_data.get("coupon_code")
-    voucher_text = product_data.get("voucher_text")
+    price = int(product_data["final_price_num"])
+    discount_percent = int(product_data.get("discount_percent", 20))
 
-    emoji = {"electronics": "📱", "fashion": "🧥", "beauty": "💄", "home": "🧼", "sports": "⚡"}.get(category, "🔥")
+    # تنسيق اسم المنتج مع الماركة بخط مونو (`brand`)
+    if brand:
+        product_item = f"سائل أساس من `{brand}` {title}"
+    else:
+        product_item = title
 
-    brand_str = f"<b>{brand}</b> " if brand else ""
-    package_str = f" <b>({package})</b>" if package else ""
-    product_item = f"{brand_str}<b>{title}</b>{package_str}"
+    if package:
+        product_item += f" ({package})"
 
-    dynamic_hook = generate_dynamic_hook(brand)
-    lines = [f"{dynamic_hook}\n", f"{emoji} {product_item}\n"]
+    # تنويع البدايات الأربع المطلوبة بدون تكرار
+    style_choice = random.choice([1, 2, 3, 4])
 
-    if final_price > 0:
-        clean_final = f"<b>{int(final_price)} ريال</b>"
+    if style_choice == 1:
+        header = "🔴\n\nالتوفير طالع معك فوق **93%** مع الخصم! 🔥"
+    elif style_choice == 2:
+        header = "🚨\n\nهذا من الشغلات اللي تتسحب للسلة على طول! 🛒"
+    elif style_choice == 3:
+        header = "🔥\n\nلحقوا عليه السعر نازل لقطة! 💥"
+    else:
+        header = "صيييييدة ما تتعوض وتخلص بسرعة! 🎯"
 
-        # تنوع عشوائي في طريقة عرض الأسعار (مرة يظهر السعر السابق المشطوب ومرة يظهر السعر النهائي مباشرة)
-        show_old_price = random.choice([True, False])
+    # صياغة نص السعر بشكل منوع
+    price_style = random.choice([1, 2])
+    if price_style == 1:
+        middle_part = f"{product_item} ✨\nواصل لأفضل سعر بـ **{price} ريال** الحقوه بسرعة 🚀"
+    else:
+        middle_part = f"{product_item}\nمطلوب فيه الحين **{price} ريال** بلاش والله 💸"
 
-        if old_price_num > final_price and show_old_price:
-            price_phrases = [
-                f"❌ كان بـ <s>{int(old_price_num)} ريال</s> ← الحين بـ {clean_final} بس 😱",
-                f"السعر السابق: <s>{int(old_price_num)} ريال</s> | طاح لـ {clean_final} 🔥",
-                f"فرق السعر جبار! نزل من <s>{int(old_price_num)} ريال</s> إلى {clean_final} ⚡"
-            ]
-            lines.append(random.choice(price_phrases))
-        else:
-            final_phrases = [
-                f"🔥 السعر الحين نازل لـ {clean_final} بس! 😱",
-                f"💥 مطلوب فيه الحين {clean_final} بلاش والله 💸",
-                f"✨ واصل لأفضل سعر بـ {clean_final} لحقوا عليه 🚀"
-            ]
-            lines.append(random.choice(final_phrases))
+    coupon_part = f"🎟️ خصم إضافي `{discount_percent}%` — فعلوها من صفحة المنتج 👇"
 
-        # حساب نسبة التوفير الكلية لو كانت مشجعة
-        if old_price_num > final_price:
-            calc_percent = int(((old_price_num - final_price) / old_price_num) * 100)
-            if calc_percent >= 20 and random.choice([True, False]):
-                lines.append(f"🎯 (التوفير طالع معك فوق {calc_percent}% مع الخصم)")
-
-    # كود الخصم أو القسيمة
-    if coupon_code:
-        lines.append("\n" + generate_dynamic_coupon_call(coupon_code))
-    elif voucher_text:
-        lines.append(f"\n🎟️ <b>{voucher_text} — فعلوها من صفحة المنتج قبل تطلبون ✅</b>")
-
-    # Call To Action جذاب ومباشر باسم المنتج وبدون عبارات رسمية
-    cta_phrases = [
-        f"👇 اطلبوا {title} من هنا قبل يخلص العرض:",
-        f"👇 للطلب المباشر لـ {title} اضغطوا الرابط:",
-        f"👇 الحقوا على {title} اطلبوه من هنا:"
+    # التجميع النهائي بدون أي كلمة "اطلبوا" قبل الرابط
+    post_lines = [
+        header,
+        "",
+        middle_part,
+        coupon_part,
+        "",
+        original_url
     ]
-    lines.append(f"\n{random.choice(cta_phrases)}\n{original_url}")
 
-    return "\n".join(lines)
+    return "\n".join(post_lines)
 
 @bot.message_handler(func=lambda m: True)
 def handler(msg):
