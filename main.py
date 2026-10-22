@@ -227,6 +227,9 @@ def fetch_product_details(url, asin):
         print(f"Error fetching product: {e}")
         return None
 
+# ============================================================
+# صياغة المنشور بأساليب متنوعة وبلهجة سعودية جذابة
+# ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
@@ -242,28 +245,52 @@ def generate_post(product_data, original_url):
     if package and package not in product_item:
         product_item += f" ({package})"
 
+    # قائمة متنوعة للبدايات بلهجات وصياغات مختلفة
     hooks = [
         "🔥🚒 صيييدة أسطورية!",
         "🔥😎 يمين او يسار .. الفرق وااااااضح",
         "🤌🫨 لفت انتباهي كمية التعليق والمدح",
-        "🔥✨ صيييدة نارية ما تتفوت!"
+        "🔥✨ صيييدة نارية ما تتفوت!",
+        "🚨 يا بلاش! طاح سعره اليوم بشكل مو طبيعي",
+        "💥 لقطة اليوم وبفرق سعر واضح جداً",
+        "🎯 من أطلق العروض اللي مرت علي الحين!",
+        "🛍️ هذا من الشغلات اللي تتسحب للسلة على طول"
     ]
     selected_hook = random.choice(hooks)
 
-    price_str = f"«{int(price)} ريال»" if price > 0 else "سعر لقطة"
+    # صياغات السعر المتنوعة
+    price_val = f"«{int(price)} ريال»" if price > 0 else "سعر لقطة"
+    price_phrases = [
+        f"- بـ <b>{price_val}</b> بس!",
+        f"- مطلوب فيه الحين <b>{price_val}</b> بلاش والله 💸",
+        f"- واصل لأفضل سعر بـ <b>{price_val}</b> لحقوا عليه 🚀",
+        f"- السعر الحين نازل لـ <b>{price_val}</b> ⚡"
+    ]
+    selected_price_line = random.choice(price_phrases)
 
     post_lines = [
         selected_hook,
         "",
         f"- <b>{product_item}</b> 🌿",
-        f"- بـ <b>{price_str}</b> بس!",
+        selected_price_line,
     ]
 
+    # تنوع ديناميكي في صياغة الكود أو الكوبون بدون جملة ثابتة
     if coupon_info.get("code"):
-        post_lines.append(f"- 🏷️ كود: <code>{coupon_info['code']}</code>")
-    if coupon_info.get("has_voucher"):
+        code_phrases = [
+            f"- 🏷️ كود الخصم: <code>{coupon_info['code']}</code>",
+            f"- 🏷️ انسخوا الرمز: <code>{coupon_info['code']}</code>",
+            f"- 🏷️ كود: <code>{coupon_info['code']}</code> (طبقوه بالسلة)"
+        ]
+        post_lines.append(random.choice(code_phrases))
+    elif coupon_info.get("has_voucher"):
         pct_str = f" {coupon_info['percent']}%" if coupon_info.get("percent") else ""
-        post_lines.append(f"- 🟥 فعّل كوبون{pct_str} من صفحة المنتج ✅")
+        voucher_phrases = [
+            f"- 🟥 فعّل كوبون{pct_str} من صفحة المنتج ✅",
+            f"- 🎟️ لا تنسون تفعلون قسيمة الخصم{pct_str} قبل تطلبون",
+            f"- 📌 فعلوا التخفيض الإضافي{pct_str} من صفحة السلعة"
+        ]
+        post_lines.append(random.choice(voucher_phrases))
 
     post_lines.append("")
     post_lines.append(original_url)
@@ -312,7 +339,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "🤖 البوت يعمل بأسلوب إكس زون المطور 🔥", 200
+    return "🤖 البوت يعمل بتنوع عالي وبدون تكرار 🔥", 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
