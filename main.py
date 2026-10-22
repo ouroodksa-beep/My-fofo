@@ -11,8 +11,8 @@ from flask import Flask, request
 TOKEN = "7956075348:AAEbIrxXc0xOh1jeMcWlYfRF1Qw5jENjv3U"
 bot = telebot.TeleBot(TOKEN)
 
-# 🔑 مفتاح ScraperAPI لتجاوز حظر أمازون
-SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "316c300d48b3f5b748c89feef51dd0c3")
+# 🔑 مفتاح ScraperAPI التجريبي الذي أرسلتيه
+SCRAPER_API_KEY = "316c300d48b3f5b748c89feef51dd0c3"
 
 POPULAR_BRANDS = [
     "Apple", "Samsung", "Sony", "Philips", "Dyson", "Braun", "Tefal", "Moulinex",
@@ -22,7 +22,6 @@ POPULAR_BRANDS = [
     "Johnson's Baby", "Johnson & Johnson", "Johnson's"
 ]
 
-# قاموس ترجمة شامل للعبارات المركبة والتجميلية والطبية
 PHRASE_TRANSLATIONS = {
     "no more tears formula gentle": "تركيبة لا دموع بعد اليوم اللطيفة",
     "no more tears": "لا دموع بعد اليوم",
@@ -59,12 +58,10 @@ def translate_to_arabic(text):
     clean = re.sub(r'[^\w\s]', ' ', original)
     clean = re.sub(r'\s+', ' ', clean).strip()
 
-    # 1. ترجمة الجمل المركبة أولاً
     for phrase in sorted(PHRASE_TRANSLATIONS.keys(), key=len, reverse=True):
         if phrase in clean:
             clean = re.sub(r'\b' + re.escape(phrase) + r'\b', PHRASE_TRANSLATIONS[phrase], clean)
 
-    # 2. ترجمة الكلمات الفردية مع الأرقام والوحدات
     words = clean.split()
     translated = []
     for w in words:
@@ -129,18 +126,15 @@ def extract_brand_from_soup(soup, full_title):
     return ""
 
 def extract_coupons_from_soup(soup):
-    """استخراج الكود والقسيمة الحقيقية من صفحة أمازون بدون اختراع أكواد"""
     all_text = soup.get_text(" ", strip=True)
     coupon_data = {"code": None, "has_voucher": False, "percent": None}
     
-    # البحث عن كود حقيقي في الصفحة
     code_match = re.search(r'(?:كود الخصم|رمز الخصم|Promo Code|Coupon Code)[:\s\-]*([A-Za-z0-9]{4,12})', all_text, re.IGNORECASE)
     if code_match:
         code_cand = code_match.group(1).upper()
         if code_cand not in ["AMAZON", "PRIME", "SAUDI", "DETAILS", "CHECKOUT"]:
             coupon_data["code"] = code_cand
 
-    # البحث عن قسيمة خصم (Voucher/Coupon Checkbox)
     if "vpcButton" in str(soup) or "coupon" in str(soup).lower():
         coupon_data["has_voucher"] = True
         pct_match = re.search(r'(\d{1,2})\s*%\s*(?:خصم|off|voucher|قسيمة)', all_text, re.IGNORECASE)
@@ -191,11 +185,7 @@ def extract_number(price_text):
 
 def fetch_product_details(url, asin):
     try:
-        if SCRAPER_API_KEY and SCRAPER_API_KEY != "حطي_مفتاحك_هنا":
-            fetch_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-        else:
-            fetch_url = url
-
+        fetch_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
         resp = requests.get(fetch_url, timeout=25)
         soup = BeautifulSoup(resp.content, "html.parser")
 
@@ -237,9 +227,6 @@ def fetch_product_details(url, asin):
         print(f"Error fetching product: {e}")
         return None
 
-# ============================================================
-# صياغة المنشور مع النقطة الحمراء بالبداية والترجمة الدقيقة
-# ============================================================
 def generate_post(product_data, original_url):
     title = html.escape(product_data["title_clean"])
     brand = html.escape(product_data["brand"])
@@ -247,7 +234,6 @@ def generate_post(product_data, original_url):
     price = product_data["final_price_num"]
     coupon_info = product_data.get("coupon_info", {})
 
-    # تجهيز اسم المنتج المترجم مع الماركة
     if brand:
         product_item = f"{title} من {brand}"
     else:
@@ -256,10 +242,8 @@ def generate_post(product_data, original_url):
     if package and package not in product_item:
         product_item += f" ({package})"
 
-    # 1. أول سطر: النقطة الحمراء أو الإيموجي الافتتاحي في سطر منفصل كلياً
     top_dot = random.choice(["🔴", "🚨", "🔥", "✨"])
 
-    # 2. الجملة الافتتاحية المشوقة
     openers = [
         "التوفير طالع معك جبار مع الخصم! 🔥",
         "هذا من الشغلات اللي تتسحب للسلة على طول! 🛒",
@@ -270,7 +254,6 @@ def generate_post(product_data, original_url):
 
     price_line = f"💰 <b>بسعر {int(price)} ريال بس</b> 🔥" if price > 0 else "💰 <b>السعر نازل لقطة اليوم</b> 🔥"
 
-    # 3. بناء سطر الكوبون الحقيقي فقط إن وُجد
     coupon_lines = []
     if coupon_info.get("code"):
         coupon_lines.append(f"🏷️ كود الخصم: <code>{coupon_info['code']}</code>")
@@ -283,7 +266,6 @@ def generate_post(product_data, original_url):
 
     coupon_str = "\n".join(coupon_lines)
 
-    # 4. التجميع النهائي بسطور فارغة واضحة ورابط مباشر
     post = f"{top_dot}\n\n{selected_opener}\n\n<b>{product_item}</b> ✨\n\n{price_line}\n\n{coupon_str}\n\n{original_url}"
     return post
 
